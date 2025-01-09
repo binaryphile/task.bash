@@ -158,6 +158,12 @@ differences:
 Here’s the output:
 
 ``` bash
+[changed]       create directories - ~/tmp
+[changed]       create directories - ~/scratch
+
+[summary]
+ok:      0
+changed: 2
 ```
 
 Notice that we’ve used the `-p` argument to `mkdir`, which skips making
@@ -202,6 +208,12 @@ The first time this is run, it will create the directory. The second
 time, with the directory defined, it will give this output:
 
 ``` bash
+[begin]         make a directory
+[changed]       make a directory
+
+[summary]
+ok:      0
+changed: 1
 ```
 
   [idempotent]: https://en.wikipedia.org/wiki/Idempotence#Computer_science_examples

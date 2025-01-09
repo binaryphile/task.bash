@@ -2,6 +2,8 @@
 
 source ./task.bash
 
-task: 'say hello' echo 'Hello, World!'
+task: 'make a directory'
+ok:   '[[ -e ~/tmp ]]'
+def:  mkdir -m 755 ~/tmp
 
 summarize
