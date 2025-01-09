@@ -2,8 +2,11 @@
 
 source ./task.bash
 
-task: 'make a directory'
-ok:   '[[ -e ~/tmp ]]'
-def:  mkdir -m 755 ~/tmp
+[[ ${1:-} == -x ]] && { shift; set -x; }
+
+task: 'create directories' 'mkdir -p -m 755 $1' <<'END'
+  ~/tmp
+  ~/scratch
+END
 
 summarize

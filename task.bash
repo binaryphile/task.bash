@@ -63,7 +63,7 @@ keytask:() { IsKeyTask=1; task: "$@"; IsKeyTask=0; }
 # feeding each line to `run` as an argument.
 loop() {
   while IFS=$' \t' read -r line; do
-    run $line
+    run $( eval "echo $line" )
   done
 }
 
@@ -122,8 +122,8 @@ run() {
 RunCommand() {
   local command
   [[ $BecomeUser == '' ]] &&
-    eval "command=( def: $* )" ||
-    eval 'command=( sudo -u '$BecomeUser' bash -c "$( declare -f def: ); def: $*" )'
+    command=( def: $* ) ||
+    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $*" )
 
   ! (( ShowProgress )) && { Output=$( "${command[@]}" 2>&1 ); return; }
 
