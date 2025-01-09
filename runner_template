@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+Here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
+source "$Here"/task.bash
+
+main() {
+  task 'my changed' echo 'hello there!'
+  section mysection
+}
+
+mysection() {
+  task 'my loop' echo '$1' <<'  END'
+    one
+    two
+  END
+
+  task 'my not run'
+  ok true
+  def not run
+
+  task 'always fails due to ok'
+  ok false
+  def echo 'always fails due to ok'
+
+  task 'always fails due to error'
+  def() {
+    echo 'always fails due to error' >&2
+    false
+  }
+  run
+
+  task 'regular loop'
+  def echo '$1' <<'  END'
+    one
+    two
+  END
+
+  task 'function loop'
+  def() { echo $1; }
+  loop <<'  END'
+    one
+    two
+  END
+}
+
+return 2>/dev/null
+set -eu
+
+[[ ${1:-} == --trace ]] && { shift; set -x; }
+
+main
+summarize

@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+main() {
+  section system
+  section dotfiles
+  section nix
+  section neovim
+}
+
+system() {
+  task: 'set up ssh directory' mkdir -pm700 $HOME/.ssh
+
+  task: 'turn off motd'
+  ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
+  def:  'echo 5 >$HOME/.local/share/cros-motd'
+
+  task: 'create required directories' 'mkdir -pm755 $HOME/$1' <<'  END'
+    .config/liquidprompt
+    .config/nixpkgs
+    .config/ranger
+  END
+
+  task:   'apt update and upgrade'
+  become: root
+  unchg:  '0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.'
+  def:    <<'  END'
+    apt update -qq
+    apt upgrade -y
+  END
+}
+
+dotfiles() {
+  task: 'link context directory' ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
+
+  task: 'clone dotfiles repository'
+  ok:   '[[ -e $HOME/dotfiles ]]'
+  def:() {
+    git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
+    cd $HOME/dotfiles
+    git remote set-url origin git@github.com:binaryphile/dotfiles
+  }
+  run
+
+  keytask: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
+    [src]=bash/init.bash               [path]=.profile
+    [src]=bash/init.bash               [path]=.bash_profile
+    [src]=bash/init.bash               [path]=.bashrc
+    [src]=gitconfig                    [path]=.gitconfig
+    [src]=liquidprompt/liquid.theme    [path]=.config/liquidprompt/liquid.theme
+    [src]=liquidprompt/liquidpromptrc  [path]=.config/liquidpromptrc
+    [src]=ssh/config                   [path]=.ssh/config
+    [src]=tmux.conf                    [path]=.tmux.conf
+    [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf
+  END
+}
+
+nix() {
+  task: 'install nix'
+  prog: on
+  ok:   '[[ -e /nix/var/nix/profiles/default/bin/nix-env ]]'
+  def:  'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
+
+  PATH+=:/nix/var/nix/profiles/default/bin
+
+  task: 'add home manager channel'
+  ok:   '[[ -e $HOME/.nix-channels ]]'
+  def:  nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+
+  task: 'update nix channels'
+  prog: on
+  ok:   '[[ -e $HOME/.nix-defexpr/channels/home-manager ]]'
+  def:  nix-channel --update
+
+  task: 'install home manager'
+  prog: on
+  ok:   '[[ -e $HOME/.config/home-manager ]]'
+  def:  nix-shell '<home-manager>' -A install
+
+  strict off  # next task re-enables strict
+  source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
+
+  keytask: 'create nix configuration symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
+    [src]=home.nix    [path]=home-manager/home.nix
+    [src]=config.nix  [path]=nixpkgs/config.nix
+  END
+
+  task:  'apply home manager configuration'
+  unchg: 'No change so reusing latest profile generation'
+  def:   home-manager switch
+}
+
+neovim() {
+  task: 'clone vim configuration repository'
+  ok:   '[[ -e $HOME/.config/nvim ]]'
+  def:() {
+    git clone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
+    cd $HOME/.config/nvim
+    git remote set-url origin git@github.com:binaryphile/dot_vim
+  }
+  run
+
+  task: 'install vim-plug plugin manager'
+  ok:   '[[ -e $HOME/.local/share/nvim/site/autoload/plug.vim ]]'
+  def:  <<'  END'
+    mkdir -pm755 $HOME/.local/share/nvim/site/autoload
+    curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >$HOME/.local/share/nvim/site/autoload/plug.vim
+  END
+}
+
+if [[ -e task.bash ]]; then
+  source ./task.bash
+  source ./auto.bash
+else
+  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/ansible/main/task.bash) || exit
+  eval "$lib"
+  unset -v lib
+fi
+
+return 2>/dev/null
+set -e
+
+[[ ${1:-} == -x ]] && { shift; set -x; }
+
+main
+summarize
