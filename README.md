@@ -575,7 +575,9 @@ $ main # runs the main tasks but now without "exit on error"
 ```
 
 You can define a task in a function other than `main` if you want to run
-it by itself in repl mode. \## Other considerations
+it by itself in repl mode.
+
+## Other considerations
 
 ### Strict mode and quoting
 
