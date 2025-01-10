@@ -83,10 +83,10 @@ declare -A Changed=()       # tasks that succeeded
 # run runs def after checking that it is not already satisfied and records the result.
 # Task must be set externally already.
 run() {
-  local task=$Task${1:+ - }${1:-}
-  local prefix=''
-  (( InputIsKeyed )) && defs=$( GetVariableDefs $1 )
-  [[ $Condition != '' ]] && ( eval $defs$Condition ) && {
+  local vars='' task=$Task${1:+ - }${1:-}
+  set -- $( eval "echo $1" )
+  (( InputIsKeyed )) && vars=$( GetVariableDefs $1 )
+  [[ $Condition != '' ]] && ( eval $vars$Condition ) && {
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
 
@@ -101,7 +101,7 @@ run() {
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
-  elif (( rc == 0 )) && ( eval $defs$Condition ); then
+  elif (( rc == 0 )) && ( eval $vars$Condition ); then
     Changed[$task]=1
     echo -e "[changed]\t$task"
   else
@@ -117,16 +117,15 @@ run() {
 # RunCommand runs def and captures the output, optionally showing progress.
 # We cheat and refer to variables from the outer scope, so this can only be run by `run`.
 RunCommand() {
-  local command arg
-  (( $# > 0 )) && arg=$( eval "echo $1" ) || arg=''
+  local command
   [[ $BecomeUser == '' ]] &&
-    command=( def: $arg ) ||
-    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $arg" )
+    command=( def: $* ) ||
+    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $*" )
 
-  ! (( ShowProgress )) && { Output=$( eval $defs; "${command[@]}" 2>&1 ); return; }
+  ! (( ShowProgress )) && { Output=$( eval $vars; "${command[@]}" 2>&1 ); return; }
 
   echo -e "[progress]\t$task"
-  Output=$( eval $defs; "${command[@]}" 2>&1 | tee /dev/tty )
+  Output=$( eval $vars; "${command[@]}" 2>&1 | tee /dev/tty )
 }
 
 

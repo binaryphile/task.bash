@@ -4,9 +4,16 @@ source ./task.bash
 
 [[ ${1:-} == -x ]] && { shift; set -x; }
 
+task: 'create directories'
+ok:   '[[ -e $1 ]]'
+def:   'mkdir -m 755 $1' <<'END'
+  $HOME/tmp
+  $HOME/scratch
+END
+
 task: 'link files'
-ok:      '[[ -e $path ]]'
-def:     'ln -s $src $path' <<'END'
+ok:   '[[ -e $path ]]'
+def:  'ln -s $src $path' <<'END'
   [src]=/tmp [path]=$HOME/roottmp
   [src]=/var [path]=$HOME/rootvar
 END

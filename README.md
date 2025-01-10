@@ -193,11 +193,11 @@ that works.
 
 ### Idempotence
 
-A number of task.bash features, beginning here with idempotence, require additional task
-configuration.
+A number of task.bash features, beginning here with idempotence, require
+additional task configuration.
 
-In that case, we don’t define the command in the `task:`
-line. Instead, we call `task:` with just the task name and provide details in
+In that case, we don’t define the command in the `task:` line. Instead,
+we call `task:` with just the task name and provide details in
 additional lines. In these cases, the command is defined with `def:`.
 
 For idempotence, we provide `ok:`, which takes an expression that bash
@@ -241,16 +241,18 @@ changed: 0
 ```
 
 Since the directory already existed, the expression was true and the
-command was not run. The task is reported as `ok`.  We can see that the command was not run because there is no `[begin]` message for it.
+command was not run. The task is reported as `ok`. We can see that the
+command was not run because there is no `[begin]` message for it.
 
 Now we have a way to see when the commands are *actually* changing the
 system!
 
 It’s not always obvious what expression to use with `ok:`. If the
 command has an idempotent switch like `mkdir -p` and doesn’t take long
-to run, it’s usually just as easy to skip idempotence and not define `ok:`. In that case, you
-can just remember that the task will report `changed` even when it
-didn’t really do anything and you can simply go on with your life.
+to run, it’s usually just as easy to skip idempotence and not define
+`ok:`. In that case, you can just remember that the task will report
+`changed` even when it didn’t really do anything and you can simply go
+on with your life.
 
 **But for long-running commands that do have a simple satisfaction
 criterion, like directory existence, this feature is important**. It’s
@@ -270,11 +272,11 @@ key is given in the form: `[key]=value`. Values with spaces can be
 quoted, i.e. `[key]='a value'` .
 
 Use `keytask:` instead of `task:` to begin the definition. It’s the same
-as `task:` other than letting us use keyword arguments in the input. Here’s a
-task to link multiple files:
+as `task:` other than letting us use keyword arguments in the input.
+Here’s a task to link multiple files:
 
 ``` bash
-keytask: 'link files' 'ln -sfT $src $path' <<'END'
+task: 'link files' 'ln -sfT $src $path' <<'END'
   [src]=/tmp [path]=$HOME/roottmp
   [src]=/var [path]=$HOME/rootvar
 END
@@ -284,12 +286,13 @@ END
 than using tilde (`~`) to expand to the home directory. With a key task,
 task.bash cannot expand tilde properly. You may consider simply using
 `$HOME` throughout your scripts so as not to have to remember when tilde
-shouldn't be used.
+shouldn’t be used.
 
 Now the command definition includes variables we haven’t seen, `$src`
-and `$path`. The task still iterates over each line, but task.bash
-uses them to create the keys as variables with the corresponding values, so `$src`
-and `$path` exist when the command is run. The output looks like this:
+and `$path`. The task still iterates over each line, but task.bash uses
+them to create the keys as variables with the corresponding values, so
+`$src` and `$path` exist when the command is run. The output looks like
+this:
 
 ``` bash
 [changed]       link files - [src]=/tmp [path]=$HOME/roottmp
@@ -330,17 +333,21 @@ END
 ```
 
 task.bash makes sure that the iteration variables are available to the
-`ok:` expression.  For singular tasks, each input
-line is available as `$1`. For key tasks, the key variables of each line
-are available by name.
+`ok:` expression. For singular tasks, each input line is available as
+`$1`. For key tasks, the key variables of each line are available by
+name.
 
 ### Advanced Bash - redirection and pipelines
 
-When we were looking at iteration, we had to put the task's command definition in a string to protect `$1` from being expanded prematurely.
+When we were looking at iteration, we had to put the task’s command
+definition in a string to protect `$1` from being expanded prematurely.
 
-Special tokens like redirections (`<` and `>`) and pipes (`|`) cannot be passed as arguments to a function like `task:`, so in order for such a command to be given to a task definition, it must be protected as a string:
+Special tokens like redirections (`<` and `>`) and pipes (`|`) cannot be
+passed as arguments to a function like `task:`, so in order for such a
+command to be given to a task definition, it must be protected as a
+string:
 
-```bash
+``` bash
 task: 'download installer' 'curl -fsSL https://install.lix.systems/lix >install_lix.sh'
 ```
 
@@ -348,7 +355,7 @@ task: 'download installer' 'curl -fsSL https://install.lix.systems/lix >install_
 
 This familiar-looking task runs as root:
 
-```bash
+``` bash
 task:   'apt update and upgrade'
 become: root
 def:    <<'END'
@@ -357,14 +364,22 @@ def:    <<'END'
 END
 ```
 
-`become:` enables sudo for the task.  Provide it the user to switch to, `root` in this case, perhaps unsurprisingly.
+`become:` enables sudo for the task. Provide it the user to switch to,
+`root` in this case, perhaps unsurprisingly.
 
-We also see something new here with `def:`.   If no command is provided in arguments, then a
-heredoc provides a list of commands to run.  This is called a composed task,
-because it is composed of subtasks.  Each command runs as a subtask, which means it shares the configuration from the parent task.  In this case, it means both commands will be run as root.
+We also see something new here with `def:`. If no command is provided in
+arguments, then a heredoc provides a list of commands to run. This is
+called a composed task, because it is composed of subtasks. Each command
+runs as a subtask, which means it shares the configuration from the
+parent task. In this case, it means both commands will be run as root.
 
-Each subtask is reported as a separate task in the output, so composed tasks can provide needed detail of task processing, which is one reason to choose this form.
+Each subtask is reported as a separate task in the output, so composed
+tasks can provide needed detail of task processing, which is one reason
+to choose this form.
 
-Be aware that you can't treat composed tasks like a script.  They cannot manage state over multiple lines, such as changing directory or defining variables.  That is because subtasks are isolated from one another, running in separate contexts, like all tasks.
+Be aware that you can’t treat composed tasks like a script. They cannot
+manage state over multiple lines, such as changing directory or defining
+variables. That is because subtasks are isolated from one another,
+running in separate contexts, like all tasks.
 
   [here document]: https://en.wikipedia.org/wiki/Here_document
