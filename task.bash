@@ -27,12 +27,12 @@ Def() {
   run
 }
 
-# GetVariables returns an eval-ready set of variables from the key, value input.
-GetVariables() {
+# GetVariableDefs returns an eval-ready set of variables from the key, value input.
+GetVariableDefs() {
   local -A values="( $* )"  # trick to expand to associative array
   local name
   for name in ${!values[*]}; do
-    printf 'local %s=%q\n' $name "${values[$name]}"
+    printf '%s=%q;' $name "${values[$name]}"
   done
 }
 
@@ -52,7 +52,7 @@ InitTaskEnv() {
 }
 
 # keyed sets that the loop input is keyword variable syntax.
-keyed:() { InputIsKeyed=1; }
+keyed:() { [[ $1 == on ]] && InputIsKeyed=1 || InputIsKeyed=0; }
 
 # loop runs def indirectly by looping through stdin and
 # feeding each line to `run` as an argument.
@@ -85,8 +85,8 @@ declare -A Changed=()       # tasks that succeeded
 run() {
   local task=$Task${1:+ - }${1:-}
   local prefix=''
-  (( InputIsKeyed )) && defs=$( GetVariables $1 )
-  [[ $Condition != '' ]] && ( eval "$defs;$Condition" ) && {
+  (( InputIsKeyed )) && defs=$( GetVariableDefs $1 )
+  [[ $Condition != '' ]] && ( eval $defs$Condition ) && {
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
 
@@ -101,7 +101,7 @@ run() {
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
-  elif (( rc == 0 )) && ( eval "$defs;$Condition" ); then
+  elif (( rc == 0 )) && ( eval $defs$Condition ); then
     Changed[$task]=1
     echo -e "[changed]\t$task"
   else
@@ -123,10 +123,10 @@ RunCommand() {
     command=( def: $arg ) ||
     command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $arg" )
 
-  ! (( ShowProgress )) && { Output=$( eval "$defs"; "${command[@]}" 2>&1 ); return; }
+  ! (( ShowProgress )) && { Output=$( eval $defs; "${command[@]}" 2>&1 ); return; }
 
   echo -e "[progress]\t$task"
-  Output=$( eval "$defs"; "${command[@]}" 2>&1 | tee /dev/tty )
+  Output=$( eval $defs; "${command[@]}" 2>&1 | tee /dev/tty )
 }
 
 
