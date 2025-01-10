@@ -6,10 +6,10 @@ become:() { BecomeUser=$1; }
 
 IsKeyTask=0  # whether the loop inputs are key, value pairs
 
-# Def is the default implementation of `def:`.
-# The user calls the default implementation when they define the task using `def:`. The default
-# implementation accepts a task as arguments and redefines def to run that command, running
-# it indirectly by then calling run, or loop if there is a '$1' argument in the task.
+# Def is the default implementation of `def:`. The user calls the default implementation
+# when they define the task using `def:`. The default implementation accepts a task as
+# arguments and redefines def to run that command, running it indirectly by then calling
+# run, or loop if there is a '$1' argument in the task (or if it's a keytask).
 Def() {
   (( $# == 0 )) && { LoopCommands; return; } # if no arguments, the inputs are commands
 
@@ -57,14 +57,15 @@ InitTaskEnv() {
 # keytask defines a task that loops with key, value pairs from stdin.
 # values are made available to the task as variables of the key name.
 # key, value pairs have bash associative array syntax minus the parentheses.
-keytask:() { IsKeyTask=1; task: "$@"; IsKeyTask=0; }
+keytask:() { IsKeyTask=1; task: "$@"; }
 
 # loop runs def indirectly by looping through stdin and
 # feeding each line to `run` as an argument.
 loop() {
   while IFS=$' \t' read -r line; do
-    run $( eval "echo $line" )
+    run $line
   done
+  IsKeyTask=0
 }
 
 # LoopCommands runs each line of input as its own task.
@@ -120,10 +121,11 @@ run() {
 # RunCommand runs def and captures the output, optionally showing progress.
 # We cheat and refer to the task from the outer scope, so this can only be run by `run`.
 RunCommand() {
-  local command
+  local command arg
+  (( $# > 0 )) && arg=$( eval "echo $1" ) || arg=''
   [[ $BecomeUser == '' ]] &&
-    command=( def: $* ) ||
-    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $*" )
+    command=( def: $arg ) ||
+    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $arg" )
 
   ! (( ShowProgress )) && { Output=$( "${command[@]}" 2>&1 ); return; }
 

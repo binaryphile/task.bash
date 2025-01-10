@@ -130,8 +130,8 @@ Creating directories is a common task. Let’s make a set of them:
 
 ``` bash
 task: 'create directories' 'mkdir -p -m 755 $1' <<'END'
-  $HOME/tmp
-  $HOME/scratch
+  ~/tmp
+  ~/scratch
 END
 ```
 
@@ -238,15 +238,15 @@ whether you needed it or not.  `ok:` is the answer to that.
 
 Iteration is great, but sometimes the command requires multiple inputs.  For example, symlinking a file with `ln -s` requires a source location and a target path (or multiple target paths).
 
-task.bash allows specifying multiple values per iteration line using keyword syntax.  It borrows bash's associative array syntax.  That is, a key is given in the form: `[key]=value`.  Values with spaces can be quoted: `[key]='a value'` or `[key]="value"`.
+task.bash allows specifying multiple values per iteration line using keyword syntax.  It borrows bash's associative array syntax.  That is, a key is given in the form: `[key]=value`.  Values with spaces can be quoted: `[key]='a value'` or `[key]="a value"`.
 
-Use `keytask:` instead of task to begin the definition.  It's the same as `task:` other than letting us use keyword.  Here's a task to link multiple files:
+Use `keytask:` instead of `task:` to begin the definition.  It's the same as `task:` other than letting us use keywords in the input.  Here's a task to link multiple files:
 
 ```bash
 keytask: 'link files'
 ok:      '[[ -e $2 ]]'
 def:     'ln -s $src $path' <<'END'
-  [src]=/tmp     [path]=~/roottmp
+  [src]=/tmp [path]=~/roottmp
   [src]=/var [path]=~/rootvar
 END
 ```
