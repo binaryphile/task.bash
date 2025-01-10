@@ -13,7 +13,7 @@ IsKeyTask=0  # whether the loop inputs are key, value pairs
 Def() {
   (( $# == 0 )) && { LoopCommands; return; } # if no arguments, the inputs are commands
 
-  # if one argument, treat it as arbitrary quoted bash and handle keytask variables
+  # if one argument, treat it as raw bash and handle keytask variables
   (( $# == 1 )) && {
     local prefix=''
     (( IsKeyTask )) && prefix='eval "$( GetVariables $* )"; '
@@ -26,7 +26,7 @@ Def() {
 
   # otherwise compose a simple command from the arguments
   local command
-  printf -v command '%q ' "$@"
+  printf -v command '%q ' "$@"  # shell-quote to preserve argument structure when eval'd
   eval "def:() { $command; }"
   run
 }
@@ -160,6 +160,7 @@ strict() {
       IFS=$'\n'
       set -euf
       ;;
+    * ) false;;
   esac
 }
 
