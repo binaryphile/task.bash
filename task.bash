@@ -84,7 +84,7 @@ declare -A Changed=()       # tasks that succeeded
 # Task must be set externally already.
 run() {
   local vars='' task=$Task${1:+ - }${1:-}
-  set -- $( eval "echo $1" )
+  set -- $( eval "echo $*" )
   (( InputIsKeyed )) && vars=$( GetVariableDefs $1 )
   [[ $Condition != '' ]] && ( eval $vars$Condition ) && {
     Ok[$task]=1

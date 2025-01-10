@@ -20,9 +20,9 @@ system() {
     .config/ranger
   END
 
-  task:   'apt update and upgrade'
+  task:   'apt'
   become: root
-  unchg:  '0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.'
+  unchg:  '0 upgraded, 0 newly installed'
   def:    <<'  END'
     apt update -qq
     apt upgrade -y
@@ -41,7 +41,7 @@ dotfiles() {
   }
   run
 
-  keytask: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
+  task: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
     [src]=bash/init.bash               [path]=.profile
     [src]=bash/init.bash               [path]=.bash_profile
     [src]=bash/init.bash               [path]=.bashrc
@@ -79,7 +79,7 @@ nix() {
   strict off  # next task re-enables strict
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
 
-  keytask: 'create nix configuration symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
+  task: 'create nix configuration symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
     [src]=home.nix    [path]=home-manager/home.nix
     [src]=config.nix  [path]=nixpkgs/config.nix
   END
