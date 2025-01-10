@@ -1,51 +1,7 @@
 #!/usr/bin/env bash
 
-# main lets us move the boilerplate to the bottom, like sourcing task.bash.
-main() {
-  # a simple command definition
-  task: 'create ssh directory' mkdir -p -m 700 $HOME/.ssh
-
-  # A scalar (not keyword) looping task.
-  # Note that the heredoc terminator, "END" in this case, can be quoted
-  # with spaces in front to allow matching indentation at the end.
-  task: 'create required directories' 'mkdir -p -m 755 $HOME/$1' <<'  END'
-    .config/nixpkgs
-    .config/ranger
-  END
-
-  # We use a task list for related tasks here.
-  # `become:` gives privilege escalation to root.
-  task:   'apt'
-  become: root
-  prog:   on
-  def:    <<'  END'
-    apt update -qq
-    apt upgrade -y
-  END
-
-  # this is a script, which needs to have `run` called at the end
-  # `ok:` makes it idempotent, so it is not run when ~/dotfiles exists.
-  task: 'clone dotfiles'
-  ok:   '[[ -e $HOME/dotfiles ]]'
-  def:() {
-    git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-    cd $HOME/dotfiles
-    git remote set-url origin git@github.com:binaryphile/dotfiles
-  }
-  run
-
-  # a keyword looping task
-  task: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
-    [src]=gitconfig                    [path]=.gitconfig
-    [src]=ssh/config                   [path]=.ssh/config
-    [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf
-  END
-}
-
-# boilerplate
-
 source ./task.bash
-[[ ${1:-} == -x ]] && { shift; set -x; }
 
-main
+task: 'say hello' echo 'Hello, World!'
+
 summarize
