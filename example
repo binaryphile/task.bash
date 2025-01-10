@@ -4,7 +4,7 @@ source ./task.bash
 
 [[ ${1:-} == -x ]] && { shift; set -x; }
 
-keytask: 'link files'
+task: 'link files'
 ok:      '[[ -e $path ]]'
 def:     'ln -s $src $path' <<'END'
   [src]=/tmp [path]=$HOME/roottmp

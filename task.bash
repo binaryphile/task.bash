@@ -4,22 +4,18 @@ set -uf   # error on unset variable references and turn off globbing - globbing 
 # become tells the task to run under sudo as user $1
 become:() { BecomeUser=$1; }
 
-IsKeyTask=0  # whether the loop inputs are key, value pairs
-
 # Def is the default implementation of `def:`. The user calls the default implementation
 # when they define the task using `def:`. The default implementation accepts a task as
 # arguments and redefines def to run that command, running it indirectly by then calling
-# run, or loop if there is a '$1' argument in the task (or if it's a keytask).
+# run, or loop if there is a variable argument in the task.
 Def() {
   (( $# == 0 )) && { LoopCommands; return; } # if no arguments, the inputs are commands
 
-  # if one argument, treat it as raw bash and handle keytask variables
+  # if one argument, treat it as raw bash
   (( $# == 1 )) && {
-    local prefix=''
-    (( IsKeyTask )) && prefix='eval "$( GetVariables $* )"; '
-    eval "def:() { $prefix$1; }"
-
-    [[ $IsKeyTask == 1 || $1 == *'$1'* ]] && loop || run
+    eval "def:() { $1; }"
+    [[ $1 == *'$'* && $1 != *'$1'* ]] && InputIsKeyed=1 || InputIsKeyed=0
+    [[ $1 == *'$'* ]] && loop || run
 
     return
   }
@@ -47,6 +43,7 @@ InitTaskEnv() {
 
   BecomeUser=''             # the user to sudo with
   Condition=''              # an expression to tell when the task is already satisfied
+  InputIsKeyed=0            # flag for whether loop input is keyword syntax
   Output=''                 # output from the task, including stderr
   ShowProgress=0            # flag for showing output as the task runs
   UnchangedText=''          # text to test for in the output to see task didn't change anything (i.e. is ok)
@@ -54,10 +51,8 @@ InitTaskEnv() {
   def:() { Def "$@"; }
 }
 
-# keytask defines a task that loops with key, value pairs from stdin.
-# values are made available to the task as variables of the key name.
-# key, value pairs have bash associative array syntax minus the parentheses.
-keytask:() { IsKeyTask=1; task: "$@"; }
+# keyed sets that the loop input is keyword variable syntax.
+keyed:() { InputIsKeyed=1; }
 
 # loop runs def indirectly by looping through stdin and
 # feeding each line to `run` as an argument.
@@ -65,7 +60,6 @@ loop() {
   while IFS=$' \t' read -r line; do
     run $line
   done
-  IsKeyTask=0
 }
 
 # LoopCommands runs each line of input as its own task.
@@ -77,10 +71,7 @@ LoopCommands() {
 }
 
 # ok sets the ok condition for the current task.
-ok:() {
-  (( IsKeyTask )) && Condition='eval "$( GetVariables $* )"; ' || Condition=''
-  Condition+=$1
-}
+ok:() { Condition=$1; }
 
 # prog tells the task to show output as it goes.
 # We want to see task progression on long-running tasks.
@@ -93,7 +84,9 @@ declare -A Changed=()       # tasks that succeeded
 # Task must be set externally already.
 run() {
   local task=$Task${1:+ - }${1:-}
-  [[ $Condition != '' ]] && ( eval $Condition ) && {
+  local prefix=''
+  (( InputIsKeyed )) && defs=$( GetVariables $1 )
+  [[ $Condition != '' ]] && ( eval "$defs;$Condition" ) && {
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
 
@@ -108,7 +101,7 @@ run() {
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
-  elif (( rc == 0 )) && ( eval $Condition ); then
+  elif (( rc == 0 )) && ( eval "$defs;$Condition" ); then
     Changed[$task]=1
     echo -e "[changed]\t$task"
   else
@@ -122,7 +115,7 @@ run() {
 }
 
 # RunCommand runs def and captures the output, optionally showing progress.
-# We cheat and refer to the task from the outer scope, so this can only be run by `run`.
+# We cheat and refer to variables from the outer scope, so this can only be run by `run`.
 RunCommand() {
   local command arg
   (( $# > 0 )) && arg=$( eval "echo $1" ) || arg=''
@@ -130,10 +123,10 @@ RunCommand() {
     command=( def: $arg ) ||
     command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $arg" )
 
-  ! (( ShowProgress )) && { Output=$( "${command[@]}" 2>&1 ); return; }
+  ! (( ShowProgress )) && { Output=$( eval "$defs"; "${command[@]}" 2>&1 ); return; }
 
   echo -e "[progress]\t$task"
-  Output=$( "${command[@]}" 2>&1 | tee /dev/tty )
+  Output=$( eval "$defs"; "${command[@]}" 2>&1 | tee /dev/tty )
 }
 
 
