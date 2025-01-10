@@ -130,8 +130,8 @@ Creating directories is a common task. Let’s make a set of them:
 
 ``` bash
 task: 'create directories' 'mkdir -p -m 755 $1' <<'END'
-  ~/tmp
-  ~/scratch
+  $HOME/tmp
+  $HOME/scratch
 END
 ```
 
@@ -149,8 +149,8 @@ the task definition is the same as before with three differences:
 Here’s the output:
 
 ``` bash
-[changed]       create directories - ~/tmp
-[changed]       create directories - ~/scratch
+[changed]       create directories - $HOME/tmp
+[changed]       create directories - $HOME/scratch
 
 [summary]
 ok:      0
@@ -183,12 +183,12 @@ true when the task is about to be run, the task is marked `ok` and not run.
 
 ``` bash
 task: 'make a directory'
-ok:   '[[ -e ~/tmp ]]'
-def:  mkdir -m 755 ~/tmp
+ok:   '[[ -e $HOME/tmp ]]'
+def:  mkdir -m 755 $HOME/tmp
 ```
 
-- there can only be one argument to `task:`, the task name
-- `def:` takes over command definition, and runs the task as well.
+- there can only be one argument to `task:`, the task name as a single string
+- `def:` takes over command definition, and runs the task as well
 - `ok:` specifies a valid bash expression that will be true when the
   task is satisfied
 
@@ -234,7 +234,7 @@ like directory existence, this feature is important**.  It's very useful to not
 have to wait to download a package installer, for example, before knowing
 whether you needed it or not.  `ok:` is the answer to that.
 
-### Iteration with keyword variables - Key Tasks
+### Iteration with keyword variables - key tasks
 
 Iteration is great, but sometimes the command requires multiple inputs.  For example, symlinking a file with `ln -s` requires a source location and a target path (or multiple target paths).
 
@@ -244,17 +244,47 @@ Use `keytask:` instead of `task:` to begin the definition.  It's the same as `ta
 
 ```bash
 keytask: 'link files'
-ok:      '[[ -e $2 ]]'
-def:     'ln -s $src $path' <<'END'
-  [src]=/tmp [path]=~/roottmp
-  [src]=/var [path]=~/rootvar
+def:     'ln -sfT $src $path' <<'END'
+  [src]=/tmp [path]=$HOME/roottmp
+  [src]=/var [path]=$HOME/rootvar
 END
 ```
 
-Now, the task definition includes variables we haven't seen, `$src` and `$path`.  The task still iterates over each line, but task.bash creates the keys as variables with the values.  The output looks like this:
+**Note:** we intentionally used the environment variable `$HOME` rather than using tilde to expand to the home directory.  With a key task, we cannot always ensure that `~` will be properly expanded.  For this reason, we encourage you to stick to using `$HOME` throughout your scripts so you don't have to remember to stop using `~` when writing a key task.
+
+Now the task definition includes variables we haven't seen, `$src` and `$path`.  The task still iterates over each line, but task.bash creates the keys as variables with the values, so `$src` and `$path` exist when the command is run.  The output looks like this:
 
 ```bash
+[changed]       link files - [src]=/tmp [path]=$HOME/roottmp
+[changed]       link files - [src]=/var [path]=$HOME/rootvar
+
+[summary]
+ok:      0
+changed: 2
 ```
+
+Notice also that even though we ran the commands, we don't see the usual `[begin]` on these iterated tasks.  Iterated tasks can be verbose, so the `[begin]` message is suppressed.  If you wish to see a particular task's beginning, for example if it's a long-running task and you want to know that it started, make it a task by itself rather than part of an iteration.
+
+In this task, we did not set an `ok:` condition, so if it is run again, it will
+report as `changed` even though the links were already there.  It's up to you to
+remember how to write an idempotent version of `ln -s` that includes `-f` so it
+won't error when the link already exists.  If the source we are linking to is a
+directory, as it is here, we also need `-T` so it will not try to create a new
+link *inside* the existing link's directory.
+
+That's a lot to remember, so we may benefit in this case from defining the `ok:`
+condition.  task.bash has you covered here.  Key tasks allow you to refer to the
+key variables in the `ok:` expression:
+
+```bash
+keytask: 'link files'
+ok:      '[[ -e $path ]]'
+def:     'ln -s $src $path' <<'END'
+  [src]=/tmp [path]=$HOME/roottmp
+  [src]=/var [path]=$HOME/rootvar
+END
+```
+
 
   [idempotent]: https://en.wikipedia.org/wiki/Idempotence#Computer_science_examples
   [here document]: https://en.wikipedia.org/wiki/Here_document
