@@ -17,13 +17,18 @@ Not only does task.bash provide these features, it makes using them
   when needed
 - Iterable tasks - run the same task multiple times with different
   inputs
-- Script tasks - assign a full script as easily as a simple command
+- Advanced Bash - Bash features like redirection and pipelines are
+  supported
+- Scripting - manipulate state over multiple steps, such as changing
+  directory
 - Progress and change reporting - sensible ongoing task reporting and
   summarization
-- Privilege escalation - run individual tasks as root or any other user
-  (with permission)
-- Error handling - stops when an error is encountered and shows relevant
+- Privilege escalation - run tasks as another user via sudo
+  authorization
+- Error handling - stop when an error is encountered and show relevant
   output
+- No jail, no sandbox, no abstraction - “It’s just Bash”(TM). The world
+  is your playground. Go nuts.
 
 ## Tutorial
 
@@ -63,12 +68,11 @@ hope you’ll come to appreciate the visual clarity it imparts.
 
 Next comes the name of the task, which is `'say hello'`. It needs to be
 a single argument, so the quotes are necessary. Our habit is to default
-to single quotes for safety, but double quotes would have done the job
-as well.
+to single quotes for safety, but double quotes could have been used.
 
 Finally comes the command itself, `echo 'Hello, World!'`, but
-interestingly, as a set of arguments rather than an entire command in
-one string. This can make it easier to read and work with commands in a
+interestingly, as a set of arguments rather than an entire command in a
+string. This can make it easier to read and work with commands in a
 syntax highlighting editor, for example.
 
 When `task:` sees arguments after the task name, it makes those the
@@ -97,28 +101,28 @@ we talk about idempotence.
 
 Notice that we did not see `Hello, World!`. Like Ansible, task.bash
 assumes that things going well are less interesting than things not
-going well, and suppresses the output of successful commands, unless the
-task fails or you ask for output with `prog:`.
+going well, and suppresses the output of successful commands, unless you
+ask for output with `prog:`.
 
 Finally, the summary appears because we called `summarize`. This is a
-necessity in every script if you want summary statistics, but isn’t
-strictly required. Here we see that one task ended in `changed` status
-and none in `ok` status.
+manual step, needing you to explicitly call it, but if you’re not
+interested in stats you don’t have to use it. Here we see that one task
+ended in `changed` status and none in `ok` status.
 
 ### Task Failure
 
 This task fails:
 
 ``` bash
-task: 'fail' false
+task: 'this fails' false
 ```
 
 Running it gives:
 
 ``` bash
-[begin]         fail
-[failed]        fail
-[output]        fail
+[begin]         this fails
+[failed]        this fails
+[output]        this fails
 
 
 [stopped due to failure]
@@ -128,8 +132,8 @@ Whenever task.bash encounters a failed task, it stops. It doesn’t make
 assumptions about the independence of future tasks and so doesn’t try to
 performs tasks whose prerequisites may not have been met.
 
-We always show the stdout and stderr output of the failed task after
-`[output]`, but in this case, the command had none.
+task.bash shows the stdout and stderr output of the failed task (after
+`[output]`), but in this case, the command had none.
 
 ### Iteration
 
@@ -264,7 +268,7 @@ and a target path.
 task.bash allows specifying multiple values per iteration line using
 keyword syntax. It borrows bash’s associative array syntax. That is, a
 key is given in the form: `[key]=value`. Values with spaces can be
-quoted: `[key]='a value'` or `[key]="a value"`.
+quoted, e.g. `[key]='a value'` .
 
 Use `keytask:` instead of `task:` to begin the definition. It’s the same
 as `task:` other than letting us use keywords in the input. Here’s a
@@ -279,15 +283,14 @@ END
 
 **Note:** we intentionally used the environment variable `$HOME` rather
 than using tilde (`~`) to expand to the home directory. With a key task,
-we cannot expand tilde properly. For this
-reason, we encourage you to stick to using `$HOME` throughout your
-scripts so you don’t have to remember to stop using tilde when writing a
-key task.
+task.bash cannot expand tilde properly. You may consider simply using
+`$HOME` throughout your scripts so as not to have to remember when tilde
+doesn’t work.
 
 Now the command definition includes variables we haven’t seen, `$src`
 and `$path`. The task still iterates over each line, but task.bash
-creates the keys as variables with the values, so `$src` and `$path`
-exist when the command is run. The output looks like this:
+creates the keys as variables with the corresponding values, so `$src`
+and `$path` exist when the command is run. The output looks like this:
 
 ``` bash
 [changed]       link files - [src]=/tmp [path]=$HOME/roottmp
@@ -300,14 +303,16 @@ changed: 2
 
 Notice also that even though we ran the commands, we don’t see the usual
 `[begin]` on these iterated tasks. Iterated tasks can be verbose, so the
-`[begin]` message is suppressed when iterating on tasks.  So if you need to see the task beginning, make a singular task for it rather than including it in an iterated task.
+`[begin]` message is suppressed when iterating. If you need to see when
+a task is beginning, make a singular task for it rather than including
+it in an iterated task.
 
 ### Idempotent Iteration
 
-We’ve seen them apart, but when you use iteration and idempotency
-together, usually your `ok:` condition depends on the iteration input.
-task.bash has you covered there as well. Here are idempotent versions of
-the last two iteration examples:
+When you use iteration and idempotency together, usually the `ok:`
+condition depends on the iteration input. Never fear, task.bash has you
+covered there as well. Here are idempotent versions of the last two
+iteration examples:
 
 ``` bash
 task: 'create directories'
@@ -329,5 +334,9 @@ task.bash makes sure that the iteration variables are available to the
 `ok:` expression. Perhaps unsurprisingly, for singular tasks, each input
 line is available as `$1`. For key tasks, the key variables of each line
 are available by name.
+
+Notice that we don’t need `-p` for `mkdir` nor `-fT` for `ln`, since
+task.bash makes sure they aren’t run if the condition is already
+satisfied.
 
   [here document]: https://en.wikipedia.org/wiki/Here_document
