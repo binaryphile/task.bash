@@ -77,7 +77,10 @@ LoopCommands() {
 }
 
 # ok sets the ok condition for the current task.
-ok:() { Condition=$1; }
+ok:() {
+  (( IsKeyTask )) && Condition='eval "$( GetVariables $* )"; ' || Condition=''
+  Condition+=$1
+}
 
 # prog tells the task to show output as it goes.
 # We want to see task progression on long-running tasks.
@@ -110,7 +113,7 @@ run() {
     echo -e "[changed]\t$task"
   else
     echo -e "[failed]\t$task"
-    ! (( ShowProgress )) && echo -e "[output:]\n$Output\n"
+    ! (( ShowProgress )) && echo -e "[output]\t$task\n$Output\n"
     echo '[stopped due to failure]'
     (( rc == 0 )) && echo '[task reported success but condition not met]'
 
