@@ -1,52 +1,24 @@
 #!/usr/bin/env bash
 
-Here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
-source "$Here"/task.bash
-
 main() {
-  task 'my changed' echo 'hello there!'
-  section mysection
+  # task definitions go here
 }
 
-mysection() {
-  task 'my loop' echo '$1' <<'  END'
-    one
-    two
-  END
+# source task.bash, or download it
+if [[ -e task.bash ]]; then
+  source ./task.bash
+else
+  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
+  eval "$lib"
+  unset -v lib
+fi
 
-  task 'my not run'
-  ok true
-  def not run
-
-  task 'always fails due to ok'
-  ok false
-  def echo 'always fails due to ok'
-
-  task 'always fails due to error'
-  def() {
-    echo 'always fails due to error' >&2
-    false
-  }
-  run
-
-  task 'regular loop'
-  def echo '$1' <<'  END'
-    one
-    two
-  END
-
-  task 'function loop'
-  def() { echo $1; }
-  loop <<'  END'
-    one
-    two
-  END
-}
-
+# stop here if sourcing for repl access
 return 2>/dev/null
-set -eu
+set -e # otherwise turn on exit on error
 
-[[ ${1:-} == --trace ]] && { shift; set -x; }
+# enable tracing if given a -x argument
+[[ ${1:-} == -x ]] && { shift; set -x; }
 
 main
 summarize

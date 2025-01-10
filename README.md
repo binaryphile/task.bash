@@ -485,8 +485,10 @@ summarize
 Here's a template that allows you to curl-pipe the script from github to run it:
 
 ```bash
+#!/usr/bin/env bash
+
 main() {
-	# task definitions go here
+  # task definitions go here
 }
 
 # source task.bash, or download it

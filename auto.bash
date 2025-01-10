@@ -1,3 +1,9 @@
+# auto.bash provides auto-conditions for well-known commands.
+# It provides idempotence for these commands automatically.
+# To use it source it after task.bash and it will be overlaid:
+#   source ./task.bash
+#   source ./auto.bash
+
 # auto turns off auto-conditions for a task.
 # The setting only affects the current task.
 # It can be enabled or disabled.
