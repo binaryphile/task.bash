@@ -279,7 +279,7 @@ END
 
 **Note:** we intentionally used the environment variable `$HOME` rather
 than using tilde (`~`) to expand to the home directory. With a key task,
-we cannot always ensure that tilde will be properly expanded. For this
+we cannot expand tilde properly. For this
 reason, we encourage you to stick to using `$HOME` throughout your
 scripts so you don’t have to remember to stop using tilde when writing a
 key task.
@@ -300,11 +300,7 @@ changed: 2
 
 Notice also that even though we ran the commands, we don’t see the usual
 `[begin]` on these iterated tasks. Iterated tasks can be verbose, so the
-`[begin]` message is suppressed when iterating on tasks, key tasks or
-otherwise . If you wish to see a particular task’s beginning, for
-example if it’s a long-running task so you can know when things might
-otherwise look stuck but are simply busy, make it a task by itself
-rather than part of an iteration.
+`[begin]` message is suppressed when iterating on tasks.  So if you need to see the task beginning, make a singular task for it rather than including it in an iterated task.
 
 ### Idempotent Iteration
 
@@ -330,7 +326,7 @@ END
 ```
 
 task.bash makes sure that the iteration variables are available to the
-`ok:` expression. Perhaps unsurprisingly, for regular tasks, each input
+`ok:` expression. Perhaps unsurprisingly, for singular tasks, each input
 line is available as `$1`. For key tasks, the key variables of each line
 are available by name.
 
