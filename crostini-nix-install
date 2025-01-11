@@ -109,7 +109,7 @@ neovim() {
 
 if [[ -e task.bash ]]; then
   source ./task.bash
-  source ./auto.bash
+  # source ./auto.bash
 else
   lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/ansible/main/task.bash) || exit
   eval "$lib"
