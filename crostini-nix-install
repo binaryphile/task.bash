@@ -5,8 +5,15 @@ main() {
   section ssh
   section dotfiles
   section nix
-  section neovim
+
+  # apps
+  section git
   section goland
+  section init.bash
+  section liquidprompt
+  section neovim
+  section ranger
+  section tmux
 }
 
 system() {
@@ -30,6 +37,10 @@ ssh() {
   task: 'copy credentials'
   ok:   '[[ -e $HOME/.ssh/id_rsa ]]'
   def:  'mkdir -pm700 $HOME/.ssh; install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
+
+  task: 'create dotfile symlink'
+  ok:   '[[ -e $HOME/.ssh/config ]]'
+  def:  ln -sf $HOME/dotfiles/ssh/config $HOME/.ssh/config
 }
 
 dotfiles() {
@@ -45,28 +56,6 @@ dotfiles() {
   task: 'link context directory'
   ok:   '[[ -e $HOME/dotfiles/context ]]'
   def:  ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
-
-  task: 'create config directories'
-  ok:   '[[ -e $HOME/$1 ]]'
-  def: 'mkdir -pm755 $HOME/$1' <<'  END'
-    .config/liquidprompt
-    .config/nixpkgs
-    .config/ranger
-  END
-
-  task: 'create dotfile symlinks'
-  ok:   '[[ -e $HOME/$path ]]'
-  def:  'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
-    [src]=bash/init.bash               [path]=.profile
-    [src]=bash/init.bash               [path]=.bash_profile
-    [src]=bash/init.bash               [path]=.bashrc
-    [src]=gitconfig                    [path]=.gitconfig
-    [src]=liquidprompt/liquid.theme    [path]=.config/liquidprompt/liquid.theme
-    [src]=liquidprompt/liquidpromptrc  [path]=.config/liquidpromptrc
-    [src]=ssh/config                   [path]=.ssh/config
-    [src]=tmux.conf                    [path]=.tmux.conf
-    [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf
-  END
 }
 
 nix() {
@@ -94,6 +83,10 @@ nix() {
   strict off  # next task re-enables strict
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
 
+  task: 'create config directory'
+  ok:   '[[ -e $HOME/.config/nixpkgs ]]'
+  def:  mkdir -pm755 $HOME/.config/nixpkgs
+
   task: 'create nix configuration symlinks'
   ok:   '[[ -e $HOME/.config/$path ]]'
   def:  'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
@@ -105,6 +98,41 @@ nix() {
   prog:  on
   unchg: 'No change so reusing latest profile generation'
   def:   home-manager switch
+}
+
+git() {
+  task: 'create dotfile symlink'
+  ok:   '[[ -e $HOME/.gitconfig ]]'
+  def:  ln -sf $HOME/dotfiles/gitconfig $HOME/.gitconfig
+}
+
+goland() {
+  task: 'symlink projects'
+  ok:   '[[ -e $HOME/GolandProjects ]]'
+  def:  ln -sfT /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+}
+
+init.bash() {
+  task: 'create dotfile symlinks'
+  ok:   '[[ -e $HOME/$path ]]'
+  def:  'ln -sf $HOME/dotfiles/bash/init.bash $HOME/$1' <<'  END'
+    .bash_profile
+    .bashrc
+    .profile
+  END
+}
+
+liquidprompt() {
+  task: 'create config directory'
+  ok:   '[[ -e $HOME/.config/liquidprompt ]]'
+  def:  mkdir -pm755 $HOME/.config/liquidprompt
+
+  task: 'create dotfile symlinks'
+  ok:   '[[ -e $HOME/$path ]]'
+  def:  'ln -sf $HOME/dotfiles/liquidprompt/$src $HOME/.config/$path' <<'  END'
+    [src]=liquid.theme    [path]=liquidprompt/liquid.theme
+    [src]=liquidpromptrc  [path]=liquidpromptrc
+  END
 }
 
 neovim() {
@@ -126,15 +154,24 @@ neovim() {
   run
 }
 
-goland() {
-  task: 'symlink projects'
-  ok:   '[[ -e $HOME/GolandProjects ]]'
-  def:  ln -sfT /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+ranger() {
+  task: 'create config directory'
+  ok:   '[[ -e $HOME/.config/ranger ]]'
+  def:  mkdir -pm755 $HOME/.config/ranger
+
+  task: 'create dotfile symlink'
+  ok:   '[[ -e $HOME/.config/ranger/rc.conf ]]'
+  def:  ln -sf $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
+}
+
+tmux() {
+  task: 'create dotfile symlink'
+  ok:   '[[ -e $HOME/.tmux.conf ]]'
+  def:  ln -sf $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
 }
 
 if [[ -e task.bash ]]; then
   source ./task.bash
-  # source ./auto.bash
 else
   lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/ansible/main/task.bash) || exit
   eval "$lib"

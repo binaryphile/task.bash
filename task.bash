@@ -70,6 +70,20 @@ LoopCommands() {
   done
 }
 
+# LoopTasks runs tasks from keyword input.
+LoopTasks() {
+  while IFS=$' \t' read -r line; do
+    local -A attrs="( $line )"
+    for name in ${!attrs[*]}; do
+      case $name in
+        def ) ;;
+        *   ) $name: ${attrs[$name]};;
+      esac
+    done
+    def: ${attrs[task]}
+  done
+}
+
 # ok sets the ok condition for the current task.
 ok:() { Condition=$1; }
 
@@ -170,9 +184,12 @@ END
 # Tasks can loop if they include a '$1' argument and get fed items via stdin.
 # It resets def if it isn't given a command in arguments.
 task:() {
-  Task=$1
+  Task=${1:-}
+
+  (( $# == 0 )) && { LoopTasks; return; }
 
   InitTaskEnv
+
   (( $# == 1 )) && return
   shift
 
