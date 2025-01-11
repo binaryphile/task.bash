@@ -14,6 +14,7 @@ Def() {
   # if one argument, treat it as raw bash
   (( $# == 1 )) && {
     eval "def:() { $1; }"
+    [[ $1 == *'$1'* ]] && { loop; return; }
     [[ $1 != *'$'[_a-z]* ]] && { run; return; }
     
     InputIsKeyed=1
