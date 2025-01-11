@@ -30,8 +30,6 @@ system() {
 }
 
 dotfiles() {
-  task: 'link context directory' ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
-
   task: 'clone dotfiles repository'
   ok:   '[[ -e $HOME/dotfiles ]]'
   def:() {
@@ -40,6 +38,8 @@ dotfiles() {
     git remote set-url origin git@github.com:binaryphile/dotfiles
   }
   run
+
+  task: 'link context directory' ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
 
   task: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
     [src]=bash/init.bash               [path]=.profile
