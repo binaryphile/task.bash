@@ -19,10 +19,10 @@ Not only does task.bash provide these features, it makes using them
   inputs
 - Advanced Bash - supports Bash features like redirection and pipelines
 - Scripting - manipulate state over multiple steps, such as changing
-  directory or setting variables summarization
+  directory or setting variables
 - Privilege escalation - run tasks as another user via sudo
   authorization
-- Progress and change reporting - sensible ongoing task reporting and
+- Progress and change reporting - sensible ongoing task reporting and summarization
 - Error handling - stop when an error is encountered and show relevant
   output
 - No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go
