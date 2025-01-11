@@ -14,14 +14,6 @@ system() {
   ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
   def:  'echo 5 >$HOME/.local/share/cros-motd'
 
-  task: 'create required directories'
-  ok:   '[[ -e $HOME/$1 ]]'
-  def: 'mkdir -pm755 $HOME/$1' <<'  END'
-    .config/liquidprompt
-    .config/nixpkgs
-    .config/ranger
-  END
-
   task:   'apt update'
   become: root
   unchg:  'All packages are up to date.'
@@ -35,13 +27,9 @@ system() {
 }
 
 ssh() {
-  task: 'create ssh directory'
-  ok:   '[[ -e $HOME/.ssh ]]'
-  def:  mkdir -pm700 $HOME/.ssh
-
   task: 'copy credentials'
   ok:   '[[ -e $HOME/.ssh/id_rsa ]]'
-  def:  'install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
+  def:  'mkdir -pm700 $HOME/.ssh; install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
 }
 
 dotfiles() {
@@ -57,6 +45,14 @@ dotfiles() {
   task: 'link context directory'
   ok:   '[[ -e $HOME/dotfiles/context ]]'
   def:  ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
+
+  task: 'create config directories'
+  ok:   '[[ -e $HOME/$1 ]]'
+  def: 'mkdir -pm755 $HOME/$1' <<'  END'
+    .config/liquidprompt
+    .config/nixpkgs
+    .config/ranger
+  END
 
   task: 'create dotfile symlinks'
   ok:   '[[ -e $HOME/$path ]]'
@@ -100,7 +96,7 @@ nix() {
 
   task: 'create nix configuration symlinks'
   ok:   '[[ -e $HOME/.config/$path ]]'
-  def: 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
+  def:  'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
     [src]=home.nix    [path]=home-manager/home.nix
     [src]=config.nix  [path]=nixpkgs/config.nix
   END
