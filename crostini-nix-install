@@ -2,31 +2,46 @@
 
 main() {
   section system
+  section ssh
   section dotfiles
   section nix
   section neovim
+  section goland
 }
 
 system() {
-  task: 'set up ssh directory' mkdir -pm700 $HOME/.ssh
-
   task: 'turn off motd'
   ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
   def:  'echo 5 >$HOME/.local/share/cros-motd'
 
-  task: 'create required directories' 'mkdir -pm755 $HOME/$1' <<'  END'
+  task: 'create required directories'
+  ok:   '[[ -e $HOME/$1 ]]'
+  def: 'mkdir -pm755 $HOME/$1' <<'  END'
     .config/liquidprompt
     .config/nixpkgs
     .config/ranger
   END
 
-  task:   'apt'
+  task:   'apt update'
+  become: root
+  unchg:  'All packages are up to date.'
+  def:    apt update
+
+  task:   'apt upgrade'
+  prog:   on
   become: root
   unchg:  '0 upgraded, 0 newly installed'
-  def:    <<'  END'
-    apt update -qq
-    apt upgrade -y
-  END
+  def:    apt upgrade -y
+}
+
+ssh() {
+  task: 'create ssh directory'
+  ok:   '[[ -e $HOME/.ssh ]]'
+  def:  mkdir -pm700 $HOME/.ssh
+
+  task: 'copy credentials'
+  ok:   '[[ -e $HOME/.ssh/id_rsa ]]'
+  def:  'install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
 }
 
 dotfiles() {
@@ -39,9 +54,13 @@ dotfiles() {
   }
   run
 
-  task: 'link context directory' ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
+  task: 'link context directory'
+  ok:   '[[ -e $HOME/dotfiles/context ]]'
+  def:  ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
 
-  task: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
+  task: 'create dotfile symlinks'
+  ok:   '[[ -e $HOME/$path ]]'
+  def:  'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
     [src]=bash/init.bash               [path]=.profile
     [src]=bash/init.bash               [path]=.bash_profile
     [src]=bash/init.bash               [path]=.bashrc
@@ -79,12 +98,15 @@ nix() {
   strict off  # next task re-enables strict
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
 
-  task: 'create nix configuration symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
+  task: 'create nix configuration symlinks'
+  ok:   '[[ -e $HOME/.config/$path ]]'
+  def: 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
     [src]=home.nix    [path]=home-manager/home.nix
     [src]=config.nix  [path]=nixpkgs/config.nix
   END
 
   task:  'apply home manager configuration'
+  prog:  on
   unchg: 'No change so reusing latest profile generation'
   def:   home-manager switch
 }
@@ -101,10 +123,17 @@ neovim() {
 
   task: 'install vim-plug plugin manager'
   ok:   '[[ -e $HOME/.local/share/nvim/site/autoload/plug.vim ]]'
-  def:  <<'  END'
+  def:() {
     mkdir -pm755 $HOME/.local/share/nvim/site/autoload
     curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >$HOME/.local/share/nvim/site/autoload/plug.vim
-  END
+  }
+  run
+}
+
+goland() {
+  task: 'symlink projects'
+  ok:   '[[ -e $HOME/GolandProjects ]]'
+  def:  ln -sfT /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
 }
 
 if [[ -e task.bash ]]; then
