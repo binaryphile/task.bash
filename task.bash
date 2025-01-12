@@ -14,7 +14,7 @@ Def() {
   # if one argument, treat it as raw bash
   (( $# == 1 )) && {
     eval "def:() { $1; }"
-    [[ $1 != *'$1'* && $1 == *'$'[_a-z]* ]] && { InputIsKeyed=1; loop; return; }
+    [[ $1 == *'$'[_a-z]* ]] && { InputIsKeyed=1; loop; return; }
     [[ $1 == *'$1'* ]] && loop || run
 
     return
@@ -51,9 +51,6 @@ InitTaskEnv() {
   def:() { Def "$@"; }
 }
 
-# keyed sets that the loop input is keyword variable syntax.
-keyed:() { [[ $1 == on ]] && InputIsKeyed=1 || InputIsKeyed=0; }
-
 # loop runs def indirectly by looping through stdin and
 # feeding each line to `run` as an argument.
 loop() {
@@ -67,20 +64,6 @@ LoopCommands() {
   while IFS=$' \t' read -r line; do
     eval "def:() { $line; }"
     run $line
-  done
-}
-
-# LoopTasks runs tasks from keyword input.
-LoopTasks() {
-  while IFS=$' \t' read -r line; do
-    local -A attrs="( $line )"
-    for name in ${!attrs[*]}; do
-      case $name in
-        def ) ;;
-        *   ) $name: ${attrs[$name]};;
-      esac
-    done
-    def: ${attrs[task]}
   done
 }
 
@@ -185,8 +168,6 @@ END
 # It resets def if it isn't given a command in arguments.
 task:() {
   Task=${1:-}
-
-  (( $# == 0 )) && { LoopTasks; return; }
 
   InitTaskEnv
 

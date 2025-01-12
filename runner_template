@@ -8,7 +8,7 @@ main() {
 if [[ -e task.bash ]]; then
   source ./task.bash
 else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
+#  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
   eval "$lib"
   unset -v lib
 fi
