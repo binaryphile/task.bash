@@ -25,7 +25,7 @@ main() {
   task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
   home_manager_switch
 
-  # apps
+  # apps and data
 
   section git
   task.ln $HOME/dotfiles/gitconfig $HOME/.gitconfig
@@ -47,6 +47,12 @@ main() {
   task.gitclone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
 
+  section obsidian
+  task.ln /mnt/chromeos/MyFiles/Downloads/crostini/obsidian $HOME/obsidian
+
+  section projects
+  task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects $HOME/projects
+
   section ranger
   task.mkdir $HOME/.config/ranger
   task.ln $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
@@ -58,31 +64,31 @@ main() {
 # system
 
 echo_5_motd() {
-  task: 'turn off motd'
-  ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
-  def:  'echo 5 >$HOME/.local/share/cros-motd'
+  task 'turn off motd'
+  ok   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
+  def  'echo 5 >$HOME/.local/share/cros-motd'
 }
 
 apt_upgrade_y() {
-  task:   'apt update'
-  become: root
-  unchg:  'All packages are up to date.'
-  def:    apt update
+  task   'apt update'
+  become root
+  unchg  'All packages are up to date.'
+  def    apt update
 
-  task:   'apt upgrade'
-  prog:   on
-  become: root
-  unchg:  '0 upgraded, 0 newly installed'
-  def:    apt upgrade -y
+  task   'apt upgrade'
+  prog   on
+  become root
+  unchg  '0 upgraded, 0 newly installed'
+  def    apt upgrade -y
 }
 
 # nix
 
 curlpipe_lix_install() {
-  task:   'install nix'
-  prog:   on
-  exist:  /nix/var/nix/profiles/default/bin/nix-env
-  def:    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
+  task   'install nix'
+  prog   on
+  exist  /nix/var/nix/profiles/default/bin/nix-env
+  def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
 
   PATH+=:/nix/var/nix/profiles/default/bin
 }
@@ -90,23 +96,23 @@ curlpipe_lix_install() {
 # home-manager
 
 nix_channel_add_home_manager() {
-  task:   'add home-manager channel'
-  exist:  $HOME/.nix-channels
-  def:    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+  task   'add home-manager channel'
+  exist  $HOME/.nix-channels
+  def    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
 }
 
 nix_channel_update() {
-  task:   'update nix channels'
-  prog:   on
-  exist:  $HOME/.nix-defexpr/channels/home-manager
-  def:    nix-channel --update
+  task   'update nix channels'
+  prog   on
+  exist  $HOME/.nix-defexpr/channels/home-manager
+  def    nix-channel --update
 }
 
 nix_shell_home_manager_install() {
-  task:   'install home-manager'
-  prog:   on
-  exist:  $HOME/.config/home-manager
-  def:    nix-shell '<home-manager>' -A install
+  task   'install home-manager'
+  prog   on
+  exist  $HOME/.config/home-manager
+  def    nix-shell '<home-manager>' -A install
 
   strict off
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
@@ -114,10 +120,10 @@ nix_shell_home_manager_install() {
 }
 
 home_manager_switch() {
-  task:  'apply home manager configuration'
-  prog:  on
-  unchg: 'No change so reusing latest profile generation'
-  def:   home-manager switch
+  task  'apply home manager configuration'
+  prog  on
+  unchg 'No change so reusing latest profile generation'
+  def   home-manager switch
 }
 
 if [[ -e task.bash ]]; then

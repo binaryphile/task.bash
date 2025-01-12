@@ -39,7 +39,7 @@ Let’s look at the simplest task.bash script:
 
 source ./task.bash
 
-task: 'say hello' echo 'Hello, World!'
+task 'say hello' echo 'Hello, World!'
 
 summarize
 ```
@@ -53,20 +53,12 @@ Next comes the line that makes task.bash’s functions available,
 `source ./task.bash`. This presumes that you have task.bash in the
 directory you are running this script.
 
-Third, the task itself. We’ll break down the parts. First is the
-odd-looking `task:`.
+Third, the task itself. We’ll break down the parts. First
+is `task`. `task` is a command that both defines and runs the task.
 
-*Is that a command?* Yes.
-
-*Is the colon really part of the command name?* Yes.
-
-*Why?* task.bash scripts are meant to look like descriptions of tasks
-but to actually *be* running code. As you see the finished product, we
-hope you’ll come to appreciate its visual clarity.
-
-Next comes the name of the task, which is `'say hello'`. It needs to be
-a single argument, so the quotes are necessary. Our habit is to default
-to single quotes for safety, but double quotes could have been used.
+Next comes the description of the task, which is `'say hello'`. It needs to be a single
+argument, so the quotes are necessary. Our habit is to default to single quotes for safety,
+but double quotes could have been used.
 
 Finally comes the command itself, `echo 'Hello, World!'`, but
 interestingly, as a set of arguments rather than an entire command in a
@@ -74,11 +66,11 @@ string. It works for simple commands, that is, an individual command
 without redirection or other special Bash features. Simple commands make
 it easier to read and work with the command.
 
-When `task:` sees arguments after the task name, it makes those the
+When `task` sees arguments after the task description, it makes those the
 definition of the task’s command. Therefore this example is a short but
 complete task definition.
 
-When `task:` is called, it immediately executes the task. So at this
+When `task` is called, it immediately executes the task. So at this
 point in execution, we’d start seeing output that will end up like this:
 
 ``` bash
@@ -101,7 +93,7 @@ we talk about idempotence.
 Notice that we did not see `Hello, World!`. Like Ansible, task.bash
 assumes that things going well are less interesting than things not
 going well, and suppresses the output of successful commands, unless you
-ask for output with `prog:`.
+ask for output with `prog`.
 
 Finally, the summary appears because we called `summarize`. This is a
 manual step, needing you to explicitly call it, but if you’re not
@@ -113,7 +105,7 @@ ended in `changed` status and none in `ok` status.
 This task fails:
 
 ``` bash
-task: 'this fails' false
+task 'this fails' false
 ```
 
 Running it gives:
@@ -142,7 +134,7 @@ through a list of arguments.
 Creating directories is a common task. Let’s make a set of them:
 
 ``` bash
-task: 'create directories' 'mkdir -p -m 755 $1' <<'END'
+task 'create directories' 'mkdir -p -m 755 $1' <<'END'
   $HOME/tmp
   $HOME/scratch
 END
@@ -191,26 +183,26 @@ that works.
 A number of task.bash features, beginning here with idempotence, require
 additional task configuration.
 
-In that case, we don’t define the command in the `task:` line. Instead,
-we call `task:` with just the task name and provide details in
-additional lines. The command is defined instead with `def:`.
+In that case, we don’t define the command in the `task` line. Instead,
+we call `task` with just the task name and provide details in
+additional lines. The command is defined instead with `def`.
 
-For idempotence, we provide `ok:`, which takes an expression that bash
+For idempotence, we provide `ok`, which takes an expression that bash
 can evaluate as true or false. If the condition evaluates true when the
 task is about to be run, the task is marked `ok` and not run.
 
 ``` bash
-task: 'make a directory'
-ok:   '[[ -e $HOME/tmp ]]'
-def:  mkdir -m 755 $HOME/tmp
+task 'make a directory'
+ok   '[[ -e $HOME/tmp ]]'
+def  mkdir -m 755 $HOME/tmp
 ```
 
-- there can only be one argument to `task:`, the task name as a string
-- `def:` takes over command definition, and runs the task as well
-- `ok:` specifies a valid bash expression that will be true when the
+- there can only be one argument to `task`, the task name as a string
+- `def` takes over command definition, and runs the task as well
+- `ok` specifies a valid bash expression that will be true when the
   task is satisfied
 
-Because `def:` runs the task now, it is always the last line in the task
+Because `def` runs the task now, it is always the last line in the task
 definition.
 
 The first time this is run, it will create the directory as expected.
@@ -234,17 +226,17 @@ command was not run because there is no `[begin]` message for it.
 Now we have a way to see when the commands are *actually* changing the
 system!
 
-It’s not always obvious what expression to use with `ok:`. If the
+It’s not always obvious what expression to use with `ok`. If the
 command has an idempotent switch like `mkdir -p` and doesn’t take long
 to run, it’s usually just as easy to skip idempotence and not define
-`ok:`. In that case, you can just remember that the task will report
+`ok`. In that case, you can just remember that the task will report
 `changed` even when it didn’t really do anything and you can simply go
 on with your life.
 
 **But for long-running commands that do have a simple satisfaction
 criterion, like directory existence, this feature is important**. It’s
 very useful to not have to wait to download a package installer, for
-example, before knowing whether you needed it or not. `ok:` is the
+example, before knowing whether you needed it or not. `ok` is the
 answer to that.
 
 ### Iteration with keyword variables
@@ -261,7 +253,7 @@ quoted, i.e. `[key]='a value'` .
 Here’s a task to link multiple files:
 
 ``` bash
-task: 'link files' 'ln -sfT $src $path' <<'END'
+task 'link files' 'ln -sfT $src $path' <<'END'
   [src]=/tmp [path]=$HOME/roottmp
   [src]=/var [path]=$HOME/rootvar
 END
@@ -291,37 +283,37 @@ it in an iterated task.
 
 ### Idempotent Iteration
 
-When you use iteration and idempotency together, usually the `ok:`
+When you use iteration and idempotency together, usually the `ok`
 condition depends on the iteration input. Never fear, task.bash has you
 covered there as well. Here are idempotent versions of the last two
 iteration examples:
 
 ``` bash
-task: 'create directories'
-ok:   '[[ -e $1 ]]'
-def:   'mkdir -m 755 $1' <<'END'
+task 'create directories'
+ok   '[[ -e $1 ]]'
+def   'mkdir -m 755 $1' <<'END'
   $HOME/tmp
   $HOME/scratch
 END
 
-task: 'link files'
-ok:      '[[ -e $path ]]'
-def:     'ln -s $src $path' <<'END'
+task 'link files'
+ok      '[[ -e $path ]]'
+def     'ln -s $src $path' <<'END'
   [src]=/tmp [path]=$HOME/roottmp
   [src]=/var [path]=$HOME/rootvar
 END
 ```
 
 task.bash makes sure that the iteration variables are available to the
-`ok:` expression. For singular tasks, each input line is available as
+`ok` expression. For singular tasks, each input line is available as
 `$1`. For keyword arguments, the key variables of each line are
 available by name.
 
 ### Advanced Bash - raw commands
 
 When we were looking at iteration, we put the task’s command definition
-in a string to protect `$1` from being expanded prematurely. If `def:`
-(and by extension, `task:`) receive a single argument like that for the
+in a string to protect `$1` from being expanded prematurely. If `def`
+(and by extension, `task`) receive a single argument like that for the
 command specification, they treat it as raw bash. That means you can
 include characters that you wouldn’t be able to otherwise, so long as it
 is in a string.
@@ -330,14 +322,14 @@ This is useful with pipes and redirection. Here we download an installer
 script with `curl`:
 
 ``` bash
-task: 'download lix installer' 'curl -fsSL https://install.lix.systems/lix >install_lix'
+task 'download lix installer' 'curl -fsSL https://install.lix.systems/lix >install_lix'
 ```
 
 Semicolon and double-ampersand are other such special characters,
 meaning you can do scripting in a string:
 
 ``` bash
-task: 'download and install lix' 'curl -fsSL https://install.lix.systems/lix >install_lix && chmod 700 install_lix && ./install_lix --no-confirm'
+task 'download and install lix' 'curl -fsSL https://install.lix.systems/lix >install_lix && chmod 700 install_lix && ./install_lix --no-confirm'
 ```
 
 These can get verbose quickly, so task.bash has better options for
@@ -350,16 +342,16 @@ Some commands can take a lot of time and give the impression that the
 script may have hung. Running an installer as we just showed is a good
 example. For these cases, it’s better to have ongoing confirmation that
 things are still happening, in which case you can direct the task to
-show progress with `prog: on`:
+show progress with `prog on`:
 
 ``` bash
-task:  'install lix'
-ok:    '[[ -e /nix/var/nix/profiles/default/bin ]]'
-prog:  on
-def:   ./install_lix --no-confirm
+task  'install lix'
+ok    '[[ -e /nix/var/nix/profiles/default/bin ]]'
+prog  on
+def   ./install_lix --no-confirm
 ```
 
-`prog: on` works best with idempotent tasks (i.e. using `ok:`) so you
+`prog on` works best with idempotent tasks (i.e. using `ok`) so you
 don’t have to see progress when the task doesn’t need to run.
 
 ### Privilege escalation
@@ -367,31 +359,31 @@ don’t have to see progress when the task doesn’t need to run.
 This familiar-looking task runs as root:
 
 ``` bash
-task:   'upgrade system'
-become: root
-def:    apt upgrade -y
+task   'upgrade system'
+become root
+def    apt upgrade -y
 ```
 
-`become:` enables sudo for the task. Usually you will supply the user
+`become` enables sudo for the task. Usually you will supply the user
 `root`, but any other user for whom you have authorization will work.
 
 ### Examining command output for ok status
 
-Some commands are not easily made idempotent (no simple `ok:`
+Some commands are not easily made idempotent (no simple `ok`
 condition), such as `apt upgrade`. With commands like that, you
-generally either have to dig deep in documentation for a good `ok:`
+generally either have to dig deep in documentation for a good `ok`
 condition or, more likely, run the command and see whether it makes any
 changes. apt tells you whether it changed the system after it runs. If
 it ran and didn’t install anything (thankfully, this doesn’t take long),
 we’d like the task output to say `[ok]`, not `[changed]`.
 
-Use `unchg:` to specify some output text indicating no change was made:
+Use `unchg` to specify some output text indicating no change was made:
 
 ``` bash
-task:    'upgrade system'
-become:  root
-unchg:   '0 upgraded, 0 newly installed'
-def:     apt upgrade -y
+task    'upgrade system'
+become  root
+unchg   '0 upgraded, 0 newly installed'
+def     apt upgrade -y
 ```
 
 ### Task lists
@@ -402,15 +394,15 @@ lists can be useful.
 Here we update the last example to run two subtasks:
 
 ``` bash
-task:   'apt'
-become: root
-def:    <<'END'
+task   'apt'
+become root
+def    <<'END'
   apt update
   apt upgrade -y
 END
 ```
 
-If `def:` receives no arguments, it takes input lines as subtasks.
+If `def` receives no arguments, it takes input lines as subtasks.
 Subtasks are executed separately and have their own reporting, so they
 are run independently. Task lists are not scripts and don’t maintain
 state (like working directory or variables) from line to line.
@@ -442,9 +434,9 @@ use git. In order to do this, I change directory to the working copy and
 issue a `git remote` command:
 
 ``` bash
-task:  'clone dotfiles'
-ok:    '[[ -e $HOME/dotfiles ]]'
-def:() {
+task  'clone dotfiles'
+ok    '[[ -e $HOME/dotfiles ]]'
+def() {
   git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
   cd $HOME/dotfiles
   git remote set-url origin git@github.com:binaryphile/dotfiles
@@ -452,12 +444,12 @@ def:() {
 run
 ```
 
-What is that? That’s a function definition for `def:`. Yes, we are
-replacing the `def:` command, but only temporarily, it resets to its
+What is that? That’s a function definition for `def`. Yes, we are
+replacing the `def` command, but only temporarily, it resets to its
 original implementation when this task is done.
 
 This is a standard function with all the scripting functionality of
-Bash, and it will be run as the task. Since the original `def:` was
+Bash, and it will be run as the task. Since the original `def` was
 responsible for running the task and we are no longer calling it, we now
 have to do that ourselves by calling `run` after the task definition.
 
@@ -477,32 +469,32 @@ simple real-world configuration:
 # It also helps with debugging, see the end of the script.
 main() {
   # a simple command definition
-  task: 'create ssh directory' mkdir -p -m 700 $HOME/.ssh
+  task 'create ssh directory' mkdir -p -m 700 $HOME/.ssh
 
   # A scalar (not keyword) looping task.
   # Note that the heredoc terminator, "END" in this case, can be quoted
   # with spaces in front to allow matching indentation at the end.
-  task: 'create required directories' 'mkdir -p -m 755 $HOME/$1' <<'  END'
+  task 'create required directories' 'mkdir -p -m 755 $HOME/$1' <<'  END'
     .config/nixpkgs
     .config/ranger
   END
 
   # We use a task list for related tasks here.
-  # `become: root` gives privilege escalation to root.
-  # `prog: on` makes apt show output.
-  task:   'apt'
-  become: root
-  prog:   on
-  def:    <<'  END'
+  # `become root` gives privilege escalation to root.
+  # `prog on` makes apt show output.
+  task   'apt'
+  become root
+  prog   on
+  def    <<'  END'
     apt update -qq
     apt upgrade -y
   END
 
   # this is a script, which needs to have `run` called at the end
-  # `ok:` makes it idempotent, so it is not run when ~/dotfiles exists.
-  task: 'clone dotfiles'
-  ok:   '[[ -e $HOME/dotfiles ]]'
-  def:() {
+  # `ok` makes it idempotent, so it is not run when ~/dotfiles exists.
+  task 'clone dotfiles'
+  ok   '[[ -e $HOME/dotfiles ]]'
+  def() {
     git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
     cd $HOME/dotfiles
     git remote set-url origin git@github.com:binaryphile/dotfiles
@@ -510,7 +502,7 @@ main() {
   run
 
   # a keyword looping task
-  task: 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
+  task 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
     [src]=gitconfig                    [path]=.gitconfig
     [src]=ssh/config                   [path]=.ssh/config
     [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf

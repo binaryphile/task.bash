@@ -2,10 +2,10 @@ IFS=$'\n' # disable word splitting for most whitespace - this is required
 set -uf   # error on unset variable references and turn off globbing - globbing off is required
 
 # become tells the task to run under sudo as user $1
-become:() { BecomeUser=$1; }
+become() { BecomeUser=$1; }
 
-# Def is the default implementation of `def:`. The user calls the default implementation
-# when they define the task using `def:`. The default implementation accepts a task as
+# Def is the default implementation of def. The user calls the default implementation
+# when they define the task using def. The default implementation accepts a task as
 # arguments and redefines def to run that command, running it indirectly by then calling
 # run, or loop if there is a variable argument in the task.
 Def() {
@@ -13,7 +13,7 @@ Def() {
 
   # if one argument, treat it as raw bash
   (( $# == 1 )) && {
-    eval "def:() { $1; }"
+    eval "def() { $1; }"
     [[ $1 == *'$'[_a-z]* ]] && { InputIsKeyed=1; loop; return; }
     [[ $1 == *'$1'* ]] && loop || run
 
@@ -23,12 +23,12 @@ Def() {
   # otherwise compose a simple command from the arguments
   local command
   printf -v command '%q ' "$@"  # shell-quote to preserve argument structure when eval'd
-  eval "def:() { $command; }"
+  eval "def() { $command; }"
   run
 }
 
 # exist is a shortcut for ok that tests for existence.
-exist:() { ok: "[[ -e $1 ]]"; }
+exist() { ok "[[ -e $1 ]]"; }
 
 # GetVariableDefs returns an eval-ready set of variables from the key, value input.
 GetVariableDefs() {
@@ -51,7 +51,7 @@ InitTaskEnv() {
   ShowProgress=0            # flag for showing output as the task runs
   UnchangedText=''          # text to test for in the output to see task didn't change anything (i.e. is ok)
 
-  def:() { Def "$@"; }
+  def() { Def "$@"; }
 }
 
 # loop runs def indirectly by looping through stdin and
@@ -65,17 +65,17 @@ loop() {
 # LoopCommands runs each line of input as its own task.
 LoopCommands() {
   while IFS=$' \t' read -r line; do
-    eval "def:() { $line; }"
+    eval "def() { $line; }"
     run $line
   done
 }
 
 # ok sets the ok condition for the current task.
-ok:() { Condition=$1; }
+ok() { Condition=$1; }
 
 # prog tells the task to show output as it goes.
 # We want to see task progression on long-running tasks.
-prog:() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
+prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
 declare -A Ok=()            # tasks that were already satisfied
 declare -A Changed=()       # tasks that succeeded
@@ -119,8 +119,8 @@ run() {
 RunCommand() {
   local command
   [[ $BecomeUser == '' ]] &&
-    command=( def: $* ) ||
-    command=( sudo -u $BecomeUser bash -c "$( declare -f def: ); def: $*" )
+    command=( def $* ) ||
+    command=( sudo -u $BecomeUser bash -c "$( declare -f def ); def $*" )
 
   ! (( ShowProgress )) && { Output=$( eval $vars; "${command[@]}" 2>&1 ); return; }
 
@@ -130,7 +130,7 @@ RunCommand() {
 
 
 # section announces the section name
-section() { echo -e "\n[section $1]"; }
+section() { echo -e "\n[section $*]"; }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.
@@ -166,7 +166,7 @@ END
 # task defines the current task and, if given other arguments, creates a task and runs it.
 # Tasks can loop if they include a '$1' argument and get fed items via stdin.
 # It resets def if it isn't given a command in arguments.
-task:() {
+task() {
   Task=${1:-}
 
   InitTaskEnv
@@ -174,19 +174,19 @@ task:() {
   (( $# == 1 )) && return
   shift
 
-  def: "$@"
+  def "$@"
 }
 
 # unchg defines the text to look for in command output to see that nothing changed.
 # Such tasks get marked ok.
-unchg:() { UnchangedText=$1; }
+unchg() { UnchangedText=$1; }
 
-# task helpers
+# predefined helper tasks
 
 task.curl() {
-  task:   $(IFS=' '; echo "curl $1 >$2")
-  exist:  $2
-  def:() {
+  task   "curl $1 >$2"
+  exist  $2
+  def() {
     mkdir -pm 755 $(dirname $2)
     curl -fsSL $1 >$2
   }
@@ -194,20 +194,23 @@ task.curl() {
 }
 
 task.gitclone() {
-  task:   $(IFS=' '; echo "git clone $*")
-  exist:  $2
-  def:() {
-    git clone $*
-    cd $2
+  local IFS=$' '    # temporarily reset IFS for $* expansion
+  task   "git clone $*"
+  exist  "$2"
+  def() {
+    git clone "$@"
+    cd "$2"
     git remote set-url origin git@github.com:binaryphile/dot_vim
   }
   run
 }
 
 task.install600() {
-  task:  $(IFS=' '; echo "install -m 600 $*")
-  exist: $2
-  def:() {
+  local IFS=$' '
+  task  "install -m 600 $*"
+  exist "$2"
+  def() {
+    # IFS is not =' ' when this runs
     mkdir -pm 700 $(dirname $2)
     install -m 600 $*
   }
@@ -216,24 +219,41 @@ task.install600() {
 
 task.ln() {
   (( $# > 0 )) && {
-    task:   $(IFS=' '; echo "create symlink - $*")
-    exist:  $2
-    def: ln -sfT $*
+    # individual command
+    local IFS=' '
+    task   "create symlink - $*"
+    exist  'local -a links="( $1 )"; for arg in ${args[*]:1}; do [[ -e $arg ]] || break; done'
+    def() {
+      # IFS is not =' ' when this runs
+      local link
+      for link in ${*:1}; do
+        mkdir -pm 755 $(dirname $link)
+      done
+
+      ln -sfT $*
+    }
 
     return
   }
 
-  task: "create symlink"
-  ok: 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
-  def:() {
+  # heredoc loop
+  task "create symlink"
+  ok 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
+  def() {
     local -a args="( $1 )"
+
+    local link
+    for link  in ${*:1}; do
+      mkdir -pm 755 $(dirname $link)
+    done
     ln -sfT ${args[*]}
   }
   loop
 }
 
 task.mkdir() {
-  task:   "create directory $1"
-  exist:  $1
-  def:    mkdir -m 755 $1
+  local IFS=' '
+  task   "create directory $*"
+  exist  "$1"
+  def    mkdir -m 755 "$@"
 }
