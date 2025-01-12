@@ -2,25 +2,68 @@
 
 main() {
   section system
-  section ssh
+  echo_5_motd
+  apt_upgrade_y
+
   section dotfiles
+  t.gitclone https://github.com/binaryphile/dotfiles $HOME/dotfiles
+  t.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
+
+  section ssh
+  t.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh
+  t.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
+
   section nix
+  curlpipe_lix_install
+  t.mkdir $HOME/.config/nixpkgs
+  t.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
+
+  section home-manager
+  nix_channel_add_home_manager
+  nix_channel_update
+  nix_shell_home_manager_install
+  t.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
+  home_manager_switch
 
   # apps
+
   section git
+  t.ln $HOME/dotfiles/gitconfig $HOME/.gitconfig
+
   section goland
+  t.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+
   section init.bash
+  t.ln $HOME/dotfiles/bash/init.bash $HOME/{.bashrc,.bash_profile,.profile}
+
   section liquidprompt
+  t.mkdir $HOME/.config/liquidprompt
+  t.ln <<'  END'
+    $HOME/dotfiles/liquidprompt/liquid.theme    $HOME/.config/liquidprompt/liquid.theme
+    $HOME/dotfiles/liquidprompt/liquidpromptrc  $HOME/.config/liquidpromptrc
+  END
+
   section neovim
+  t.gitclone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
+  t.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
+
   section ranger
+  t.mkdir $HOME/.config/ranger
+  t.ln $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
+
   section tmux
+  t.ln $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
 }
 
-system() {
-  task: 'turn off motd'
-  ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
-  def:  'echo 5 >$HOME/.local/share/cros-motd'
+# system
 
+echo_5_motd() {
+  task: 'turn off motd'
+  cntn: $HOME/.local/share/cros-motd 5
+  def:  'echo 5 >$HOME/.local/share/cros-motd'
+}
+
+apt_upgrade_y() {
   task:   'apt update'
   become: root
   unchg:  'All packages are up to date.'
@@ -33,141 +76,105 @@ system() {
   def:    apt upgrade -y
 }
 
-ssh() {
-  task: 'copy credentials'
-  ok:   '[[ -e $HOME/.ssh/id_rsa ]]'
-  def:  'mkdir -pm700 $HOME/.ssh; install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
+# nix
 
-  task: 'create dotfile symlink'
-  ok:   '[[ -e $HOME/.ssh/config ]]'
-  def:  ln -sf $HOME/dotfiles/ssh/config $HOME/.ssh/config
-}
-
-dotfiles() {
-  task: 'clone dotfiles repository'
-  ok:   '[[ -e $HOME/dotfiles ]]'
-  def:() {
-    git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-    cd $HOME/dotfiles
-    git remote set-url origin git@github.com:binaryphile/dotfiles
-  }
-  run
-
-  task: 'link context directory'
-  ok:   '[[ -e $HOME/dotfiles/context ]]'
-  def:  ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
-}
-
-nix() {
-  task: 'install nix'
-  prog: on
-  ok:   '[[ -e /nix/var/nix/profiles/default/bin/nix-env ]]'
-  def:  'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
+curlpipe_lix_install() {
+  task:   'install nix'
+  prog:   on
+  exist:  /nix/var/nix/profiles/default/bin/nix-env
+  def:    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
 
   PATH+=:/nix/var/nix/profiles/default/bin
+}
 
-  task: 'add home manager channel'
-  ok:   '[[ -e $HOME/.nix-channels ]]'
-  def:  nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+# home-manager
 
-  task: 'update nix channels'
-  prog: on
-  ok:   '[[ -e $HOME/.nix-defexpr/channels/home-manager ]]'
-  def:  nix-channel --update
+nix_channel_add_home_manager() {
+  task:   'add home-manager channel'
+  exist:  $HOME/.nix-channels
+  def:    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+}
 
-  task: 'install home manager'
-  prog: on
-  ok:   '[[ -e $HOME/.config/home-manager ]]'
-  def:  nix-shell '<home-manager>' -A install
+nix_channel_update() {
+  task:   'update nix channels'
+  prog:   on
+  exist:  $HOME/.nix-defexpr/channels/home-manager
+  def:    nix-channel --update
+}
 
-  strict off  # next task re-enables strict
+nix_shell_home_manager_install() {
+  task:   'install home-manager'
+  prog:   on
+  exist:  $HOME/.config/home-manager
+  def:    nix-shell '<home-manager>' -A install
+
+  strict off
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
+  strict on
+}
 
-  task: 'create config directory'
-  ok:   '[[ -e $HOME/.config/nixpkgs ]]'
-  def:  mkdir -pm755 $HOME/.config/nixpkgs
-
-  task: 'create nix configuration symlinks'
-  ok:   '[[ -e $HOME/.config/$path ]]'
-  def:  'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
-    [src]=home.nix    [path]=home-manager/home.nix
-    [src]=config.nix  [path]=nixpkgs/config.nix
-  END
-
+home_manager_switch() {
   task:  'apply home manager configuration'
   prog:  on
   unchg: 'No change so reusing latest profile generation'
   def:   home-manager switch
 }
 
-git() {
-  task: 'create dotfile symlink'
-  ok:   '[[ -e $HOME/.gitconfig ]]'
-  def:  ln -sf $HOME/dotfiles/gitconfig $HOME/.gitconfig
-}
+# helpers
 
-goland() {
-  task: 'symlink projects'
-  ok:   '[[ -e $HOME/GolandProjects ]]'
-  def:  ln -sfT /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
-}
-
-init.bash() {
-  task: 'create dotfile symlinks'
-  ok:   '[[ -e $HOME/$path ]]'
-  def:  'ln -sf $HOME/dotfiles/bash/init.bash $HOME/$1' <<'  END'
-    .bash_profile
-    .bashrc
-    .profile
-  END
-}
-
-liquidprompt() {
-  task: 'create config directory'
-  ok:   '[[ -e $HOME/.config/liquidprompt ]]'
-  def:  mkdir -pm755 $HOME/.config/liquidprompt
-
-  task: 'create dotfile symlinks'
-  ok:   '[[ -e $HOME/$path ]]'
-  def:  'ln -sf $HOME/dotfiles/liquidprompt/$src $HOME/.config/$path' <<'  END'
-    [src]=liquid.theme    [path]=liquidprompt/liquid.theme
-    [src]=liquidpromptrc  [path]=liquidpromptrc
-  END
-}
-
-neovim() {
-  task: 'clone vim configuration repository'
-  ok:   '[[ -e $HOME/.config/nvim ]]'
+t.curl() {
+  task:   $(IFS=' '; echo "curl $1 >$2")
+  exist:  $2
   def:() {
-    git clone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
-    cd $HOME/.config/nvim
+    mkdir -pm 755 $(dirname $2)
+    curl -fsSL $1 >$2
+  }
+  run
+}
+
+t.gitclone() {
+  task:   $(IFS=' '; echo "git clone $*")
+  exist:  $2
+  def:() {
+    git clone $*
+    cd $2
     git remote set-url origin git@github.com:binaryphile/dot_vim
   }
   run
+}
 
-  task: 'install vim-plug plugin manager'
-  ok:   '[[ -e $HOME/.local/share/nvim/site/autoload/plug.vim ]]'
+t.install600() {
+  task:  $(IFS=' '; echo "install -m 600 $*")
+  exist: $2
   def:() {
-    mkdir -pm755 $HOME/.local/share/nvim/site/autoload
-    curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >$HOME/.local/share/nvim/site/autoload/plug.vim
+    mkdir -pm 700 $(dirname $2)
+    install -m 600 $*
   }
   run
 }
 
-ranger() {
-  task: 'create config directory'
-  ok:   '[[ -e $HOME/.config/ranger ]]'
-  def:  mkdir -pm755 $HOME/.config/ranger
+t.ln() {
+  (( $# > 0 )) && {
+    task:   $(IFS=' '; echo "create symlink - $*")
+    exist:  $2
+    def: ln -sfT $*
 
-  task: 'create dotfile symlink'
-  ok:   '[[ -e $HOME/.config/ranger/rc.conf ]]'
-  def:  ln -sf $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
+    return
+  }
+
+  task: "create symlink"
+  ok: 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
+  def:() {
+    local -a args="( $1 )"
+    ln -sfT ${args[*]}
+  }
+  loop
 }
 
-tmux() {
-  task: 'create dotfile symlink'
-  ok:   '[[ -e $HOME/.tmux.conf ]]'
-  def:  ln -sf $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
+t.mkdir() {
+  task:   "create directory $1"
+  exist:  $1
+  def:    mkdir -m 755 $1
 }
 
 if [[ -e task.bash ]]; then

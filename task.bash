@@ -4,6 +4,9 @@ set -uf   # error on unset variable references and turn off globbing - globbing 
 # become tells the task to run under sudo as user $1
 become:() { BecomeUser=$1; }
 
+# cntn is a shortcut for ok that tests file contents.
+cntn:() { ok: "[[ $(<$1) == $2 ]]"; }
+
 # Def is the default implementation of `def:`. The user calls the default implementation
 # when they define the task using `def:`. The default implementation accepts a task as
 # arguments and redefines def to run that command, running it indirectly by then calling
@@ -26,6 +29,9 @@ Def() {
   eval "def:() { $command; }"
   run
 }
+
+# exist is a shortcut for ok that tests for existence.
+exist:() { ok: "[[ -e $1 ]]"; }
 
 # GetVariableDefs returns an eval-ready set of variables from the key, value input.
 GetVariableDefs() {
@@ -126,11 +132,8 @@ RunCommand() {
 }
 
 
-# section announces the section name and runs the named section function.
-section() {
-  echo -e "\n[section $1]"
-  $1
-}
+# section announces the section name
+section() { echo -e "\n[section $1]"; }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.
