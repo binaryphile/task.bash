@@ -4,9 +4,6 @@ set -uf   # error on unset variable references and turn off globbing - globbing 
 # become tells the task to run under sudo as user $1
 become:() { BecomeUser=$1; }
 
-# cntn is a shortcut for ok that tests file contents.
-cntn:() { ok: "[[ $(<$1) == $2 ]]"; }
-
 # Def is the default implementation of `def:`. The user calls the default implementation
 # when they define the task using `def:`. The default implementation accepts a task as
 # arguments and redefines def to run that command, running it indirectly by then calling
@@ -183,3 +180,60 @@ task:() {
 # unchg defines the text to look for in command output to see that nothing changed.
 # Such tasks get marked ok.
 unchg:() { UnchangedText=$1; }
+
+# task helpers
+
+task.curl() {
+  task:   $(IFS=' '; echo "curl $1 >$2")
+  exist:  $2
+  def:() {
+    mkdir -pm 755 $(dirname $2)
+    curl -fsSL $1 >$2
+  }
+  run
+}
+
+task.gitclone() {
+  task:   $(IFS=' '; echo "git clone $*")
+  exist:  $2
+  def:() {
+    git clone $*
+    cd $2
+    git remote set-url origin git@github.com:binaryphile/dot_vim
+  }
+  run
+}
+
+task.install600() {
+  task:  $(IFS=' '; echo "install -m 600 $*")
+  exist: $2
+  def:() {
+    mkdir -pm 700 $(dirname $2)
+    install -m 600 $*
+  }
+  run
+}
+
+task.ln() {
+  (( $# > 0 )) && {
+    task:   $(IFS=' '; echo "create symlink - $*")
+    exist:  $2
+    def: ln -sfT $*
+
+    return
+  }
+
+  task: "create symlink"
+  ok: 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
+  def:() {
+    local -a args="( $1 )"
+    ln -sfT ${args[*]}
+  }
+  loop
+}
+
+task.mkdir() {
+  task:   "create directory $1"
+  exist:  $1
+  def:    mkdir -m 755 $1
+}

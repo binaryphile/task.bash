@@ -6,60 +6,60 @@ main() {
   apt_upgrade_y
 
   section dotfiles
-  t.gitclone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-  t.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
+  task.gitclone https://github.com/binaryphile/dotfiles $HOME/dotfiles
+  task.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
 
   section ssh
-  t.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh
-  t.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
+  task.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh
+  task.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
 
   section nix
   curlpipe_lix_install
-  t.mkdir $HOME/.config/nixpkgs
-  t.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
+  task.mkdir $HOME/.config/nixpkgs
+  task.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
 
   section home-manager
   nix_channel_add_home_manager
   nix_channel_update
   nix_shell_home_manager_install
-  t.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
+  task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
   home_manager_switch
 
   # apps
 
   section git
-  t.ln $HOME/dotfiles/gitconfig $HOME/.gitconfig
+  task.ln $HOME/dotfiles/gitconfig $HOME/.gitconfig
 
   section goland
-  t.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+  task.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
 
   section init.bash
-  t.ln $HOME/dotfiles/bash/init.bash $HOME/{.bashrc,.bash_profile,.profile}
+  task.ln $HOME/dotfiles/bash/init.bash $HOME/{.bashrc,.bash_profile,.profile}
 
   section liquidprompt
-  t.mkdir $HOME/.config/liquidprompt
-  t.ln <<'  END'
+  task.mkdir $HOME/.config/liquidprompt
+  task.ln <<'  END'
     $HOME/dotfiles/liquidprompt/liquid.theme    $HOME/.config/liquidprompt/liquid.theme
     $HOME/dotfiles/liquidprompt/liquidpromptrc  $HOME/.config/liquidpromptrc
   END
 
   section neovim
-  t.gitclone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
-  t.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
+  task.gitclone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
+  task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
 
   section ranger
-  t.mkdir $HOME/.config/ranger
-  t.ln $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
+  task.mkdir $HOME/.config/ranger
+  task.ln $HOME/dotfiles/ranger/rc.conf $HOME/.config/ranger/rc.conf
 
   section tmux
-  t.ln $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
+  task.ln $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
 }
 
 # system
 
 echo_5_motd() {
   task: 'turn off motd'
-  cntn: $HOME/.local/share/cros-motd 5
+  ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
   def:  'echo 5 >$HOME/.local/share/cros-motd'
 }
 
@@ -118,63 +118,6 @@ home_manager_switch() {
   prog:  on
   unchg: 'No change so reusing latest profile generation'
   def:   home-manager switch
-}
-
-# helpers
-
-t.curl() {
-  task:   $(IFS=' '; echo "curl $1 >$2")
-  exist:  $2
-  def:() {
-    mkdir -pm 755 $(dirname $2)
-    curl -fsSL $1 >$2
-  }
-  run
-}
-
-t.gitclone() {
-  task:   $(IFS=' '; echo "git clone $*")
-  exist:  $2
-  def:() {
-    git clone $*
-    cd $2
-    git remote set-url origin git@github.com:binaryphile/dot_vim
-  }
-  run
-}
-
-t.install600() {
-  task:  $(IFS=' '; echo "install -m 600 $*")
-  exist: $2
-  def:() {
-    mkdir -pm 700 $(dirname $2)
-    install -m 600 $*
-  }
-  run
-}
-
-t.ln() {
-  (( $# > 0 )) && {
-    task:   $(IFS=' '; echo "create symlink - $*")
-    exist:  $2
-    def: ln -sfT $*
-
-    return
-  }
-
-  task: "create symlink"
-  ok: 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
-  def:() {
-    local -a args="( $1 )"
-    ln -sfT ${args[*]}
-  }
-  loop
-}
-
-t.mkdir() {
-  task:   "create directory $1"
-  exist:  $1
-  def:    mkdir -m 755 $1
 }
 
 if [[ -e task.bash ]]; then
