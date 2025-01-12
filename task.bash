@@ -236,7 +236,6 @@ task.ln() {
     return
   }
 
-  # heredoc loop
   task "create symlink"
   ok 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
   def() {
