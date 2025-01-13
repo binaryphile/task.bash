@@ -5,17 +5,18 @@ main() {
   echo_5_motd
   apt_upgrade_y
 
+  section ssh
+  task.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh/id_rsa
+
   section dotfiles
-  task.gitclone https://github.com/binaryphile/dotfiles $HOME/dotfiles
+  task.gitclone git@github.com:binaryphile/dotfiles $HOME/dotfiles
   task.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
 
-  section ssh
-  task.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh
+  section ssh_part2
   task.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
 
   section nix
   curlpipe_lix_install
-  task.mkdir $HOME/.config/nixpkgs
   task.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
 
   section home-manager
@@ -25,6 +26,7 @@ main() {
   task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
   home_manager_switch
 
+<<<<<<< HEAD
   # apps and data
 
   section git
@@ -38,14 +40,24 @@ main() {
 
   section liquidprompt
   task.mkdir $HOME/.config/liquidprompt
+=======
+  section apps
+>>>>>>> 09c757b (linking)
   task.ln <<'  END'
-    $HOME/dotfiles/liquidprompt/liquid.theme    $HOME/.config/liquidprompt/liquid.theme
-    $HOME/dotfiles/liquidprompt/liquidpromptrc  $HOME/.config/liquidpromptrc
+    $HOME/dotfiles/bash/init.bash                           $HOME/.bashrc
+    $HOME/dotfiles/bash/init.bash                           $HOME/.bash_profile
+    $HOME/dotfiles/bash/init.bash                           $HOME/.profile
+    $HOME/dotfiles/gitconfig                                $HOME/.gitconfig
+    $HOME/dotfiles/liquidprompt/liquid.theme                $HOME/.config/liquidprompt/liquid.theme
+    $HOME/dotfiles/liquidprompt/liquidpromptrc              $HOME/.config/liquidpromptrc
+    $HOME/dotfiles/ranger/rc.conf                           $HOME/.config/ranger/rc.conf
+    $HOME/dotfiles/tmux.conf                                $HOME/.tmux.conf
+    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
   END
 
-  section neovim
-  task.gitclone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
+  task.gitclone git@github.com:binaryphile/dot_vim $HOME/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
+<<<<<<< HEAD
 
   section obsidian
   task.ln /mnt/chromeos/MyFiles/Downloads/crostini/obsidian $HOME/obsidian
@@ -59,6 +71,8 @@ main() {
 
   section tmux
   task.ln $HOME/dotfiles/tmux.conf $HOME/.tmux.conf
+=======
+>>>>>>> 09c757b (linking)
 }
 
 # system

@@ -186,73 +186,37 @@ unchg() { UnchangedText=$1; }
 task.curl() {
   task   "curl $1 >$2"
   exist  $2
-  def() {
-    mkdir -pm 755 $(dirname $2)
-    curl -fsSL $1 >$2
-  }
-  run
+  def    "mkdir -pm 755 $(dirname $2); curl -fsSL $1 >$2"
 }
 
 task.gitclone() {
-  local IFS=$' '    # temporarily reset IFS for $* expansion
-  task   "git clone $*"
-  exist  "$2"
-  def() {
-    git clone "$@"
-    cd "$2"
-    git remote set-url origin git@github.com:binaryphile/dot_vim
-  }
-  run
+  task   $(IFS=' '; echo "git clone $*")
+  exist  $2
+  def    git clone $*
 }
 
 task.install600() {
-  local IFS=$' '
-  task  "install -m 600 $*"
-  exist "$2"
-  def() {
-    # IFS is not =' ' when this runs
-    mkdir -pm 700 $(dirname $2)
-    install -m 600 $*
-  }
-  run
+  task  "install -m 600 $1 $2"
+  exist $2
+  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
 }
 
 task.ln() {
-  (( $# > 0 )) && {
-    # individual command
-    local IFS=' '
-    task   "create symlink - $*"
-    exist  'local -a links="( $1 )"; for arg in ${args[*]:1}; do [[ -e $arg ]] || break; done'
-    def() {
-      # IFS is not =' ' when this runs
-      local link
-      for link in ${*:1}; do
-        mkdir -pm 755 $(dirname $link)
-      done
-
-      ln -sfT $*
-    }
+  (( $# == 0 )) && {
+    task "create symlink"
+    ok   'local -a args="( $1 )"; [[ -L ${args[1]} ]]'
+    def  'local -a args="( $1 )"; ln -sfT ${args[*]}'
 
     return
   }
 
-  task "create symlink"
-  ok 'local -a args="( $1 )"; [[ -e ${args[1]} ]]'
-  def() {
-    local -a args="( $1 )"
-
-    local link
-    for link  in ${*:1}; do
-      mkdir -pm 755 $(dirname $link)
-    done
-    ln -sfT ${args[*]}
-  }
-  loop
+  task   "create symlink - $1 $2"
+  ok     "[[ -L $2 ]]"
+  def    "mkdir -pm 755 $(dirname $2); ln -sfT $1 $2"
 }
 
 task.mkdir() {
-  local IFS=' '
-  task   "create directory $*"
-  exist  "$1"
-  def    mkdir -m 755 "$@"
+  task   "create directory $1"
+  exist  $1
+  def    mkdir -m 755 $1
 }
