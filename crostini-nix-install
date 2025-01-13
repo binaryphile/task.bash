@@ -43,6 +43,11 @@ main() {
     $HOME/dotfiles/tmux.conf                                $HOME/.tmux.conf
     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
   END
+
+  section neovim
+  task.gitclone git@github.com:binaryphile/dot_vim $HOME/.config/nvim
+  task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim $HOME/.local/share/nvim/site/autoload/plug.vim
+  nvim_headless_pluginstall
 }
 
 # system
@@ -71,7 +76,7 @@ apt_upgrade_y() {
 my.install() {
   task  "install -m 600 $1 $2"
   exist $2
-  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
+  def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
 }
 
 # nix
@@ -105,13 +110,25 @@ nix_shell_home_manager_install() {
   def    nix-shell '<home-manager>' -A install
 }
 
+# home-manager
+
 home_manager_switch() {
   task  'apply home manager configuration'
   prog  on
+
   unchg 'No change so reusing latest profile generation'
-  ok 	'[[ $(home-manager switch) == *"No change so reusing latest profile generation"* ]]'
   def   home-manager switch
 }
+
+# neovim
+
+nvim_headless_pluginstall() {
+  task  'install neovim plugins'
+  exist /home/ted/.local/share/nvim/plugged
+  def   nvim --headless +PlugInstall +qall
+}
+
+# boilerplate
 
 if [[ -e task.bash ]]; then
   source ./task.bash
