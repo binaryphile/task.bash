@@ -6,7 +6,7 @@ main() {
   apt_upgrade_y
 
   section credential
-  my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh/id_rsa
+  my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 $HOME/.ssh/id_ed25519
 
   section dotfiles
   task.gitclone git@github.com:binaryphile/dotfiles $HOME/dotfiles
@@ -16,13 +16,18 @@ main() {
   task.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
 
   section nix
-  curlpipe_lix_install
+  curlpipe_lix_installer
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  PATH+=:$HOME/.nix-profile/bin
   task.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
 
   section home-manager
   nix_channel_add_home_manager
   nix_channel_update
   nix_shell_home_manager_install
+  strict off
+  source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
+  strict on
   task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
   home_manager_switch
 
@@ -71,14 +76,11 @@ my.install() {
 
 # nix
 
-curlpipe_lix_install() {
+curlpipe_lix_installer() {
   task   'install nix'
   prog   on
   exist  /nix/var/nix/profiles/default/bin/nix-env
   def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
-
-  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-  PATH+=:$HOME/.nix-profile/bin
 }
 
 # home-manager
@@ -101,10 +103,6 @@ nix_shell_home_manager_install() {
   prog   on
   exist  $HOME/.config/home-manager
   def    nix-shell '<home-manager>' -A install
-
-  strict off
-  source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
-  strict on
 }
 
 home_manager_switch() {
