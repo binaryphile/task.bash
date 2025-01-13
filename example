@@ -2,6 +2,6 @@
 
 source ./task.bash
 
-task: 'say hello' echo 'Hello, World!'
+task 'say hello' echo 'Hello, World!'
 
 summarize

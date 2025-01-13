@@ -1,14 +1,39 @@
 #!/usr/bin/env bash
 
+# The flow of main is to define simple tasks and call complex ones.
+# The idea with naming functions for complex tasks is
+# to keep the name close to the primary command it calls or
+# to the `task` description.
 main() {
-  # task definitions go here
+  # Section names help break sets of tasks into logical groups, but aren't required.
+  # Usually you'll see more tasks than this under each.
+  section system
+  apt_upgrade_y
+
+  section etc
+  task 'say hello' echo 'Hello, World!'
+}
+
+# complex tasks are defined here
+apt_upgrade_y() {
+  task   'apt update'
+  become root
+  unchg  'All packages are up to date.'
+  def    apt update
+
+
+  task   'apt upgrade'
+  become root
+  prog   on
+  unchg  '0 upgraded, 0 newly installed'
+  def    apt upgrade -y
 }
 
 # source task.bash, or download it
 if [[ -e task.bash ]]; then
   source ./task.bash
 else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
+#  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
   eval "$lib"
   unset -v lib
 fi

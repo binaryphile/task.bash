@@ -2,143 +2,121 @@
 
 main() {
   section system
-  section ssh
+  echo_5_motd
+  apt_upgrade_y
+
+  section credential
+  my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh/id_rsa
+
   section dotfiles
+  task.gitclone git@github.com:binaryphile/dotfiles $HOME/dotfiles
+  task.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
+
+  section ssh
+  task.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
+
   section nix
-  section neovim
-  section goland
-}
+  curlpipe_lix_install
+  task.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
 
-system() {
-  task: 'turn off motd'
-  ok:   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
-  def:  'echo 5 >$HOME/.local/share/cros-motd'
+  section home-manager
+  nix_channel_add_home_manager
+  nix_channel_update
+  nix_shell_home_manager_install
+  task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
+  home_manager_switch
 
-  task: 'create required directories'
-  ok:   '[[ -e $HOME/$1 ]]'
-  def: 'mkdir -pm755 $HOME/$1' <<'  END'
-    .config/liquidprompt
-    .config/nixpkgs
-    .config/ranger
-  END
-
-  task:   'apt update'
-  become: root
-  unchg:  'All packages are up to date.'
-  def:    apt update
-
-  task:   'apt upgrade'
-  prog:   on
-  become: root
-  unchg:  '0 upgraded, 0 newly installed'
-  def:    apt upgrade -y
-}
-
-ssh() {
-  task: 'create ssh directory'
-  ok:   '[[ -e $HOME/.ssh ]]'
-  def:  mkdir -pm700 $HOME/.ssh
-
-  task: 'copy credentials'
-  ok:   '[[ -e $HOME/.ssh/id_rsa ]]'
-  def:  'install -m600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh'
-}
-
-dotfiles() {
-  task: 'clone dotfiles repository'
-  ok:   '[[ -e $HOME/dotfiles ]]'
-  def:() {
-    git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-    cd $HOME/dotfiles
-    git remote set-url origin git@github.com:binaryphile/dotfiles
-  }
-  run
-
-  task: 'link context directory'
-  ok:   '[[ -e $HOME/dotfiles/context ]]'
-  def:  ln -sfT contexts/work/crostini-bullseye $HOME/dotfiles/context
-
-  task: 'create dotfile symlinks'
-  ok:   '[[ -e $HOME/$path ]]'
-  def:  'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
-    [src]=bash/init.bash               [path]=.profile
-    [src]=bash/init.bash               [path]=.bash_profile
-    [src]=bash/init.bash               [path]=.bashrc
-    [src]=gitconfig                    [path]=.gitconfig
-    [src]=liquidprompt/liquid.theme    [path]=.config/liquidprompt/liquid.theme
-    [src]=liquidprompt/liquidpromptrc  [path]=.config/liquidpromptrc
-    [src]=ssh/config                   [path]=.ssh/config
-    [src]=tmux.conf                    [path]=.tmux.conf
-    [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf
+  section apps
+  task.ln <<'  END'
+    $HOME/dotfiles/bash/init.bash                           $HOME/.bashrc
+    $HOME/dotfiles/bash/init.bash                           $HOME/.bash_profile
+    $HOME/dotfiles/bash/init.bash                           $HOME/.profile
+    $HOME/dotfiles/gitconfig                                $HOME/.gitconfig
+    $HOME/dotfiles/liquidprompt/liquid.theme                $HOME/.config/liquidprompt/liquid.theme
+    $HOME/dotfiles/liquidprompt/liquidpromptrc              $HOME/.config/liquidpromptrc
+    $HOME/dotfiles/ranger/rc.conf                           $HOME/.config/ranger/rc.conf
+    $HOME/dotfiles/tmux.conf                                $HOME/.tmux.conf
+    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
   END
 }
 
-nix() {
-  task: 'install nix'
-  prog: on
-  ok:   '[[ -e /nix/var/nix/profiles/default/bin/nix-env ]]'
-  def:  'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
+# system
 
-  PATH+=:/nix/var/nix/profiles/default/bin
+echo_5_motd() {
+  task 'turn off motd'
+  ok   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
+  def  'echo 5 >$HOME/.local/share/cros-motd'
+}
 
-  task: 'add home manager channel'
-  ok:   '[[ -e $HOME/.nix-channels ]]'
-  def:  nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+apt_upgrade_y() {
+  task   'apt update'
+  become root
+  unchg  'All packages are up to date.'
+  def    apt update
 
-  task: 'update nix channels'
-  prog: on
-  ok:   '[[ -e $HOME/.nix-defexpr/channels/home-manager ]]'
-  def:  nix-channel --update
+  task   'apt upgrade'
+  prog   on
+  become root
+  unchg  '0 upgraded, 0 newly installed'
+  def    apt upgrade -y
+}
 
-  task: 'install home manager'
-  prog: on
-  ok:   '[[ -e $HOME/.config/home-manager ]]'
-  def:  nix-shell '<home-manager>' -A install
+# credential
 
-  strict off  # next task re-enables strict
+my.install() {
+  task  "install -m 600 $1 $2"
+  exist $2
+  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
+}
+
+# nix
+
+curlpipe_lix_install() {
+  task   'install nix'
+  prog   on
+  exist  /nix/var/nix/profiles/default/bin/nix-env
+  def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
+
+  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  PATH+=:$HOME/.nix-profile/bin
+}
+
+# home-manager
+
+nix_channel_add_home_manager() {
+  task   'add home-manager channel'
+  exist  $HOME/.nix-channels
+  def    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+}
+
+nix_channel_update() {
+  task   'update nix channels'
+  prog   on
+  exist  $HOME/.nix-defexpr/channels/home-manager
+  def    nix-channel --update
+}
+
+nix_shell_home_manager_install() {
+  task   'install home-manager'
+  prog   on
+  exist  $HOME/.config/home-manager
+  def    nix-shell '<home-manager>' -A install
+
+  strict off
   source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
-
-  task: 'create nix configuration symlinks'
-  ok:   '[[ -e $HOME/.config/$path ]]'
-  def: 'ln -sf $HOME/dotfiles/$src $HOME/.config/$path' <<'  END'
-    [src]=home.nix    [path]=home-manager/home.nix
-    [src]=config.nix  [path]=nixpkgs/config.nix
-  END
-
-  task:  'apply home manager configuration'
-  prog:  on
-  unchg: 'No change so reusing latest profile generation'
-  def:   home-manager switch
+  strict on
 }
 
-neovim() {
-  task: 'clone vim configuration repository'
-  ok:   '[[ -e $HOME/.config/nvim ]]'
-  def:() {
-    git clone https://github.com/binaryphile/dot_vim $HOME/.config/nvim
-    cd $HOME/.config/nvim
-    git remote set-url origin git@github.com:binaryphile/dot_vim
-  }
-  run
-
-  task: 'install vim-plug plugin manager'
-  ok:   '[[ -e $HOME/.local/share/nvim/site/autoload/plug.vim ]]'
-  def:() {
-    mkdir -pm755 $HOME/.local/share/nvim/site/autoload
-    curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >$HOME/.local/share/nvim/site/autoload/plug.vim
-  }
-  run
-}
-
-goland() {
-  task: 'symlink projects'
-  ok:   '[[ -e $HOME/GolandProjects ]]'
-  def:  ln -sfT /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+home_manager_switch() {
+  task  'apply home manager configuration'
+  prog  on
+  unchg 'No change so reusing latest profile generation'
+  ok 	'[[ $(home-manager switch) == *"No change so reusing latest profile generation"* ]]'
+  def   home-manager switch
 }
 
 if [[ -e task.bash ]]; then
   source ./task.bash
-  # source ./auto.bash
 else
   lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/ansible/main/task.bash) || exit
   eval "$lib"
