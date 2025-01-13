@@ -44,7 +44,7 @@ main() {
 
 echo_5_motd() {
   task 'turn off motd'
-  ok   '[[ $(<$HOME/.local/share/cros-motd) == 5 ]]'
+  ok   'file=$HOME/.local/share/cros-motd; [[ -e $file && $(<$file) == 5 ]]'
   def  'mkdir -p $HOME/.local/share; echo 5 >$HOME/.local/share/cros-motd'
 }
 
