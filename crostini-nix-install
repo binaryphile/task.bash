@@ -118,7 +118,7 @@ home_manager_switch() {
 if [[ -e task.bash ]]; then
   source ./task.bash
 else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/ansible/main/task.bash) || exit
+  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
   eval "$lib"
   unset -v lib
 fi
