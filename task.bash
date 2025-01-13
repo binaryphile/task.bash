@@ -195,17 +195,11 @@ task.gitclone() {
   def    git clone $*
 }
 
-task.install600() {
-  task  "install -m 600 $1 $2"
-  exist $2
-  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
-}
-
 task.ln() {
   (( $# == 0 )) && {
     task "create symlink"
     ok   'local -a args="( $1 )"; [[ -L ${args[1]} ]]'
-    def  'local -a args="( $1 )"; ln -sfT ${args[*]}'
+    def  'local -a args="( $1 )"; mkdir -pm 755 $(dirname ${args[1]}); ln -sfT ${args[*]}'
 
     return
   }

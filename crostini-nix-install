@@ -6,7 +6,7 @@ main() {
   apt_upgrade_y
 
   section credential
-  task.install600 /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh/id_rsa
+  my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa $HOME/.ssh/id_rsa
 
   section dotfiles
   task.gitclone git@github.com:binaryphile/dotfiles $HOME/dotfiles
@@ -61,6 +61,14 @@ apt_upgrade_y() {
   def    apt upgrade -y
 }
 
+# credential
+
+my.install() {
+  task  "install -m 600 $1 $2"
+  exist $2
+  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
+}
+
 # nix
 
 curlpipe_lix_install() {
@@ -69,7 +77,7 @@ curlpipe_lix_install() {
   exist  /nix/var/nix/profiles/default/bin/nix-env
   def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
 
-  PATH+=:/nix/var/nix/profiles/default/bin
+  PATH+=:$HOME/.nix-profile/bin
 }
 
 # home-manager
@@ -102,6 +110,7 @@ home_manager_switch() {
   task  'apply home manager configuration'
   prog  on
   unchg 'No change so reusing latest profile generation'
+  ok 	'[[ $(home-manager switch) == *"No change so reusing latest profile generation"* ]]'
   def   home-manager switch
 }
 
