@@ -4,16 +4,15 @@ main() {
   section system
   echo_5_motd
   apt_upgrade_y
-
   section credential
   my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 $HOME/.ssh/id_ed25519
 
   section dotfiles
-  task.gitclone git@github.com:binaryphile/dotfiles $HOME/dotfiles
-  task.ln contexts/work/crostini-bullseye $HOME/dotfiles/context
+  task.gitclone git@github.com:binaryphile/dotfiles ~/dotfiles
+  task.ln contexts/work/crostini-bullseye ~/dotfiles/context
 
   section ssh
-  task.ln $HOME/dotfiles/ssh/config $HOME/.ssh/config
+  task.ln ~/dotfiles/ssh/config ~/.ssh/config
 
   section nix
   curlpipe_lix_installer
@@ -33,16 +32,22 @@ main() {
 
   section apps
   task.ln <<'  END'
-    $HOME/dotfiles/bash/init.bash                           $HOME/.bashrc
-    $HOME/dotfiles/bash/init.bash                           $HOME/.bash_profile
-    $HOME/dotfiles/bash/init.bash                           $HOME/.profile
-    $HOME/dotfiles/gitconfig                                $HOME/.gitconfig
-    $HOME/dotfiles/liquidprompt/liquid.theme                $HOME/.config/liquidprompt/liquid.theme
-    $HOME/dotfiles/liquidprompt/liquidpromptrc              $HOME/.config/liquidpromptrc
-    $HOME/dotfiles/ranger/rc.conf                           $HOME/.config/ranger/rc.conf
-    $HOME/dotfiles/tmux.conf                                $HOME/.tmux.conf
-    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects $HOME/GolandProjects
+    ~/dotfiles/bash/init.bash                           ~/.bashrc
+    ~/dotfiles/bash/init.bash                           ~/.bash_profile
+    ~/dotfiles/bash/init.bash                           ~/.profile
+    ~/dotfiles/gitconfig                                ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme                ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc              ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                           ~/.config/ranger/rc.conf
+    ~/dotfiles/tmux.conf                                ~/.tmux.conf
+    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+    /mnt/chromeos/MyFiles/Downloads/crostini/projects       ~/projects
   END
+
+  section neovim
+  task.gitclone git@github.com:binaryphile/dot_vim ~/.config/nvim
+  task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
+  nvim_headless_pluginstall
 }
 
 # system
@@ -71,7 +76,7 @@ apt_upgrade_y() {
 my.install() {
   task  "install -m 600 $1 $2"
   exist $2
-  def 	"mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
+  def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
 }
 
 # nix
@@ -87,31 +92,43 @@ curlpipe_lix_installer() {
 
 nix_channel_add_home_manager() {
   task   'add home-manager channel'
-  exist  $HOME/.nix-channels
+  exist  ~/.nix-channels
   def    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
 }
 
 nix_channel_update() {
   task   'update nix channels'
   prog   on
-  exist  $HOME/.nix-defexpr/channels/home-manager
+  exist  ~/.nix-defexpr/channels/home-manager
   def    nix-channel --update
 }
 
 nix_shell_home_manager_install() {
   task   'install home-manager'
   prog   on
-  exist  $HOME/.config/home-manager
+  exist  ~/.config/home-manager
   def    nix-shell '<home-manager>' -A install
 }
+
+# home-manager
 
 home_manager_switch() {
   task  'apply home manager configuration'
   prog  on
+
   unchg 'No change so reusing latest profile generation'
-  ok 	'[[ $(home-manager switch) == *"No change so reusing latest profile generation"* ]]'
   def   home-manager switch
 }
+
+# neovim
+
+nvim_headless_pluginstall() {
+  task  'install neovim plugins'
+  exist /home/ted/.local/share/nvim/plugged
+  def   nvim --headless +PlugInstall +qall
+}
+
+# boilerplate
 
 if [[ -e task.bash ]]; then
   source ./task.bash
