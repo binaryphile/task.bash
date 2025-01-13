@@ -192,7 +192,7 @@ task.curl() {
 task.gitclone() {
   task   $(IFS=' '; echo "git clone $*")
   exist  $2
-  def    git clone $*
+  def    GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone $*
 }
 
 task.ln() {
