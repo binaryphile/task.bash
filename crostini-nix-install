@@ -3,7 +3,7 @@
 main() {
   section system
   echo_5_motd
-  apt_upgrade_y
+  apt_upgrade
 
   section credential
   my_install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
@@ -59,7 +59,7 @@ echo_5_motd() {
   def  'mkdir -p ~/.local/share; echo 5 >~/.local/share/cros-motd'
 }
 
-apt_upgrade_y() {
+apt_upgrade() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
