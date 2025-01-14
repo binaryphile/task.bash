@@ -2,34 +2,33 @@
 
 main() {
   section system
-  echo_5_motd
-  apt_upgrade
+  task.apt_upgrade
 
   section credential
-  my_install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
+  task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
 
   section dotfiles
-  task.gitclone git@github.com:binaryphile/dotfiles ~/dotfiles
+  task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
   task.ln contexts/work/crostini-bullseye ~/dotfiles/context
 
   section ssh
   task.ln ~/dotfiles/ssh/config ~/.ssh/config
 
   section nix
-  curlpipe_lix_installer
+  task.curlpipe_lix_installer
   source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
   PATH+=:~/.nix-profile/bin
   task.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
-  section home-manager
-  nix_channel_add_home_manager
-  nix_channel_update
-  nix_shell_home_manager_install
+  section home manager
+  task.nix_channel_add_home_manager
+  task.nix_channel_update
+  task.nix_shell_home_manager_install
   strict off
   source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
   strict on
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
-  home_manager_switch
+  task.home_manager_switch
 
   section apps
   task.ln <<'  END'
@@ -46,20 +45,14 @@ main() {
   END
 
   section neovim
-  task.gitclone git@github.com:binaryphile/dot_vim ~/.config/nvim
+  task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
-  nvim_headless_pluginstall
+  task.nvim_headless_plug_install
 }
 
 # system
 
-echo_5_motd() {
-  task 'turn off motd'
-  ok   '[[ $(<~/.local/share/cros-motd) == 5 ]]'
-  def  'mkdir -p ~/.local/share; echo 5 >~/.local/share/cros-motd'
-}
-
-apt_upgrade() {
+task.apt_upgrade() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
@@ -74,7 +67,7 @@ apt_upgrade() {
 
 # credential
 
-my_install() {
+task.install() {
   task  "install -m 600 $1 $2"
   exist $2
   def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
@@ -82,38 +75,36 @@ my_install() {
 
 # nix
 
-curlpipe_lix_installer() {
+task.curlpipe_lix_installer() {
   task   'install nix'
   prog   on
   exist  /nix/var/nix/profiles/default/bin/nix-env
   def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm'
 }
 
-# home-manager
+# home manager
 
-nix_channel_add_home_manager() {
-  task   'add home-manager channel'
+task.nix_channel_add_home_manager() {
+  task   'add home manager channel'
   exist  ~/.nix-channels
   def    'nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager'
 }
 
-nix_channel_update() {
+task.nix_channel_update() {
   task   'update nix channels'
   prog   on
   exist  ~/.nix-defexpr/channels/home-manager
   def    'nix-channel --update'
 }
 
-nix_shell_home_manager_install() {
-  task   'install home-manager'
+task.nix_shell_home_manager_install() {
+  task   'install home manager'
   prog   on
   exist  ~/.config/home-manager
   def    "nix-shell '<home-manager>' -A install"
 }
 
-# home-manager
-
-home_manager_switch() {
+task.home_manager_switch() {
   task  'apply home manager configuration'
   prog  on
   unchg 'No change so reusing latest profile generation'
@@ -122,7 +113,7 @@ home_manager_switch() {
 
 # neovim
 
-nvim_headless_pluginstall() {
+task.nvim_headless_plug_install() {
   task  'install neovim plugins'
   exist /home/ted/.local/share/nvim/plugged
   def   'nvim --headless +PlugInstall +qall'

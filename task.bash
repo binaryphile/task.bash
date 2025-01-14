@@ -151,7 +151,7 @@ task.curl() {
   def    "mkdir -p $(dirname $2); curl -fsSL $1 >$2"
 }
 
-task.gitclone() {
+task.git_clone() {
   task   "git clone $1 $2"
   exist  $2
   def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
