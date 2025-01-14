@@ -39,7 +39,8 @@ Let’s look at the simplest task.bash script:
 
 source ./task.bash
 
-task 'say hello' echo 'Hello, World!'
+task 'say hello'
+def  'echo "Hello, World!"'
 
 summarize
 ```
@@ -53,24 +54,15 @@ Next comes the line that makes task.bash’s functions available,
 `source ./task.bash`. This presumes that you have task.bash in the
 directory you are running this script.
 
-Third, the task itself. We’ll break down the parts. First
-is `task`. `task` is a command that both defines and runs the task.
+Third, the task itself. We’ll break down the parts. First is `task`. `task` is a command
+that sets the description message you'll see when it runs. The description needs to be a
+single argument, so the quotes are necessary. Our habit is to default to single quotes for
+safety, but double quotes could have been used.
 
-Next comes the description of the task, which is `'say hello'`. It needs to be a single
-argument, so the quotes are necessary. Our habit is to default to single quotes for safety,
-but double quotes could have been used.
+On the next line is `def`, the command definition, `echo 'Hello, World!'`.  This must also
+be a single argument, i.e. quoted.
 
-Finally comes the command itself, `echo 'Hello, World!'`, but
-interestingly, as a set of arguments rather than an entire command in a
-string. It works for simple commands, that is, an individual command
-without redirection or other special Bash features. Simple commands make
-it easier to read and work with the command.
-
-When `task` sees arguments after the task description, it makes those the
-definition of the task’s command. Therefore this example is a short but
-complete task definition.
-
-When `task` is called, it immediately executes the task. So at this
+When `def` is called, it immediately executes the task. So at this
 point in execution, we’d start seeing output that will end up like this:
 
 ``` bash
@@ -105,7 +97,8 @@ ended in `changed` status and none in `ok` status.
 This task fails:
 
 ``` bash
-task 'this fails' false
+task 'this fails'
+def  'false'
 ```
 
 Running it gives:
@@ -134,15 +127,15 @@ through a list of arguments.
 Creating directories is a common task. Let’s make a set of them:
 
 ``` bash
-task 'create directories' 'mkdir -p -m 755 $1' <<'END'
-  $HOME/tmp
-  $HOME/scratch
+task 'create directories'
+def  'mkdir -p $1' <<'END'
+  ~/tmp
+  ~/scratch
 END
 ```
 
-Here we are making two temporary directories in our home directory. The
-form of the task definition is the same as before with three
-differences:
+Here we are making two temporary directories in our home directory. The form of the task
+definition is the same as before with some differences:
 
 - an argument list is supplied as a [here document], a string that can
   span multiple lines. Each line is given to the task in a separate
@@ -150,14 +143,13 @@ differences:
 - the command definition contains a positional argument, `$1`. task.bash
   will substitute this token with the value of the current line of input
   from the heredoc.
-- the command definition is in single quotes. This is necessary to keep
   the shell from evaluating `$1` immediately.
 
 Here’s the output (minus summary):
 
 ``` bash
-[changed]       create directories - $HOME/tmp
-[changed]       create directories - $HOME/scratch
+[changed]       create directories - ~/tmp
+[changed]       create directories - ~/scratch
 ```
 
 That looks good.
@@ -193,8 +185,8 @@ task is about to be run, the task is marked `ok` and not run.
 
 ``` bash
 task 'make a directory'
-ok   '[[ -e $HOME/tmp ]]'
-def  mkdir -m 755 $HOME/tmp
+ok   '[[ -e ~/tmp ]]'
+def  'mkdir ~/tmp'
 ```
 
 - there can only be one argument to `task`, the task name as a string
@@ -239,54 +231,12 @@ very useful to not have to wait to download a package installer, for
 example, before knowing whether you needed it or not. `ok` is the
 answer to that.
 
-### Iteration with keyword variables
-
-Iteration is great, but sometimes the command requires multiple inputs.
-For example, symlinking a file with `ln -s` requires a source location
-and a target path.
-
-task.bash allows specifying multiple values per iteration line using
-keyword syntax. It borrows bash’s associative array syntax. That is, a
-key is given in the form: `[key]=value`. Values with spaces can be
-quoted, i.e. `[key]='a value'` .
-
-Here’s a task to link multiple files:
-
-``` bash
-task 'link files' 'ln -sfT $src $path' <<'END'
-  [src]=/tmp [path]=$HOME/roottmp
-  [src]=/var [path]=$HOME/rootvar
-END
-```
-
-**Note:** we intentionally use the environment variable `$HOME` rather
-than using tilde (`~`) to expand to the home directory. With a keyword
-arguments task.bash cannot expand tilde properly. You may consider
-simply using `$HOME` throughout your scripts so as not to have to
-remember when tilde shouldn’t be used.
-
-The command definition includes variables we haven’t seen, `$src` and
-`$path`. The task still iterates over each line, but task.bash uses them
-to create the keys as variables with the corresponding values, so `$src`
-and `$path` exist when the command is run. The output looks like this:
-
-``` bash
-[changed]       link files - [src]=/tmp [path]=$HOME/roottmp
-[changed]       link files - [src]=/var [path]=$HOME/rootvar
-```
-
-Notice also that even though we ran the commands, we don’t see the usual
-`[begin]` on these iterated tasks. Iterated tasks can be verbose, so the
-`[begin]` message is suppressed when iterating. If you need to see when
-a task is beginning, make a singular task for it rather than including
-it in an iterated task.
-
 ### Idempotent Iteration
 
 When you use iteration and idempotency together, usually the `ok`
 condition depends on the iteration input. Never fear, task.bash has you
-covered there as well. Here are idempotent versions of the last two
-iteration examples:
+covered there as well. Here is the idempotent version of the last
+iteration example:
 
 ``` bash
 task 'create directories'
@@ -295,46 +245,29 @@ def   'mkdir -m 755 $1' <<'END'
   $HOME/tmp
   $HOME/scratch
 END
-
-task 'link files'
-ok      '[[ -e $path ]]'
-def     'ln -s $src $path' <<'END'
-  [src]=/tmp [path]=$HOME/roottmp
-  [src]=/var [path]=$HOME/rootvar
-END
 ```
 
-task.bash makes sure that the iteration variables are available to the
-`ok` expression. For singular tasks, each input line is available as
-`$1`. For keyword arguments, the key variables of each line are
-available by name.
+task.bash makes sure that the input line is available to the
+`ok` expression as `$1`.
 
 ### Advanced Bash - raw commands
 
-When we were looking at iteration, we put the task’s command definition
-in a string to protect `$1` from being expanded prematurely. If `def`
-(and by extension, `task`) receive a single argument like that for the
-command specification, they treat it as raw bash. That means you can
-include characters that you wouldn’t be able to otherwise, so long as it
-is in a string.
-
-This is useful with pipes and redirection. Here we download an installer
+Features like with pipes and redirection work in command definitions. Here we download an installer
 script with `curl`:
 
 ``` bash
-task 'download lix installer' 'curl -fsSL https://install.lix.systems/lix >install_lix'
+task 'download lix installer' 'curl -fsSL https://install.lix.systems/lix >lix_installer'
 ```
 
-Semicolon and double-ampersand are other such special characters,
-meaning you can do scripting in a string:
+Semicolon is another such special character, meaning you can do simple scripting (we don't
+need `&&` because we've already enabled exit on error, see strict mode below):
 
 ``` bash
-task 'download and install lix' 'curl -fsSL https://install.lix.systems/lix >install_lix && chmod 700 install_lix && ./install_lix --no-confirm'
+task 'download and install lix' 'curl -fsSL https://install.lix.systems/lix >lix_installer; chmod 700 lix_installer; ./lix_installer install --no-confirm'
 ```
 
-These can get verbose quickly, so task.bash has better options for
-longer commands. We’ll discuss them when talking about task lists and
-scripting.
+These can get verbose quickly, so task.bash has full scripting for
+longer commands, discussed below.
 
 ### Showing progress
 
@@ -342,13 +275,13 @@ Some commands can take a lot of time and give the impression that the
 script may have hung. Running an installer as we just showed is a good
 example. For these cases, it’s better to have ongoing confirmation that
 things are still happening, in which case you can direct the task to
-show progress with `prog on`:
+show progress with `prog on`, which allows command output to the terminal:
 
 ``` bash
 task  'install lix'
 ok    '[[ -e /nix/var/nix/profiles/default/bin ]]'
 prog  on
-def   ./install_lix --no-confirm
+def   './lix_installer install --no-confirm'
 ```
 
 `prog on` works best with idempotent tasks (i.e. using `ok`) so you
@@ -361,7 +294,7 @@ This familiar-looking task runs as root:
 ``` bash
 task   'upgrade system'
 become root
-def    apt upgrade -y
+def    'apt upgrade -y'
 ```
 
 `become` enables sudo for the task. Usually you will supply the user
@@ -383,37 +316,7 @@ Use `unchg` to specify some output text indicating no change was made:
 task    'upgrade system'
 become  root
 unchg   '0 upgraded, 0 newly installed'
-def     apt upgrade -y
-```
-
-### Task lists
-
-When you have tasks that share the same task settings and purpose, task
-lists can be useful.
-
-Here we update the last example to run two subtasks:
-
-``` bash
-task   'apt'
-become root
-def    <<'END'
-  apt update
-  apt upgrade -y
-END
-```
-
-If `def` receives no arguments, it takes input lines as subtasks.
-Subtasks are executed separately and have their own reporting, so they
-are run independently. Task lists are not scripts and don’t maintain
-state (like working directory or variables) from line to line.
-
-They are useful when you want to share settings between related tasks.
-The task report shows the overall task name appended with the individual
-command for each task.
-
-``` bash
-[changed]       apt - apt update
-[changed]       apt - apt upgrade -y
+def     'apt upgrade -y'
 ```
 
 ### Scripting
@@ -460,7 +363,7 @@ show up to the script as `$1`.
 ## A working example
 
 We’ve seen most of the features of task.bash, now you’re ready for a
-simple real-world configuration:
+simple real-world configuration runner script:
 
 ``` bash
 #!/usr/bin/env bash
@@ -469,43 +372,16 @@ simple real-world configuration:
 # It also helps with debugging, see the end of the script.
 main() {
   # a simple command definition
-  task 'create ssh directory' mkdir -p -m 700 $HOME/.ssh
+  task  'create ssh directory'
+  def   'mkdir -p -m 700 ~/.ssh'
 
-  # A scalar (not keyword) looping task.
+  # A looping task.
   # Note that the heredoc terminator, "END" in this case, can be quoted
   # with spaces in front to allow matching indentation at the end.
-  task 'create required directories' 'mkdir -p -m 755 $HOME/$1' <<'  END'
+  task  'create required directories'
+  def   'mkdir -p -m 755 $HOME/$1' <<'  END'
     .config/nixpkgs
     .config/ranger
-  END
-
-  # We use a task list for related tasks here.
-  # `become root` gives privilege escalation to root.
-  # `prog on` makes apt show output.
-  task   'apt'
-  become root
-  prog   on
-  def    <<'  END'
-    apt update -qq
-    apt upgrade -y
-  END
-
-  # this is a script, which needs to have `run` called at the end
-  # `ok` makes it idempotent, so it is not run when ~/dotfiles exists.
-  task 'clone dotfiles'
-  ok   '[[ -e $HOME/dotfiles ]]'
-  def() {
-    git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-    cd $HOME/dotfiles
-    git remote set-url origin git@github.com:binaryphile/dotfiles
-  }
-  run
-
-  # a keyword looping task
-  task 'create dotfile symlinks' 'ln -sf $HOME/dotfiles/$src $HOME/$path' <<'  END'
-    [src]=gitconfig                    [path]=.gitconfig
-    [src]=ssh/config                   [path]=.ssh/config
-    [src]=ranger/rc.conf               [path]=.config/ranger/rc.conf
   END
 }
 
@@ -516,9 +392,9 @@ main
 summarize
 ```
 
-## A curl-pipe-friendly script template with tracing and repl
+## A curl-pipe-friendly runner script template with tracing and repl
 
-Here’s a template that allows you to curl-pipe the script from github to
+Here’s a template that allows you to curl-pipe from github to
 run it:
 
 ``` bash
@@ -551,19 +427,19 @@ summarize
 To run it with curl:
 
 ``` bash
-curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/runner | bash
+curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/runner | sh
 ```
 
 If instead you download the runner and invoke it with `-x`, you’ll see
 execution with bash tracing turned on, for debugging purposes.
 
-Also, you can get an interactive repl (i.e. the usual bash terminal with
-the library loaded) to play with or debug tasks. It is recommended to do
-this by starting a new bash session with `bash --norc` first.
+Also, you can get an interactive repl (i.e. the usual bash terminal with task.bash and your
+runner functions loaded) to play with or debug tasks. It is recommended to do this by
+starting a new bash session with `bash --norc` first.
 
 ``` bash
 $ source runner
-$ main # runs the main tasks but now without "exit on error"
+$ task.mine     # runs just this task which you defined
 ```
 
 You can define a task in a function other than `main` if you want to run
@@ -622,6 +498,7 @@ enable strict mode, letting the third-party code run:
 ``` bash
 strict off  # next task re-enables strict
 source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh # required env vars
+strict on   # be a good citizen
 ```
 
 You can use this in command definitions or in-between task definitions.
@@ -634,27 +511,37 @@ starting with a `main` function, as scripts become more complex, they
 can get to the point where a layer of hierarchy aids organization.
 
 Starting with `main` is a good first step. Since this is just Bash code,
-`main` can call other functions. A next step is to separate related
-tasks into their own functions and call those from `main`. Name the
-function for the common thread in the tasks, such as `system` for
-updating apt and sundry.
+`main` can call other functions.
 
 task.bash provides friendly output with the `section` command, which
 separates output with a section heading before calling the named
-function:
+function.  This is good for breaking main into related parts.
 
-    main() {
-      section system
-      section vim
-    }
+Here we have used section commands, along with moving task definitions into their own
+functions.  As a convention, we preface the function names with `task.` to denote they are
+not just any kind of function:
 
-    system() {
-      # some system tasks
-    }
+```
+main() {
+  section system
+  task.apt_upgrade
 
-    vim() {
-      # some vim tasks
-    }
+  section neovim
+  task.vim_plug
+}
+
+task.apt_upgrade() {
+  task 'apt upgrade'
+  prog on
+  def  'apt upgrade -y'
+}
+
+task.vim_plug{
+  task  'install junegunn/vim-plug'
+  exist ~/.local/share/nvim/site/autoload/plug.vim
+  def   'curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >~/.local/share/nvim/site/autoload/plug.vim'
+}
+```
 
 Output:
 
@@ -665,6 +552,9 @@ Output:
 [section vim]
 <vim task output shows here>
 ```
+
+You would probably not need so much structure with a runner this small, but larger files
+benefit from it.
 
   [Idempotent]: https://www.bmc.com/blogs/idempotence/
   [here document]: https://www.gnu.org/software/bash/manual/bash.html#Here-Documents
