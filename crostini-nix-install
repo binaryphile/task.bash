@@ -4,8 +4,9 @@ main() {
   section system
   echo_5_motd
   apt_upgrade_y
+
   section credential
-  my.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 $HOME/.ssh/id_ed25519
+  my_install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
 
   section dotfiles
   task.gitclone git@github.com:binaryphile/dotfiles ~/dotfiles
@@ -17,29 +18,29 @@ main() {
   section nix
   curlpipe_lix_installer
   source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-  PATH+=:$HOME/.nix-profile/bin
-  task.ln $HOME/dotfiles/config.nix $HOME/.config/nixpkgs/config.nix
+  PATH+=:~/.nix-profile/bin
+  task.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
   section home-manager
   nix_channel_add_home_manager
   nix_channel_update
   nix_shell_home_manager_install
   strict off
-  source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
+  source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
   strict on
-  task.ln $HOME/dotfiles/home.nix $HOME/.config/home-manager/home.nix
+  task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   home_manager_switch
 
   section apps
   task.ln <<'  END'
-    ~/dotfiles/bash/init.bash                           ~/.bashrc
-    ~/dotfiles/bash/init.bash                           ~/.bash_profile
-    ~/dotfiles/bash/init.bash                           ~/.profile
-    ~/dotfiles/gitconfig                                ~/.gitconfig
-    ~/dotfiles/liquidprompt/liquid.theme                ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc              ~/.config/liquidpromptrc
-    ~/dotfiles/ranger/rc.conf                           ~/.config/ranger/rc.conf
-    ~/dotfiles/tmux.conf                                ~/.tmux.conf
+    ~/dotfiles/bash/init.bash                               ~/.bashrc
+    ~/dotfiles/bash/init.bash                               ~/.bash_profile
+    ~/dotfiles/bash/init.bash                               ~/.profile
+    ~/dotfiles/gitconfig                                    ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme                    ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc                  ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                               ~/.config/ranger/rc.conf
+    ~/dotfiles/tmux.conf                                    ~/.tmux.conf
     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
     /mnt/chromeos/MyFiles/Downloads/crostini/projects       ~/projects
   END
@@ -54,8 +55,8 @@ main() {
 
 echo_5_motd() {
   task 'turn off motd'
-  ok   'file=$HOME/.local/share/cros-motd; [[ -e $file && $(<$file) == 5 ]]'
-  def  'mkdir -p $HOME/.local/share; echo 5 >$HOME/.local/share/cros-motd'
+  ok   '[[ $(<~/.local/share/cros-motd) == 5 ]]'
+  def  'mkdir -p ~/.local/share; echo 5 >~/.local/share/cros-motd'
 }
 
 apt_upgrade_y() {
@@ -73,7 +74,7 @@ apt_upgrade_y() {
 
 # credential
 
-my.install() {
+my_install() {
   task  "install -m 600 $1 $2"
   exist $2
   def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"

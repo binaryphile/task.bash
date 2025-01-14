@@ -84,9 +84,9 @@ declare -A Changed=()       # tasks that succeeded
 # Task must be set externally already.
 run() {
   local vars='' task=$Task${1:+ - }${1:-}
-  set -- $( eval "echo $*" )
-  (( InputIsKeyed )) && vars=$( GetVariableDefs $1 )
-  [[ $Condition != '' ]] && ( eval $vars$Condition ) && {
+  set -- $(eval "echo $*")
+  (( InputIsKeyed )) && vars=$(GetVariableDefs $1)
+  [[ $Condition != '' ]] && ( eval $vars$Condition &>/dev/null ) && {
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
 
@@ -101,7 +101,7 @@ run() {
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
-  elif (( rc == 0 )) && ( eval $vars$Condition ); then
+  elif (( rc == 0 )) && ( eval $vars$Condition &>/dev/null ); then
     Changed[$task]=1
     echo -e "[changed]\t$task"
   else
@@ -120,12 +120,12 @@ RunCommand() {
   local command
   [[ $BecomeUser == '' ]] &&
     command=( def $* ) ||
-    command=( sudo -u $BecomeUser bash -c "$( declare -f def ); def $*" )
+    command=( sudo -u $BecomeUser bash -c "$(declare -f def); def $*" )
 
-  ! (( ShowProgress )) && { Output=$( eval $vars; "${command[@]}" 2>&1 ); return; }
+  ! (( ShowProgress )) && { Output=$(eval $vars; "${command[@]}" 2>&1); return; }
 
   echo -e "[progress]\t$task"
-  Output=$( eval $vars; "${command[@]}" 2>&1 | tee /dev/tty )
+  Output=$(eval $vars; "${command[@]}" 2>&1 | tee /dev/tty)
 }
 
 
@@ -186,7 +186,7 @@ unchg() { UnchangedText=$1; }
 task.curl() {
   task   "curl $1 >$2"
   exist  $2
-  def    "mkdir -pm 755 $(dirname $2); curl -fsSL $1 >$2"
+  def    "mkdir -p $(dirname $2); curl -fsSL $1 >$2"
 }
 
 task.gitclone() {
@@ -199,18 +199,12 @@ task.ln() {
   (( $# == 0 )) && {
     task "create symlink"
     ok   'local -a args="( $1 )"; [[ -L ${args[1]} ]]'
-    def  'local -a args="( $1 )"; mkdir -pm 755 $(dirname ${args[1]}); ln -sfT ${args[*]}'
+    def  'local -a args="( $1 )"; mkdir -p $(dirname ${args[1]}); ln -sfT ${args[*]}'
 
     return
   }
 
   task   "create symlink - $1 $2"
   ok     "[[ -L $2 ]]"
-  def    "mkdir -pm 755 $(dirname $2); ln -sfT $1 $2"
-}
-
-task.mkdir() {
-  task   "create directory $1"
-  exist  $1
-  def    mkdir -m 755 $1
+  def    "mkdir -p $(dirname $2); ln -sfT $1 $2"
 }
