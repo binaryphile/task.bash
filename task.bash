@@ -9,35 +9,12 @@ become() { BecomeUser=$1; }
 # arguments and redefines def to run that command, running it indirectly by then calling
 # run, or loop if there is a variable argument in the task.
 Def() {
-  (( $# == 0 )) && { LoopCommands; return; } # if no arguments, the inputs are commands
-
-  # if one argument, treat it as raw bash
-  (( $# == 1 )) && {
-    eval "def() { $1; }"
-    [[ $1 == *'$'[_a-z]* ]] && { InputIsKeyed=1; loop; return; }
-    [[ $1 == *'$1'* ]] && loop || run
-
-    return
-  }
-
-  # otherwise compose a simple command from the arguments
-  local command
-  printf -v command '%q ' "$@"  # shell-quote to preserve argument structure when eval'd
-  eval "def() { $command; }"
-  run
+  eval "def() { $1; }"
+  [[ $1 == *'$1'* ]] && loop || run
 }
 
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
-
-# GetVariableDefs returns an eval-ready set of variables from the key, value input.
-GetVariableDefs() {
-  local -A values="( $* )"  # trick to expand to associative array
-  local name
-  for name in ${!values[*]}; do
-    printf '%s=%q;' $name "${values[$name]}"
-  done
-}
 
 # InitTaskEnv initializes all relevant settings for a new task.
 InitTaskEnv() {
@@ -46,7 +23,6 @@ InitTaskEnv() {
 
   BecomeUser=''             # the user to sudo with
   Condition=''              # an expression to tell when the task is already satisfied
-  InputIsKeyed=0            # flag for whether loop input is keyword syntax
   Output=''                 # output from the task, including stderr
   ShowProgress=0            # flag for showing output as the task runs
   UnchangedText=''          # text to test for in the output to see task didn't change anything (i.e. is ok)
@@ -58,14 +34,6 @@ InitTaskEnv() {
 # feeding each line to `run` as an argument.
 loop() {
   while IFS=$' \t' read -r line; do
-    run $line
-  done
-}
-
-# LoopCommands runs each line of input as its own task.
-LoopCommands() {
-  while IFS=$' \t' read -r line; do
-    eval "def() { $line; }"
     run $line
   done
 }
@@ -83,10 +51,9 @@ declare -A Changed=()       # tasks that succeeded
 # run runs def after checking that it is not already satisfied and records the result.
 # Task must be set externally already.
 run() {
-  local vars='' task=$Task${1:+ - }${1:-}
+  local task=$Task${1:+ - }${1:-}
   set -- $(eval "echo $*")
-  (( InputIsKeyed )) && vars=$(GetVariableDefs $1)
-  [[ $Condition != '' ]] && ( eval $vars$Condition &>/dev/null ) && {
+  [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
 
@@ -101,7 +68,7 @@ run() {
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     Ok[$task]=1
     echo -e "[ok]\t\t$task"
-  elif (( rc == 0 )) && ( eval $vars$Condition &>/dev/null ); then
+  elif (( rc == 0 )) && ( eval $Condition &>/dev/null ); then
     Changed[$task]=1
     echo -e "[changed]\t$task"
   else
@@ -122,15 +89,15 @@ RunCommand() {
     command=( def $* ) ||
     command=( sudo -u $BecomeUser bash -c "$(declare -f def); def $*" )
 
-  ! (( ShowProgress )) && { Output=$(eval $vars; "${command[@]}" 2>&1); return; }
+  ! (( ShowProgress )) && { Output=$("${command[@]}" 2>&1); return; }
 
   echo -e "[progress]\t$task"
-  Output=$(eval $vars; "${command[@]}" 2>&1 | tee /dev/tty)
+  Output=$("${command[@]}" 2>&1 | tee /dev/tty)
 }
 
 
 # section announces the section name
-section() { echo -e "\n[section $*]"; }
+section() { local IFS=' '; echo -e "\n[section $*]"; }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.
@@ -170,11 +137,6 @@ task() {
   Task=${1:-}
 
   InitTaskEnv
-
-  (( $# == 1 )) && return
-  shift
-
-  def "$@"
 }
 
 # unchg defines the text to look for in command output to see that nothing changed.
@@ -190,9 +152,9 @@ task.curl() {
 }
 
 task.gitclone() {
-  task   $(IFS=' '; echo "git clone $*")
+  task   "git clone $1 $2"
   exist  $2
-  def    GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no" git clone $*
+  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
 }
 
 task.ln() {

@@ -63,13 +63,13 @@ apt_upgrade() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
-  def    apt update
+  def    'apt update'
 
   task   'apt upgrade'
   prog   on
   become root
   unchg  '0 upgraded, 0 newly installed'
-  def    apt upgrade -y
+  def    'apt upgrade -y'
 }
 
 # credential
@@ -94,21 +94,21 @@ curlpipe_lix_installer() {
 nix_channel_add_home_manager() {
   task   'add home-manager channel'
   exist  ~/.nix-channels
-  def    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager
+  def    'nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager'
 }
 
 nix_channel_update() {
   task   'update nix channels'
   prog   on
   exist  ~/.nix-defexpr/channels/home-manager
-  def    nix-channel --update
+  def    'nix-channel --update'
 }
 
 nix_shell_home_manager_install() {
   task   'install home-manager'
   prog   on
   exist  ~/.config/home-manager
-  def    nix-shell '<home-manager>' -A install
+  def    "nix-shell '<home-manager>' -A install"
 }
 
 # home-manager
@@ -116,9 +116,8 @@ nix_shell_home_manager_install() {
 home_manager_switch() {
   task  'apply home manager configuration'
   prog  on
-
   unchg 'No change so reusing latest profile generation'
-  def   home-manager switch
+  def   'home-manager switch'
 }
 
 # neovim
@@ -126,7 +125,7 @@ home_manager_switch() {
 nvim_headless_pluginstall() {
   task  'install neovim plugins'
   exist /home/ted/.local/share/nvim/plugged
-  def   nvim --headless +PlugInstall +qall
+  def   'nvim --headless +PlugInstall +qall'
 }
 
 # boilerplate
