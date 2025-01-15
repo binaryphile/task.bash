@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 
 main() {
-  section system
-  task.apt_upgrade
-
-  section credential
-  task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
-
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
-  task.ln contexts/work/crostini-bullseye ~/dotfiles/context
+  task.ln contexts/work/macos ~/dotfiles/context
 
   section ssh
   task.ln ~/dotfiles/ssh/config ~/.ssh/config
@@ -42,8 +36,6 @@ main() {
     ~/dotfiles/liquidprompt/liquidpromptrc                  ~/.config/liquidpromptrc
     ~/dotfiles/ranger/rc.conf                               ~/.config/ranger/rc.conf
     ~/dotfiles/tmux.conf                                    ~/.tmux.conf
-    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
-    /mnt/chromeos/MyFiles/Downloads/crostini/projects       ~/projects
   END
 
   section neovim

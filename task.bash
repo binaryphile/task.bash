@@ -160,13 +160,24 @@ task.git_clone() {
 task.ln() {
   (( $# == 0 )) && {
     task "create symlink"
-    ok   'local -a args="( $1 )"; [[ -L ${args[1]} ]]'
-    def  'local -a args="( $1 )"; mkdir -p $(dirname ${args[1]}); ln -sfT ${args[*]}'
+    ok   'eval "set -- $1"; [[ -L $2 ]]'
+    def() {
+      eval "set -- $1"
+      mkdir -p $(dirname $2)
+      [[ -L $2 ]] && rm $2
+      ln -sf $*
+    }
+    loop
 
     return
   }
 
   task   "create symlink - $1 $2"
   ok     "[[ -L $2 ]]"
-  def    "mkdir -p $(dirname $2); ln -sfT $1 $2"
+  eval "def() {
+    mkdir -p $(dirname $2)
+    [[ -L $2 ]] && rm $2
+    ln -sf $1 $2
+  }"
+  run
 }
