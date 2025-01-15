@@ -11,7 +11,8 @@ main() {
   apt_upgrade_y
 
   section etc
-  task 'say hello' echo 'Hello, World!'
+  task 'say hello'
+  def 'echo "Hello, World!"'
 }
 
 # complex tasks are defined here
@@ -19,14 +20,14 @@ apt_upgrade_y() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
-  def    apt update
+  def    'apt update'
 
 
   task   'apt upgrade'
   become root
   prog   on
   unchg  '0 upgraded, 0 newly installed'
-  def    apt upgrade -y
+  def    'apt upgrade -y'
 }
 
 # source task.bash, or download it
