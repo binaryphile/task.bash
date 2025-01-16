@@ -9,17 +9,17 @@ style, power and flexibility.
 
 Not only does task.bash provide these features, it makes using them *easy*:
 
--   Superlative readability - for experienced bash devs, definitely, but for others too
--   [Idempotent](https://www.bmc.com/blogs/idempotence/) tasks - define task satisfaction
-    criteria so tasks only run when needed
--   Iterable tasks - run the same task multiple times with different inputs
--   Advanced Bash - supports Bash features like redirection and pipelines
--   Scripting - manipulate state over multiple steps, such as changing directory or setting
-    variables
--   Privilege escalation - run tasks as another user via sudo authorization
--   Progress and change reporting - sensible ongoing task reporting and summarization
--   Error handling - stop when an error is encountered and show relevant output
--   No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go nuts.
+- Superlative readability - for experienced bash devs, definitely, but for others too
+- [Idempotent](https://www.bmc.com/blogs/idempotence/) tasks - define task satisfaction
+  criteria so tasks only run when needed
+- Iterable tasks - run the same task multiple times with different inputs
+- Advanced Bash - supports Bash features like redirection and pipelines
+- Scripting - manipulate state over multiple steps, such as changing directory or setting
+  variables
+- Privilege escalation - run tasks as another user via sudo authorization
+- Progress and change reporting - sensible ongoing task reporting and summarization
+- Error handling - stop when an error is encountered and show relevant output
+- No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go nuts.
 
 ## Tutorial
 
@@ -125,12 +125,12 @@ END
 Here we are making two temporary directories in our home directory. The form of the task
 definition is the same as before with some differences:
 
--   an argument list is supplied as a [here
-    document](https://www.gnu.org/software/bash/manual/bash.html#Here-Documents), a string
-    that can span multiple lines. Each line is given to the task in a separate invocation.
--   the command definition contains a positional argument, `$1`. task.bash will substitute
-    this token with the value of the current line of input from the heredoc. the shell from
-    evaluating `$1` immediately.
+- an argument list is supplied as a [here
+  document](https://www.gnu.org/software/bash/manual/bash.html#Here-Documents), a string
+  that can span multiple lines. Each line is given to the task in a separate invocation.
+- the command definition contains a positional argument, `$1`. task.bash will substitute
+  this token with the value of the current line of input from the heredoc. the shell from
+  evaluating `$1` immediately.
 
 Here’s the output (minus summary):
 
@@ -173,9 +173,9 @@ ok   '[[ -e ~/tmp ]]'
 def  'mkdir ~/tmp'
 ```
 
--   there can only be one argument to `task`, the task name as a string
--   `def` takes over command definition, and runs the task as well
--   `ok` specifies a valid bash expression that will be true when the task is satisfied
+- there can only be one argument to `task`, the task name as a string
+- `def` takes over command definition, and runs the task as well
+- `ok` specifies a valid bash expression that will be true when the task is satisfied
 
 Because `def` runs the task now, it is always the last line in the task definition.
 
@@ -438,10 +438,10 @@ task.bash requires a form of [unofficial strict
 mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/), and sets it for you. Our
 strict mode:
 
--   disables splitting on spaces and tabs, keeping it only for newlines (`IFS=$'\n'`)
--   disables file globbing (`set -f`)
--   forces the script to stop whenever an error is encountered (`set -e`)
--   disallows references to unset variables (`set -u`)
+- disables splitting on spaces and tabs, keeping it only for newlines (`IFS=$'\n'`)
+- disables file globbing (`set -f`)
+- forces the script to stop whenever an error is encountered (`set -e`)
+- disallows references to unset variables (`set -u`)
 
 Within your task runner, you will be held to strict mode with your code. This is usually the
 right thing. Failing tasks should stop execution. Unset variable errors usually mean typos
