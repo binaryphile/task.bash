@@ -5,56 +5,92 @@ your local machine. Taking inspiration from Ansible, task.bash lets you define a
 orchestrate complex system administration tasks for your local machine, and does it with
 style, power and flexibility.
 
+Use it to:
+
+- easily define [idempotent](https://www.bmc.com/blogs/idempotence/) tasks from basic Bash
+- upgrade system packages to latest
+- install required software
+- set up software configurations, dot files and plugins
+- bootstrap an environment that runs further automation like Ansible
+- manage multiple machines and platforms (e.g. MacOS and flavors of Linux)
+
 ## Features
 
 Not only does task.bash provide these features, it makes using them *easy*:
 
--   Superlative readability - for experienced bash devs, definitely, but for others too
--   [Idempotent](https://www.bmc.com/blogs/idempotence/) tasks - define task satisfaction
-    criteria so tasks only run when needed
--   Iterable tasks - run the same task multiple times with different inputs
--   Advanced Bash - supports Bash features like redirection and pipelines
--   Scripting - manipulate state over multiple steps, such as changing directory or setting
-    variables
--   Privilege escalation - run tasks as another user via sudo authorization
--   Progress and change reporting - sensible ongoing task reporting and summarization
--   Error handling - stop when an error is encountered and show relevant output
--   No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go nuts.
+- Superlative readability - for experienced bash devs, definitely, but for others too
+- Idempotent tasks - define task satisfaction criteria so tasks only run when needed
+- Iterable tasks - run the same task multiple times with different inputs
+- Advanced Bash - supports Bash features like redirection and pipelines
+- Scripting - manipulate state over multiple steps, such as changing directory or setting
+  variables
+- Privilege escalation - run tasks as another user via sudo authorization
+- Progress and change reporting - sensible ongoing task reporting and summarization
+- Error handling - stop when an error is encountered and show relevant output
+- No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go nuts.
 
 ## Tutorial
 
+task.bash employs a hybrid declarative/imperative model.  The recommended usage is to
+separate your runner script into two sections.  The first section is the imperative script
+itself, which runs the tasks in order.  The second section is the declarative task
+definitions, which informs task.bash on how to run each task
+
 ### Hello, World!
 
-Let’s look at the simplest task.bash script:
+Let’s look at a simple example of a runner script:
 
 ``` bash
 #!/usr/bin/env bash
 
+main() {
+  # run the defined tasks
+  task.echo_Hello_World
+}
+
+# define the tasks
+
+task.echo_Hello_World() {
+  task 'say hello'
+  def  'echo "Hello, World!"'
+}
+
 source ./task.bash
 
-task 'say hello'
-def  'echo "Hello, World!"'
-
+main
 summarize
 ```
 
 Taking each line in turn, the line `#!/usr/bin/env bash` tells us that this is a bash
-script, so everything in it will have to be valid bash. task.bash doesn’t change bash syntax
-at all, although you may learn a new trick or two when learning it.
+script, so everything in it will have to be valid bash.
 
 Next comes the line that makes task.bash’s functions available, `source ./task.bash`. This
-presumes that you have task.bash in the directory you are running this script.
+requires task.bash to reside in script's directory.
 
-Third, the task itself. We’ll break down the parts. First is `task`. `task` is a command
+Third is the definition of a `main` function.  `main` runs the tasks.  By defining `main`,
+we can move the rest of the boilerplate later in the script, keeping the focus what the
+script is doing to the system.  Our `main` here simply runs our Hello World task.
+
+By convention, functions that are task definitions have names prefixed with `task.` to
+distinguish them from regular commands.  You can mix tasks and arbitrary code in main, so
+being able to easily identify tasks versus garden-variety commands is useful.
+
+Also notice that in this case, our task function is named for the command it is running,
+including the argument, but simplified.  `_` is used for space, leading to a function name
+that closely resembles having written the actual command.  For simple tasks, this provides
+a semblance of what you would write if they were commands, not tasks, which makes
+a familiar-looking script.
+
+Next, the task itself. We’ll break down the parts. First is `task`. `task` is a command
 that sets the description message you’ll see when it runs. The description needs to be a
 single argument, so the quotes are necessary. Our habit is to default to single quotes for
 safety, but double quotes could have been used.
 
 On the next line is `def`, the command definition, `echo 'Hello, World!'`. This must also be
-a single argument, i.e. quoted.
+a single argument, i.e. quoted.
 
-When `def` is called, it immediately executes the task. So at this point in execution, we’d
-start seeing output that will end up like this:
+The task is executed with `def` is executed, which is when the task function is called. So
+at this point in `main`, we’d start seeing output that will end up like this:
 
 ``` bash
 [begin]         say hello
@@ -125,12 +161,12 @@ END
 Here we are making two temporary directories in our home directory. The form of the task
 definition is the same as before with some differences:
 
--   an argument list is supplied as a [here
-    document](https://www.gnu.org/software/bash/manual/bash.html#Here-Documents), a string
-    that can span multiple lines. Each line is given to the task in a separate invocation.
--   the command definition contains a positional argument, `$1`. task.bash will substitute
-    this token with the value of the current line of input from the heredoc. the shell from
-    evaluating `$1` immediately.
+- an argument list is supplied as a [here
+  document](https://www.gnu.org/software/bash/manual/bash.html#Here-Documents), a string
+  that can span multiple lines. Each line is given to the task in a separate invocation.
+- the command definition contains a positional argument, `$1`. task.bash will substitute
+  this token with the value of the current line of input from the heredoc. the shell from
+  evaluating `$1` immediately.
 
 Here’s the output (minus summary):
 
@@ -173,9 +209,9 @@ ok   '[[ -e ~/tmp ]]'
 def  'mkdir ~/tmp'
 ```
 
--   there can only be one argument to `task`, the task name as a string
--   `def` takes over command definition, and runs the task as well
--   `ok` specifies a valid bash expression that will be true when the task is satisfied
+- there can only be one argument to `task`, the task name as a string
+- `def` takes over command definition, and runs the task as well
+- `ok` specifies a valid bash expression that will be true when the task is satisfied
 
 Because `def` runs the task now, it is always the last line in the task definition.
 
@@ -209,6 +245,24 @@ existence, this feature is important**. It’s very useful to not have to wait t
 package installer, for example, before knowing whether you needed it or not. `ok` is the
 answer to that.
 
+## Exist
+
+In practice, many if not most system tasks create a new file or directory that can be used
+to tell if the command has been run.  Since this is such a common case, there is a shortcut
+for `ok` that tests for file/directory existence, called `exist`.
+
+We can redefine our last task using `exist`:
+
+```bash
+task    'make a directory'
+exist   ~/tmp
+def     'mkdir ~/tmp'
+```
+
+`exist` simply calls `ok` after putting the argument into a bash `[[ -e ]]` test.
+
+Don't forget that you have the full power of an expression with `ok` if you need it.
+
 ### Idempotent Iteration
 
 When you use iteration and idempotency together, usually the `ok` condition depends on the
@@ -216,15 +270,16 @@ iteration input. Never fear, task.bash has you covered there as well. Here is th
 version of the last iteration example:
 
 ``` bash
-task 'create directories'
-ok   '[[ -e $1 ]]'
-def   'mkdir -m 755 $1' <<'END'
+task    'create directories'
+exist   '$1'
+def     'mkdir -m 755 $1' <<'END'
   $HOME/tmp
   $HOME/scratch
 END
 ```
 
-task.bash makes sure that the input line is available to the `ok` expression as `$1`.
+task.bash makes sure that the input line is available to the `ok` expression as `$1` (remember
+`exist` is the `ok` expression).
 
 ### Advanced Bash
 
@@ -232,14 +287,16 @@ Features like with pipes and redirection work in command definitions. Here we do
 installer script with `curl`:
 
 ``` bash
-task 'download lix installer' 'curl -fsSL https://install.lix.systems/lix >lix_installer'
+task  'download lix installer'
+def   'curl -fsSL https://install.lix.systems/lix >lix_installer'
 ```
 
 Semicolon is another such special character, meaning you can do simple scripting (we don’t
-need `&&` because we’ve already enabled exit on error, see strict mode below):
+need `&&` because task.bash always employs exit on error, see strict mode below):
 
 ``` bash
-task 'download and install lix' 'curl -fsSL https://install.lix.systems/lix >lix_installer; chmod 700 lix_installer; ./lix_installer install --no-confirm'
+task  'download and install lix'
+def    'curl -fsSL https://install.lix.systems/lix >lix_installer; chmod +x lix_installer; ./lix_installer install --no-confirm'
 ```
 
 These can get verbose quickly, so task.bash has full scripting for longer commands,
@@ -254,12 +311,12 @@ task to show progress with `prog on`, which allows command output to the termina
 
 ``` bash
 task  'install lix'
-ok    '[[ -e /nix/var/nix/profiles/default/bin ]]'
+exist /nix/var/nix/profiles/default/bin
 prog  on
 def   './lix_installer install --no-confirm'
 ```
 
-`prog on` works best with idempotent tasks (i.e. using `ok`) so you don’t have to see
+`prog on` works best with idempotent tasks (i.e. using `ok`) so you don’t have to see
 progress when the task doesn’t need to run.
 
 ### Privilege escalation
@@ -308,7 +365,7 @@ I change directory to the working copy and issue a `git remote` command:
 
 ``` bash
 task  'clone dotfiles'
-ok    '[[ -e $HOME/dotfiles ]]'
+exist $HOME/dotfiles
 def() {
   git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
   cd $HOME/dotfiles
@@ -328,38 +385,6 @@ definition.
 
 You may also use looping input with a script. To do that, call `loop` instead of `run` and
 give it a heredoc with inputs. The input lines will show up to the script as `$1`.
-
-## A working example
-
-We’ve seen most of the features of task.bash, now you’re ready for a simple real-world
-configuration runner script:
-
-``` bash
-#!/usr/bin/env bash
-
-# main lets us move the boilerplate to the bottom, like sourcing task.bash.
-# It also helps with debugging, see the end of the script.
-main() {
-  # a simple command definition
-  task  'create ssh directory'
-  def   'mkdir -p -m 700 ~/.ssh'
-
-  # A looping task.
-  # Note that the heredoc terminator, "END" in this case, can be quoted
-  # with spaces in front to allow matching indentation at the end.
-  task  'create required directories'
-  def   'mkdir -p -m 755 $HOME/$1' <<'  END'
-    .config/nixpkgs
-    .config/ranger
-  END
-}
-
-# boilerplate
-
-source ./task.bash
-main
-summarize
-```
 
 ## A curl-pipe-friendly runner script template with tracing and repl
 
@@ -395,13 +420,13 @@ summarize
 To run it with curl:
 
 ``` bash
-curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/runner | sh
+curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/runner | bash
 ```
 
 If instead you download the runner and invoke it with `-x`, you’ll see execution with bash
 tracing turned on, for debugging purposes.
 
-Also, you can get an interactive repl (i.e. the usual bash terminal with task.bash and your
+Also, you can get an interactive repl (i.e. the usual bash terminal with task.bash and your
 runner functions loaded) to play with or debug tasks. It is recommended to do this by
 starting a new bash session with `bash --norc` first.
 
@@ -422,10 +447,10 @@ maybe even rolling some eyeballs at the naivete of not quoting anything, like I 
 doing in commands. That’s how you get word-splitting issues with spaces. Do you want
 word-splitting issues with spaces?
 
-Of course not. That’s why we turn off word-splitting. What exactly is word-splitting? It’s
-the part of command execution where bash examines expanded variables, looking for the
-characters in IFS and separating the string into separate words when it finds one. For
-example, if you call `cd $HOME` and your home directory path has a space like
+Of course not. That’s why we turn off word-splitting on spaces and tabs. What exactly is
+word-splitting? It’s the part of command execution where bash examines expanded variables,
+looking for the characters in IFS and separating the string into separate words when it
+finds one. For example, if you call `cd $HOME` and your home directory path has a space like
 `/home dirs/user`, then without quoting `"$HOME"`, the variable will be split on space and
 you will run `cd /home dirs/user` (no quotes), which is really just `cd /home`.
 
@@ -438,12 +463,12 @@ task.bash requires a form of [unofficial strict
 mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/), and sets it for you. Our
 strict mode:
 
--   disables splitting on spaces and tabs, keeping it only for newlines (`IFS=$'\n'`)
--   disables file globbing (`set -f`)
--   forces the script to stop whenever an error is encountered (`set -e`)
--   disallows references to unset variables (`set -u`)
+- disables splitting on spaces and tabs, keeping it only for newlines (`IFS=$'\n'`)
+- disables file globbing (`set -f`)
+- forces the script to stop whenever an error is encountered (`set -e`)
+- disallows references to unset variables (`set -u`)
 
-Within your task runner, you will be held to strict mode with your code. This is usually the
+Within your runner script, your code will be held to strict mode. This is usually the
 right thing. Failing tasks should stop execution. Unset variable errors usually mean typos
 in variable names. Specifying bash commands as strings is already fraught with quotation and
 requiring more quotes significantly impairs readability. You may get a curveball or two from
@@ -462,17 +487,22 @@ source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh # required env vars
 strict on   # be a good citizen
 ```
 
-You can use this in command definitions or in-between task definitions. When a new task is
-defined, it re-enables strict mode automatically.
+You can use this in a `def` command definition or in-between task definitions. When a new
+task is begun with `task`, `task` re-enables strict mode automatically.
 
-### Structuring your task code
+### Pre-defined tasks
 
-While we have already seen a good way of organizing your code by starting with a `main`
-function, as scripts become more complex, they can get to the point where a layer of
-hierarchy aids organization.
+task.bash offers a handful of pre-defined tasks.  Each is an idempotent version of a regular
+command:
 
-Starting with `main` is a good first step. Since this is just Bash code, `main` can call
-other functions.
+- `task.ln` - symlink with `ln -sf`.  Replaces an existing target file/link.
+- `task.curl` - download a file with for `curl -fsSL`
+- `task.git_clone` - clone a repository with `git clone`
+
+See `task.bash` for documentation.  In general, these are non-interactive versions of the
+commands.
+
+### Providing organization with section
 
 task.bash provides friendly output with the `section` command, which separates output with a
 section heading before calling the named function. This is good for breaking main into
@@ -487,7 +517,7 @@ not just any kind of function:
       task.apt_upgrade
 
       section neovim
-      task.vim_plug
+      task.curlpipe_vim-plug
     }
 
     task.apt_upgrade() {
@@ -496,7 +526,7 @@ not just any kind of function:
       def  'apt upgrade -y'
     }
 
-    task.vim_plug{
+    task.curlpipe_vim-plug() {
       task  'install junegunn/vim-plug'
       exist ~/.local/share/nvim/site/autoload/plug.vim
       def   'curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >~/.local/share/nvim/site/autoload/plug.vim'
@@ -511,6 +541,3 @@ Output:
 [section vim]
 <vim task output shows here>
 ```
-
-You would probably not need so much structure with a runner this small, but larger files
-benefit from it.
