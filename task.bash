@@ -128,6 +128,13 @@ cat <<END
 ok:      ${#Ok[*]}
 changed: ${#Changed[*]}
 END
+
+(( ${#Changed[*]} == 0 )) && return
+
+local Task
+for Task in ${!Changed[*]}; do
+  echo -e "\t$Task"
+done
 }
 
 # task defines the current task and, if given other arguments, creates a task and runs it.

@@ -21,8 +21,9 @@ END
   )
 
   for test in "${tests[@]}"; do
-    (
-      local -A map="( $test )"
+    func() {
+      local -A map="( $1 )"
+
       dir=${map[dir]:-}${map[dir]:+/}
       [[ $dir != '' ]] && trap "rm -rf $dir" EXIT
 
@@ -31,8 +32,8 @@ END
       got=$(task.ln $1 $2 2>&1) && rc=$? || rc=$?
 
       [[ -v map[wanterr] ]] && {
-        want=${map[wanterr]}
-        (( rc == want )) || Error "task.ln result code, got: $rc, want: $want\n$got"
+        wanterr=${map[wanterr]}
+        (( rc == want )) || Error "task.ln error = $rc, wanterr: $wanterr\n$got"
         return
       }
 
@@ -44,6 +45,8 @@ END
       if [[ $got != "$want" ]]; then
         Error "task.ln got doesn't match want:\n$(Diff "$got" "$want")"
       fi
-    )
+    }
+    local -A map="( $test )"
+    Run ${map[name]} func $test
   done
 }

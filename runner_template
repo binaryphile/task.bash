@@ -1,22 +1,20 @@
 #!/usr/bin/env bash
 
-# The flow of main is to define simple tasks and call complex ones.
-# The idea with naming functions for complex tasks is
+# The flow of main is to delineate sections and call task functions.
+# The idea with naming functions for tasks is
 # to keep the name close to the primary command it calls or
 # to the `task` description.
 main() {
   # Section names help break sets of tasks into logical groups, but aren't required.
   # Usually you'll see more tasks than this under each.
   section system
-  apt_upgrade_y
+  apt_upgrade
 
   section etc
-  task 'say hello'
-  def 'echo "Hello, World!"'
+  echo_Hello_World
 }
 
-# complex tasks are defined here
-apt_upgrade_y() {
+apt_upgrade() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
@@ -28,6 +26,11 @@ apt_upgrade_y() {
   prog   on
   unchg  '0 upgraded, 0 newly installed'
   def    'apt upgrade -y'
+}
+
+echo_Hello_World() {
+  task 'say hello'
+  def 'echo "Hello, World!"'
 }
 
 # source task.bash, or download it
