@@ -1,52 +1,57 @@
 source ./task.bash
 
 Test_task.ln() {
-  format=/tmp/test.XXXXXX
-  tests=(
-    '
-      [name]="basic"
-      [args]="filename \${dir}filename"
-      [dir]=$(mktemp -d $format)
-      [want]=$(cat <<END
-[begin]		create symlink - filename \${dir}filename
-[changed]	create symlink - filename \${dir}filename
-END
-      )
-    '
-    '
-      [name]="fail on link creation"
-      [args]="second /mnt/chromeos/MyFiles/Downloads/crostini/second"
-      [wanterr]=1
-    '
+  local -A test1=(
+    [name]='basic'
+    [args]='filename "$dir"filename'
+    [dir]='$(mktemp -d /tmp/test.XXXXXX)/'
+    [want]='[begin]		create symlink - filename "$dir"filename
+[changed]	create symlink - filename "$dir"filename'
   )
 
-  for test in "${tests[@]}"; do
-    func() {
-      local -A map="( $1 )"
+  local -A test2=(
+    [name]='fail on link creation'
+    [args]='filename /mnt/chromeos/MyFiles/Downloads/crostini/filename'
+    [wanterr]=1
+  )
 
-      dir=${map[dir]:-}${map[dir]:+/}
-      [[ $dir != '' ]] && trap "rm -rf $dir" EXIT
-
-      eval "set -- ${map[args]}"
-
-      got=$(task.ln $1 $2 2>&1) && rc=$? || rc=$?
-
-      [[ -v map[wanterr] ]] && {
-        wanterr=${map[wanterr]}
-        (( rc == want )) || Error "task.ln error = $rc, wanterr: $wanterr\n$got"
-        return
-      }
-
-      (( rc == 0 )) || { Error "task.ln result code, got: $rc, want: 0\n$got"; return; }
-
-      [[ -L $2 ]] || { Error "task.ln expected $2 to be symlink\n$got"; return; }
-
-      want=$(eval "echo \"${map[want]}\"")
-      if [[ $got != "$want" ]]; then
-        Error "task.ln got doesn't match want:\n$(Diff "$got" "$want")"
-      fi
+  testbody() {
+    eval "$(TestInheritMap $1)"
+    [[ -v dir ]] && {
+      eval "dir=\"$dir\""
+      trap "rm -rf $dir" EXIT
     }
-    local -A map="( $test )"
-    Run ${map[name]} func $test
+    eval "set -- $args"
+
+    got=$(task.ln $1 $2 2>&1) && rc=$? || rc=$?
+
+    [[ -v wanterr ]] && {
+      (( rc == wanterr )) && return
+      echo -e "task.ln error = $rc, want: $wanterr\n$got"
+      return 1
+    }
+
+    (( rc == 0 )) || {
+      echo -e "task.ln error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    [[ -L $2 ]] || {
+      echo -e "task.ln expected $2 to be symlink\n$got"
+      return 1
+    }
+
+    eval "want=\"$want\""
+    [[ $got == "$want" ]] || {
+      echo -e "task.ln got doesn't match want:\n$(TestDiff "$got" "$want")"
+      return 1
+    }
+  }
+
+  failed=0
+  for test in test1 test2; do
+    TestRun testbody $test || failed=1
   done
+
+  return $failed
 }
