@@ -188,3 +188,9 @@ task.ln() {
   }"
   run
 }
+
+task.mkdir() {
+  task "mkdir -p $1"
+  ok "[[ -d $1 ]]"
+  def "mkdir -p $1"
+}

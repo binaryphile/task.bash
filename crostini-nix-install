@@ -31,12 +31,29 @@ main() {
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   task.home-manager_switch
 
+  section projects
+  task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/projects
+  task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
+
+  section go
+  task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
+  task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+
+  section neovim
+  task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
+  task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
+  task.nvim_headless_PlugInstall
+
+  section obsidian
+  task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
+  task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
+
+  section tesht
+  task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  task.ln  /mnt/chromeos/MyFiles/Downloads/crostini/projects/tesht/tesht ~/.local/bin/tesht
+
   section apps
   task.ln <<'  END'
-    /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects       ~/GolandProjects
-    /mnt/chromeos/MyFiles/Downloads/crostini/obsidian             ~/obsidian
-    /mnt/chromeos/MyFiles/Downloads/crostini/projects             ~/projects
-    /mnt/chromeos/MyFiles/Downloads/crostini/projects/tesht/tesht ~/.local/bin/tesht
     ~/dotfiles/bash/init.bash                                     ~/.bash_profile
     ~/dotfiles/bash/init.bash                                     ~/.bashrc
     ~/dotfiles/bash/init.bash                                     ~/.profile
@@ -47,14 +64,9 @@ main() {
     ~/dotfiles/ranger/rifle.conf                                  ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                                          ~/.tmux.conf
   END
-
-  section neovim
-  task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
-  task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
-  task.nvim_headless_PlugInstall
 }
 
-# task definitions
+### task definitions
 
 ## system
 
