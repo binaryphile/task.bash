@@ -48,6 +48,10 @@ main() {
   task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
   task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
 
+  section task.bash
+  task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
+  task.git_checkout dev ~/projects/task.bash
+
   section tesht
   task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
   task.git_checkout dev ~/projects/tesht
