@@ -50,6 +50,7 @@ main() {
 
   section tesht
   task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  task.git_checkout dev ~/projects/tesht
   task.ln  /mnt/chromeos/MyFiles/Downloads/crostini/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps

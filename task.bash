@@ -164,6 +164,13 @@ task.git_clone() {
   def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
 }
 
+task.git_checkout() {
+  local branch=$1 dir=$2
+  task  "git checkout $branch"
+  ok    "[[ $(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
+  def   "cd $dir; git checkout $branch"
+}
+
 task.ln() {
   (( $# == 0 )) && {
     task "create symlink"
