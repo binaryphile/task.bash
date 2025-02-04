@@ -1,5 +1,18 @@
 source ./task.bash
 
+# test_become tests whether become sets Become.
+test_become() {
+  ## act
+  become root
+  got=$BecomeUser
+
+  ## assert
+  [[ $got == root ]] || {
+    echo "become() got = $got, want:root"
+    return 1
+  }
+}
+
 # test_task.curl tests whether the curl download task receives a file from a local test http server.
 # It does its work in a directory it creates in /tmp.
 test_task.curl() {
