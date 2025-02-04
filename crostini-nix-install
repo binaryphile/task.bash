@@ -105,7 +105,7 @@ task.curlpipe_lix_installer() {
   def  'sudo chown -R ted:ted /nix'
 }
 
-## apps
+## git
 task.git_clone_branch() {
   local repo=$1 dir=$2 branch=$3
   task.git_clone $repo $dir
