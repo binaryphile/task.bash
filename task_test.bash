@@ -128,6 +128,48 @@ test_task.ln() {
   return $failed
 }
 
+# test_task.mkdir tests whether a directory is made.
+# It does its work in a directory it creates in /tmp.
+test_task.mkdir() {
+  ## arrange
+
+  want='[begin]		mkdir -p mydir
+[changed]	mkdir -p mydir'
+
+  # temporary directory
+  dir=$(mktemp -d /tmp/tesht.XXXXXX)
+  [[ $dir == /tmp/tesht.* ]] || { echo "task.mkdir fatal: couldn't create temp directory"; return 1; }
+  trapcmd="rm -rf $dir"
+  trap $trapcmd EXIT        # always clean up
+  cd $dir
+
+  ## act
+
+  # run the command and capture the output and result code
+  got=$(task.mkdir mydir 2>&1)
+  rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "task.mkdir error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that the directory was made
+  [[ -d mydir ]] || {
+    echo -e "task.mkdir expected directory mydir.\n$got"
+    return 1
+  }
+
+  # assert that we got the wanted output
+  [[ $got == "$want" ]] || {
+    echo -e "task.mkdir got doesn't match want:\n$(t.diff "$got" "$want")"
+    return 1
+  }
+}
+
 # test_task.git_clone tests whether git cloning works with github.
 # It does its work in a directory it creates in /tmp.
 test_task.git_clone() {
