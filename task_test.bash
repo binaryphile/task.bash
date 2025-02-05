@@ -8,9 +8,45 @@ test_become() {
 
   ## assert
   [[ $got == root ]] || {
-    echo "become() got = $got, want:root"
+    echo "become() got = $got, want: root"
     return 1
   }
+}
+
+# test_Def tests how the Def function defines the default task.
+test_Def() {
+  local -A testcase1=(
+    [name]=run
+    [field_task]=mytask
+    [arg]='echo hello'
+    [want]='[begin]		mytask
+[changed]	mytask'
+  )
+
+  subtest() {
+    ## arrange
+
+    testcasename=$1
+    eval "$(t.inherit $testcasename)"  # create variables from the keys/values of the test map
+
+    task $field_task  # task must be called before Def
+
+    ## act
+    got=$(Def $arg)
+
+    ## assert
+    [[ $got == "$want" ]] || {
+      echo -e "become() got did not match want:\n$(t.diff "$got" "$want")"
+      return 1
+    }
+  }
+
+  failed=0
+  for testcasename in testcase1; do
+    t.run subtest $testcasename || failed=1
+  done
+
+  return $failed
 }
 
 # test_task.curl tests whether the curl download task receives a file from a local test http server.
