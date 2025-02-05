@@ -49,11 +49,11 @@ main() {
   task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
 
   section tesht
-  task.git_clone_branch git@github.com:binaryphile/tesht ~/projects/tesht dev
+  task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
   task.ln  /mnt/chromeos/MyFiles/Downloads/crostini/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps
-  task.git_clone_branch git@github.com:binaryphile/task.bash ~/projects/task.bash dev
+  task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
   task.ln <<'  END'
     ~/dotfiles/bash/init.bash                                     ~/.bash_profile
     ~/dotfiles/bash/init.bash                                     ~/.bashrc
@@ -103,13 +103,6 @@ task.curlpipe_lix_installer() {
   task 'change store ownership for single user'
   ok   '[[ $(stat -c %U /nix):$(stat -c %G /nix) == ted:ted ]]'
   def  'sudo chown -R ted:ted /nix'
-}
-
-## git
-task.git_clone_branch() {
-  local repo=$1 dir=$2 branch=$3
-  task.git_clone $repo $dir
-  task.git_checkout $branch $dir
 }
 
 ## home manager
