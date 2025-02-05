@@ -18,9 +18,16 @@ test_Def() {
   local -A testcase1=(
     [name]=run
     [field_task]=mytask
-    [arg]='echo hello'
-    [want]='[begin]		mytask
-[changed]	mytask'
+    [arg]=true
+    [want]=$'[begin]		mytask\n[changed]	mytask'
+  )
+
+  local -A testcase2=(
+    [name]=loop
+    [field_task]=mytask
+    [arg]='echo $1'               # $1 causes it to loop, looking for input
+    [arg_stdin]=$'hello\nworld'   # two lines of input
+    [want]=$'[changed]	mytask - hello\n[changed]	mytask - world'
   )
 
   subtest() {
@@ -32,7 +39,11 @@ test_Def() {
     task $field_task  # task must be called before Def
 
     ## act
-    got=$(Def $arg)
+    if [[ -v arg_stdin ]]; then
+      got=$(Def $arg <<<"$arg_stdin")
+    else
+      got=$(Def $arg)
+    fi
 
     ## assert
     [[ $got == "$want" ]] || {
@@ -42,7 +53,7 @@ test_Def() {
   }
 
   failed=0
-  for testcasename in testcase1; do
+  for testcasename in testcase{1,2}; do
     t.run subtest $testcasename || failed=1
   done
 
