@@ -158,17 +158,17 @@ task.curl() {
   def    "mkdir -p $(dirname $2); curl -fsSL $1 >$2"
 }
 
-task.git_clone() {
-  task   "git clone $1 $2"
-  exist  $2
-  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
-}
-
 task.git_checkout() {
   local branch=$1 dir=$2
   task  "git checkout $branch"
   ok    "[[ $(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
   def   "cd $dir; git checkout $branch"
+}
+
+task.git_clone() {
+  task   "git clone $1 $2"
+  exist  $2
+  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
 }
 
 task.ln() {

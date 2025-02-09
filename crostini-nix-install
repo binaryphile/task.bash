@@ -50,10 +50,14 @@ main() {
 
   section tesht
   task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  task.git_checkout develop ~/projects/tesht
   task.ln  /mnt/chromeos/MyFiles/Downloads/crostini/projects/tesht/tesht ~/.local/bin/tesht
 
-  section apps
+  section task.bash
   task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
+  task.git_checkout develop ~/projects/tesht
+
+  section apps
   task.ln <<'  END'
     ~/dotfiles/bash/init.bash                                     ~/.bash_profile
     ~/dotfiles/bash/init.bash                                     ~/.bashrc
