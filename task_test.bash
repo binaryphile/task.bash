@@ -8,7 +8,9 @@ test_task.curl() {
   want=$'[begin]		curl http://127.0.0.1:8000/src.txt >dst.txt\n[changed]	curl http://127.0.0.1:8000/src.txt >dst.txt'
 
   # temporary directory
+
   dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
+
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT        # always clean up
   cd $dir
@@ -75,8 +77,10 @@ test_task.ln() {
     ## arrange
 
     # temporary directory
+
     dir=$(mktemp -d /tmp/tesht.XXXXXX)
-    [[ $dir == /tmp/tesht.* ]] || { echo "    task.ln/$name fatal: couldn't create temp directory"; return 1; }
+    [[ $dir == /tmp/tesht.* ]] || return
+
     trap "rm -rf $dir" EXIT # always clean up
     cd $dir
 
@@ -94,6 +98,7 @@ test_task.ln() {
     # if this is a test for error behavior, check it
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
+
       echo -e "    task.ln/$name error = $rc, want: $wanterr\n$got"
       return 1
     }
@@ -130,12 +135,13 @@ test_task.ln() {
 test_task.mkdir() {
   ## arrange
 
-  want='[begin]		mkdir -p mydir
-[changed]	mkdir -p mydir'
+  want=$'[begin]		mkdir -p mydir\n[changed]	mkdir -p mydir'
 
   # temporary directory
+
   dir=$(mktemp -d /tmp/tesht.XXXXXX)
-  [[ $dir == /tmp/tesht.* ]] || { echo "task.mkdir fatal: couldn't create temp directory"; return 1; }
+  [[ $dir == /tmp/tesht.* ]] || return
+
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT        # always clean up
   cd $dir
@@ -175,8 +181,10 @@ test_task.git_clone() {
   want=$'[begin]		git clone https://github.com/binaryphile/task.bash task.bash\n[changed]	git clone https://github.com/binaryphile/task.bash task.bash'
 
   # temporary directory
+
   dir=$(mktemp -d /tmp/tesht.XXXXXX)
   [[ $dir == /tmp/tesht.* ]] || return
+
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT        # always clean up
   cd $dir
