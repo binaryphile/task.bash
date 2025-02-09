@@ -5,12 +5,10 @@ source ./task.bash
 test_task.curl() {
   ## arrange
 
-  want='[begin]		curl http://127.0.0.1:8000/src.txt >dst.txt
-[changed]	curl http://127.0.0.1:8000/src.txt >dst.txt'
+  want=$'[begin]		curl http://127.0.0.1:8000/src.txt >dst.txt\n[changed]	curl http://127.0.0.1:8000/src.txt >dst.txt'
 
   # temporary directory
-  dir=$(mktemp -d /tmp/tesht.XXXXXX)
-  [[ $dir == /tmp/tesht.* ]] || { echo "task.curl couldn't create temp directory"; return 1; }
+  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT        # always clean up
   cd $dir
@@ -19,10 +17,10 @@ test_task.curl() {
   echo 'hello there' >src.txt
 
   # start the http server, redirect stdout so the test doesn't hang
-  pid=$(python3 -m http.server 8000 --bind 127.0.0.1 &>/dev/null& echo $!)
+  pid=$(python3 -m http.server 8000 --bind 127.0.0.1 &>/dev/null & echo $!)
   trapcmd="kill $pid >/dev/null; $trapcmd"
   trap $trapcmd EXIT  # always clean up
-  sleep 0.1           # give python time to start (double the minimum I tested)
+  sleep 0.4           # give python time to start (triple the minimum I tested)
 
   ## act
 
@@ -55,25 +53,24 @@ test_task.curl() {
 # There are subtests for link creation and when link creation fails.
 # Subtests are run with t.run.
 test_task.ln() {
-  local -A testcase1=(
+  local -A case1=(
     [name]=basic
     [args]='target.txt link.txt'
-    [want]='[begin]		create symlink - target.txt link.txt
-[changed]	create symlink - target.txt link.txt'
+    [want]=$'[begin]		create symlink - target.txt link.txt\n[changed]	create symlink - target.txt link.txt'
   )
 
-  local -A testcase2=(
+  local -A case2=(
     [name]='fail on link creation'
     [args]='target.txt /mnt/chromeos/MyFiles/Downloads/crostini/link.txt'
     [wanterr]=1
   )
 
   # subtest runs each subtest.
-  # testcase is expected to be the name of an associative array holding at least the key "name".
+  # case is expected to be the name of an associative array holding at least the key "name".
   # Each subtest that needs a directory creates it in /tmp.
   subtest() {
-    testcasename=$1
-    eval "$(t.inherit $testcasename)"  # create variables from the keys/values of the test map
+    casename=$1
+    eval "$(t.inherit $casename)"  # create variables from the keys/values of the test map
 
     ## arrange
 
@@ -121,8 +118,8 @@ test_task.ln() {
   }
 
   failed=0
-  for testcasename in testcase{1,2}; do
-    t.run subtest $testcasename || failed=1
+  for casename in case{1..2}; do
+    t.run subtest $casename || failed=1
   done
 
   return $failed
@@ -175,12 +172,11 @@ test_task.mkdir() {
 test_task.git_clone() {
   ## arrange
 
-  want='[begin]		git clone https://github.com/binaryphile/task.bash task.bash
-[changed]	git clone https://github.com/binaryphile/task.bash task.bash'
+  want=$'[begin]		git clone https://github.com/binaryphile/task.bash task.bash\n[changed]	git clone https://github.com/binaryphile/task.bash task.bash'
 
   # temporary directory
   dir=$(mktemp -d /tmp/tesht.XXXXXX)
-  [[ $dir == /tmp/tesht.* ]] || { echo "task.git_clone fatal: couldn't create temp directory"; return 1; }
+  [[ $dir == /tmp/tesht.* ]] || return
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT        # always clean up
   cd $dir
