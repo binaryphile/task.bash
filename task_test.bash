@@ -9,9 +9,9 @@ test_task.curl() {
   want=$'[begin]		curl http://127.0.0.1:8000/src.txt >dst.txt\n[changed]	curl http://127.0.0.1:8000/src.txt >dst.txt'
 
   # temporary directory
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
-  trap $trapcmd EXIT                                  # always clean up
+  dir=$(t.mktempdir) || return  # fail if can't make dir
+  trapcmd="rm -rf $dir"
+  trap $trapcmd EXIT            # always clean up
   cd $dir
 
   # create the downloadable file
@@ -86,9 +86,8 @@ test_task.ln() {
     name="    $subject/$name()"
 
     # temporary directory
-    dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
-    trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
-    trap $trapcmd EXIT                                  # always clean up
+    dir=$(t.mktempdir) || return  # fail if can't make dir
+    trap "rm -rf $dir" EXIT       # always clean up
     cd $dir
 
     # set positional args for command
@@ -146,9 +145,8 @@ test_task.mkdir() {
   want=$'[begin]		mkdir -p mydir\n[changed]	mkdir -p mydir'
 
   # temporary directory
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
-  trap $trapcmd EXIT                                  # always clean up
+  dir=$(t.mktempdir) || return  # fail if can't make dir
+  trap "rm -rf $dir" EXIT       # always clean up
   cd $dir
 
   ## act
@@ -187,9 +185,8 @@ test_task.git_clone() {
   want=$'[begin]		git clone https://github.com/binaryphile/task.bash task.bash\n[changed]	git clone https://github.com/binaryphile/task.bash task.bash'
 
   # temporary directory
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
-  trap $trapcmd EXIT                                  # always clean up
+  dir=$(t.mktempdir) || return  # fail if can't make dir
+  trap "rm -rf $dir" EXIT       # always clean up
   cd $dir
 
   ## act
