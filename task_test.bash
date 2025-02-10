@@ -9,11 +9,9 @@ test_task.curl() {
   want=$'[begin]		curl http://127.0.0.1:8000/src.txt >dst.txt\n[changed]	curl http://127.0.0.1:8000/src.txt >dst.txt'
 
   # temporary directory
-
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
-
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"
-  trap $trapcmd EXIT        # always clean up
+  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
+  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
+  trap $trapcmd EXIT                                  # always clean up
   cd $dir
 
   # create the downloadable file
@@ -27,7 +25,7 @@ test_task.curl() {
   ## act
 
   # run the command and capture the output and result code
-  for duration in 0.1 0.2 0.3; do
+  for duration in 0.1 0.2 0.4; do   # retry
     sleep $duration
     got=$($subject http://127.0.0.1:8000/src.txt dst.txt 2>&1)
     rc=$?
@@ -80,18 +78,17 @@ test_task.ln() {
   subtest() {
     ## arrange
 
-    subject=$1
-
     # create variables from the keys/values of the test map
     casename=$2
     eval "$(t.inherit $casename)"
 
+    subject=$1
+    name="    $subject/$name()"
+
     # temporary directory
-
-    dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
-
-    trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"
-    trap $trapcmd EXIT # always clean up
+    dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
+    trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
+    trap $trapcmd EXIT                                  # always clean up
     cd $dir
 
     # set positional args for command
@@ -109,25 +106,25 @@ test_task.ln() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "    $subject/$name error = $rc, want: $wanterr\n$got"
+      echo -e "$name error = $rc, want: $wanterr\n$got"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "    $subject/$name error = $rc, want: 0\n$got"
+      echo -e "$name error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the symlink was made
     [[ -L $2 ]] || {
-      echo -e "    $subject/$name expected $2 to be symlink\n$got"
+      echo -e "$name expected $2 to be symlink\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "    $subject/$name got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "$name got doesn't match want:\n$(t.diff "$got" "$want")"
       return 1
     }
   }
@@ -149,11 +146,9 @@ test_task.mkdir() {
   want=$'[begin]		mkdir -p mydir\n[changed]	mkdir -p mydir'
 
   # temporary directory
-
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
-
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"
-  trap $trapcmd EXIT        # always clean up
+  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
+  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
+  trap $trapcmd EXIT                                  # always clean up
   cd $dir
 
   ## act
@@ -192,11 +187,9 @@ test_task.git_clone() {
   want=$'[begin]		git clone https://github.com/binaryphile/task.bash task.bash\n[changed]	git clone https://github.com/binaryphile/task.bash task.bash'
 
   # temporary directory
-
-  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return
-
-  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"
-  trap $trapcmd EXIT        # always clean up
+  dir=$(mktemp -d /tmp/tesht.XXXXXX) || return        # fail if can't make dir
+  trapcmd="[[ \"$dir\" == /*/* ]] && rm -rf '$dir'"   # belt-and-suspenders rm -rf
+  trap $trapcmd EXIT                                  # always clean up
   cd $dir
 
   ## act
