@@ -13,8 +13,27 @@ Def() {
   [[ $1 == *'$1'* ]] && loop || run
 }
 
+# endhost resets the scope of the following tasks.
+endhost() { Hosts=(); NoHosts=(); }
+
+# endnohost resets the scope of the following tasks.
+endnohost() { endhost; }
+
+
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
+
+Hosts=()
+
+# host limits the scope of following commands to a set of hosts.
+host() { Hosts=( $* ); }
+
+# In returns whether item is in the named array.
+In() {
+  local -n array=$1
+  local item=$2
+  [[ "$IFS${array[*]}$IFS" == *"$IFS$item$IFS"* ]]
+}
 
 # InitTaskEnv initializes all relevant settings for a new task.
 InitTaskEnv() {
@@ -33,10 +52,16 @@ InitTaskEnv() {
 # loop runs def indirectly by looping through stdin and
 # feeding each line to `run` as an argument.
 loop() {
+  local line
   while IFS=$' \t' read -r line; do
     run $line
   done
 }
+
+NoHosts=()
+
+# nohost limits the scope of following tasks to not include listed hosts.
+nohost() { NoHosts=( $* ); }
 
 # ok sets the ok condition for the current task.
 ok() { Condition=$1; }
@@ -52,6 +77,9 @@ declare -A Changed=()       # tasks that succeeded
 # Task must be set externally already.
 run() {
   local task=$Task${1:+ - }${1:-}
+
+  ShouldSkip $HOSTNAME && return
+
   set -- $(eval "echo $*")
   [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
     Ok[$task]=1
@@ -74,8 +102,8 @@ run() {
   else
     echo -e "[failed]\t$task"
     ! (( ShowProgress )) && echo -e "[output]\t$task\n$Output\n"
-    echo '[stopped due to failure]'
-    (( rc == 0 )) && echo '[task reported success but condition not met]'
+    echo 'stopped due to failure'
+    (( rc == 0 )) && echo 'task reported success but condition not met'
 
     exit $rc
   fi
@@ -97,7 +125,18 @@ RunCommand() {
 
 
 # section announces the section name
-section() { local IFS=' '; echo -e "\n[section $*]"; }
+section() {
+  ShouldSkip $HOSTNAME && return
+  local IFS=' '
+  echo -e "\n[section $*]"
+}
+
+# ShouldSkip returns whether hostname should be skipped.
+ShouldSkip() {
+  local hostname=$1
+  In NoHosts $hostname && return
+  (( ${#Hosts[*]} > 0 )) && ! In Hosts $hostname
+}
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.

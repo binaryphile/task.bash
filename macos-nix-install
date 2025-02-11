@@ -3,7 +3,8 @@
 main() {
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
-  task.ln contexts/macos ~/dotfiles/context
+  [[ $OSTYPE == darwin* ]] && context=macos || context=crostini
+  task.ln contexts/$context ~/dotfiles/context
 
   section ssh
   task.ln ~/dotfiles/ssh/config ~/.ssh/config
@@ -25,26 +26,26 @@ main() {
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   task.home-manager_switch
 
-  section apps
-  task.ln <<'  END'
-    ~/dotfiles/bash/init.bash                               ~/.bashrc
-    ~/dotfiles/bash/init.bash                               ~/.bash_profile
-    ~/dotfiles/bash/init.bash                               ~/.profile
-    ~/dotfiles/gitconfig                                    ~/.gitconfig
-    ~/dotfiles/liquidprompt/liquid.theme                    ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc                  ~/.config/liquidpromptrc
-    ~/dotfiles/ranger/rc.conf                               ~/.config/ranger/rc.conf
-    ~/dotfiles/ranger/rifle.conf                            ~/.config/ranger/rifle.conf
-    ~/dotfiles/tmux.conf                                    ~/.tmux.conf
-  END
-
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   task.nvim_headless_PlugInstall
+
+  section apps
+  task.ln <<'  END'
+    ~/dotfiles/bash/init.bash                 ~/.bash_profile
+    ~/dotfiles/bash/init.bash                 ~/.bashrc
+    ~/dotfiles/bash/init.bash                 ~/.profile
+    ~/dotfiles/gitconfig                      ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme      ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc    ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                 ~/.config/ranger/rc.conf
+    ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
+    ~/dotfiles/tmux.conf                      ~/.tmux.conf
+  END
 }
 
-# task definitions
+### task definitions
 
 ## system
 
