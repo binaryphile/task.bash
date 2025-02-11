@@ -8,13 +8,13 @@ main() {
   # Section names help break sets of tasks into logical groups, but aren't required.
   # Usually you'll see more tasks than this under each.
   section system
-  apt_upgrade
+  task.apt_upgrade
 
   section etc
-  echo_Hello_World
+  task.echo_Hello_World
 }
 
-apt_upgrade() {
+task.apt_upgrade() {
   task   'apt update'
   become root
   unchg  'All packages are up to date.'
@@ -28,7 +28,7 @@ apt_upgrade() {
   def    'apt upgrade -y'
 }
 
-echo_Hello_World() {
+task.echo_Hello_World() {
   task 'say hello'
   def 'echo "Hello, World!"'
 }

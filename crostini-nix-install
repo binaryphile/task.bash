@@ -59,15 +59,15 @@ main() {
 
   section apps
   task.ln <<'  END'
-    ~/dotfiles/bash/init.bash                                     ~/.bash_profile
-    ~/dotfiles/bash/init.bash                                     ~/.bashrc
-    ~/dotfiles/bash/init.bash                                     ~/.profile
-    ~/dotfiles/gitconfig                                          ~/.gitconfig
-    ~/dotfiles/liquidprompt/liquid.theme                          ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc                        ~/.config/liquidpromptrc
-    ~/dotfiles/ranger/rc.conf                                     ~/.config/ranger/rc.conf
-    ~/dotfiles/ranger/rifle.conf                                  ~/.config/ranger/rifle.conf
-    ~/dotfiles/tmux.conf                                          ~/.tmux.conf
+    ~/dotfiles/bash/init.bash                 ~/.bash_profile
+    ~/dotfiles/bash/init.bash                 ~/.bashrc
+    ~/dotfiles/bash/init.bash                 ~/.profile
+    ~/dotfiles/gitconfig                      ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme      ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc    ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                 ~/.config/ranger/rc.conf
+    ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
+    ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
 }
 
