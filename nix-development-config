@@ -30,6 +30,9 @@ main() {
   task.home-manager_switch
 
   host penguin
+    section crostini
+    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
+
     section projects
     task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/projects
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
@@ -59,6 +62,7 @@ main() {
 
   section apps
   iter task.ln <<'  END'
+    ~/.config                                 ~/config
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
