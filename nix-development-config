@@ -34,8 +34,8 @@ main() {
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
 
     section projects
-    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/projects
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
+    task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
+    ! [[ -e ~/projects ]] && task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects # workaround -- some systems I've overridden this but they have the same hostname
 
     section go
     task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
@@ -75,7 +75,7 @@ main() {
   END
 }
 
-### helpers
+## helpers
 
 context() {
   local context
@@ -88,9 +88,9 @@ context() {
   echo $context
 }
 
-### task definitions
+## task definitions
 
-## system
+# system
 
 # task.apt_upgrade upgrades all apt packages to latest.
 # It first does an apt update.
@@ -107,14 +107,14 @@ task.apt_upgrade() {
   def    'apt upgrade -y'
 }
 
-## credential
+# credential
 task.install() {
   task  "install -m 600 $1 $2"
   exist $2
   def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
 }
 
-## nix
+# nix
 task.curlpipe_lix_installer() {
   task   'install single-user nix'
   prog   on
@@ -126,7 +126,7 @@ task.curlpipe_lix_installer() {
   def  'sudo chown -R ted:ted /nix'
 }
 
-## home manager
+# home manager
 
 task.nix-channel_add_home-manager() {
   task   'add home manager channel'
@@ -155,7 +155,7 @@ task.home-manager_switch() {
   def   'home-manager switch'
 }
 
-## neovim
+# neovim
 task.nvim_headless_PlugInstall() {
   task  'install neovim plugins'
   exist ~/.local/share/nvim/plugged

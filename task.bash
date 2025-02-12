@@ -87,24 +87,22 @@ ok() { Condition=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
-declare -A Ok=()            # tasks that were already satisfied
-declare -A Changed=()       # tasks that succeeded
+declare -A OKs=()           # tasks that were already satisfied
+declare -A Changeds=()      # tasks that succeeded
 
 # run runs def after checking that it is not already satisfied and records the result.
 # Task must be set externally already.
 run() {
-  local task=$Task${1:+ - }${1:-}
-
   ShouldSkip && return
 
   [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
-    Ok[$task]=1
-    echo -e "[ok]\t\t$task"
+    OKs[$Task]=1
+    echo -e "[$(T ok)]\t\t$Task"
 
     return
   }
 
-  ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[begin]\t\t$task"
+  ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[$(T begin)]\t\t$Task"
 
   local command
   if [[ $BecomeUser == '' ]]; then
@@ -120,18 +118,18 @@ run() {
 
   ! (( ShowProgress )) && { Output=$("${command[@]}" 2>&1); return; }
 
-  echo -e "[progress]\t$task"
+  echo -e "[$(T progress)]\t$Task"
   Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
 
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
-    Ok[$task]=1
-    echo -e "[ok]\t\t$task"
+    OKs[$Task]=1
+    echo -e "[$(T ok)]\t\t$Task"
   elif (( rc == 0 )) && ( eval $Condition &>/dev/null ); then
-    Changed[$task]=1
-    echo -e "[changed]\t$task"
+    Changeds[$Task]=1
+    echo -e "[$(T changed)]\t$Task"
   else
-    echo -e "[failed]\t$task"
-    ! (( ShowProgress )) && echo -e "[output]\t$task\n$Output\n"
+    echo -e "[$(T failed)]\t$Task"
+    ! (( ShowProgress )) && echo -e "[output]\t$Task\n$Output\n"
     echo 'stopped due to failure'
     (( rc == 0 )) && echo 'task reported success but condition not met'
 
@@ -184,14 +182,14 @@ summarize() {
 cat <<END
 
 [summary]
-ok:      ${#Ok[*]}
-changed: ${#Changed[*]}
+ok:      ${#OKs[*]}
+changed: ${#Changeds[*]}
 END
 
-(( ${#Changed[*]} == 0 )) && return
+(( ${#Changeds[*]} == 0 )) && return
 
 local Task
-for Task in ${!Changed[*]}; do
+for Task in ${!Changeds[*]}; do
   echo -e "\t$Task"
 done
 }
@@ -200,6 +198,28 @@ Systems=()
 
 # system limits the scope of the following tasks to the given operating system(s).
 system() { Systems=( ${*,,} ); }
+
+Blue='\033[38;5;33m'
+Green='\033[38;5;82m'
+Orange='\033[38;5;208m'
+Purple='\033[38;5;201m'
+Red='\033[38;5;196m'
+Yellow='\033[38;5;220m'
+
+Reset='\033[0m'
+
+declare -A Translations=(
+  [begin]=$Yellow
+  [changed]=$Orange
+  [failed]=$Red
+  [ok]=$Green
+  [progress]=$Yellow
+)
+
+# T translates text for presentation.
+T() {
+  echo ${Translations[$1]}$1$Reset
+}
 
 # task defines the current task and, if given other arguments, creates a task and runs it.
 # Tasks can loop if they include a '$1' argument and get fed items via stdin.
@@ -216,11 +236,11 @@ unchg() { UnchangedText=$1; }
 # unstrictly disables strict mode while running a command.
 unstrictly() {
   strict off
-  $*
+  "$@"
   strict on
 }
 
-# predefined helper tasks
+## predefined helper tasks
 
 task.curl() {
   local url=$1 file=$2
