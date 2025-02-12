@@ -24,7 +24,7 @@ main() {
   strict on
   task.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
-  section home manager
+  section home-manager
   task.nix-channel_add_home-manager
   task.nix-channel_update
   task.nix-shell_home-manager_install
