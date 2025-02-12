@@ -1,40 +1,35 @@
 #!/usr/bin/env bash
 
 main() {
-  system linux
+  host penguin
     section system
     task.apt_upgrade
 
     section credential
     task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
-  endsystem
+  endhost
 
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
-  [[ $OSTYPE == darwin* ]] && context=macos || context=crostini
-  task.ln contexts/$context ~/dotfiles/context
+  task.ln contexts/$(context) ~/dotfiles/context
 
   section ssh
   task.ln ~/dotfiles/ssh/config ~/.ssh/config
 
   section nix
   task.curlpipe_lix_installer
-  strict off
-  source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-  strict on
+  unstrictly source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
   task.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
   section home-manager
   task.nix-channel_add_home-manager
   task.nix-channel_update
   task.nix-shell_home-manager_install
-  strict off
-  source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
-  strict on
+  unstrictly source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   task.home-manager_switch
 
-  system linux
+  host penguin
     section projects
     task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/projects
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
@@ -46,7 +41,7 @@ main() {
     section obsidian
     task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
-  endsystem
+  endhost
 
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
@@ -63,7 +58,7 @@ main() {
   task.git_checkout develop ~/projects/task.bash
 
   section apps
-  task.ln <<'  END'
+  iter task.ln <<'  END'
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
@@ -74,6 +69,19 @@ main() {
     ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
+}
+
+### helpers
+
+context() {
+  local context
+  if [[ $OSTYPE == darwin* ]]; then
+    context=macos
+  elif [[ $HOSTNAME == penguin ]]; then
+    context=crostini
+  fi
+
+  echo $context
 }
 
 ### task definitions
