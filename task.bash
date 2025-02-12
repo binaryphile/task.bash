@@ -19,6 +19,11 @@ endhost() { Hosts=(); NoHosts=(); }
 # endnohost resets the scope of the following tasks.
 endnohost() { endhost; }
 
+# endnosystem resets the scope of the following tasks.
+endnosystem() { endsystem; }
+
+# endsystem resets the scope of the following tasks.
+endsystem() { Systems=(); NoSystems=(); }
 
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
@@ -26,7 +31,7 @@ exist() { ok "[[ -e $1 ]]"; }
 Hosts=()
 
 # host limits the scope of following commands to a set of hosts.
-host() { Hosts=( $* ); }
+host() { Hosts=( ${*,,} ); }
 
 # In returns whether item is in the named array.
 In() {
@@ -60,8 +65,13 @@ loop() {
 
 NoHosts=()
 
-# nohost limits the scope of following tasks to not include listed hosts.
-nohost() { NoHosts=( $* ); }
+# nohost limits the scope of following tasks to not include the given hosts.
+nohost() { NoHosts=( ${*,,} ); }
+
+NoSystems=()
+
+# nosystem limits the scope of following tasks to not include the given operating systems.
+nosystem() { NoSystems=( ${*,,} ); }
 
 # ok sets the ok condition for the current task.
 ok() { Condition=$1; }
@@ -78,7 +88,7 @@ declare -A Changed=()       # tasks that succeeded
 run() {
   local task=$Task${1:+ - }${1:-}
 
-  ShouldSkip $HOSTNAME && return
+  ShouldSkip && return
 
   set -- $(eval "echo $*")
   [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
@@ -126,16 +136,20 @@ RunCommand() {
 
 # section announces the section name
 section() {
-  ShouldSkip $HOSTNAME && return
+  ShouldSkip && return
   local IFS=' '
   echo -e "\n[section $*]"
 }
 
-# ShouldSkip returns whether hostname should be skipped.
+# ShouldSkip returns whether the task should be skipped.
 ShouldSkip() {
-  local hostname=$1
+  local hostname=${HOSTNAME,,}
   In NoHosts $hostname && return
-  (( ${#Hosts[*]} > 0 )) && ! In Hosts $hostname
+  (( ${#Hosts[*]} > 0 )) && ! In Hosts $hostname && return
+
+  [[ $OSTYPE == darwin* ]] && local system=macos || local system=linux
+  In NoSystems $system && return
+  (( ${#Systems[*]} )) && ! In Systems $system
 }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
@@ -176,12 +190,16 @@ for Task in ${!Changed[*]}; do
 done
 }
 
+Systems=()
+
+# system limits the scope of the following tasks to the given operating system(s).
+system() { Systems=( ${*,,} ); }
+
 # task defines the current task and, if given other arguments, creates a task and runs it.
 # Tasks can loop if they include a '$1' argument and get fed items via stdin.
 # It resets def if it isn't given a command in arguments.
 task() {
   Task=${1:-}
-
   InitTaskEnv
 }
 
