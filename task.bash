@@ -5,12 +5,12 @@ set -uf   # error on unset variable references and turn off globbing - globbing 
 become() { BecomeUser=$1; }
 
 # Def is the default implementation of def. The user calls the default implementation
-# when they define the task using def. The default implementation accepts a task as
-# arguments and redefines def to run that command, running it indirectly by then calling
-# run, or loop if there is a variable argument in the task.
+# when they define the task using def. The default implementation accepts a command as
+# arguments and redefines def to run that command then runs it by calling run,
+# which is hardcoded to call def.
 Def() {
   eval "def() { $1; }"
-  [[ $1 == *'$1'* ]] && loop || run
+  run
 }
 
 # endhost resets the scope of the following tasks.
@@ -54,13 +54,20 @@ InitTaskEnv() {
   def() { Def "$@"; }
 }
 
-# loop runs def indirectly by looping through stdin and
-# feeding each line to `run` as an argument.
-loop() {
-  local line
+Iterating=0
+
+# iter runs func with the arguments of each line from stdin.
+iter() {
+  local func=$1 line
+
+  Iterating=1
+
   while IFS=$' \t' read -r line; do
-    run $line
+    eval "set -- $line"
+    $func $*
   done
+
+  Iterating=0
 }
 
 NoHosts=()
@@ -80,57 +87,54 @@ ok() { Condition=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
-declare -A Ok=()            # tasks that were already satisfied
-declare -A Changed=()       # tasks that succeeded
+declare -A OKs=()           # tasks that were already satisfied
+declare -A Changeds=()      # tasks that succeeded
 
 # run runs def after checking that it is not already satisfied and records the result.
 # Task must be set externally already.
 run() {
-  local task=$Task${1:+ - }${1:-}
-
   ShouldSkip && return
 
-  set -- $(eval "echo $*")
   [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
-    Ok[$task]=1
-    echo -e "[ok]\t\t$task"
+    OKs[$Task]=1
+    echo -e "[$(T ok)]\t\t$Task"
 
     return
   }
 
-  ! (( ShowProgress )) && (( $# == 0 )) && echo -e "[begin]\t\t$task"
+  ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[$(T begin)]\t\t$Task"
 
-  local rc
-  RunCommand $* && rc=$? || rc=$?
+  local command
+  if [[ $BecomeUser == '' ]]; then
+    command=( def )
+  else
+    command=(
+      sudo -u $BecomeUser bash -c "
+        $(declare -f def)
+        def
+      "
+    )
+  fi
+
+  ! (( ShowProgress )) && { Output=$("${command[@]}" 2>&1); return; }
+
+  echo -e "[$(T progress)]\t$Task"
+  Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
 
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
-    Ok[$task]=1
-    echo -e "[ok]\t\t$task"
+    OKs[$Task]=1
+    echo -e "[$(T ok)]\t\t$Task"
   elif (( rc == 0 )) && ( eval $Condition &>/dev/null ); then
-    Changed[$task]=1
-    echo -e "[changed]\t$task"
+    Changeds[$Task]=1
+    echo -e "[$(T changed)]\t$Task"
   else
-    echo -e "[failed]\t$task"
-    ! (( ShowProgress )) && echo -e "[output]\t$task\n$Output\n"
+    echo -e "[$(T failed)]\t$Task"
+    ! (( ShowProgress )) && echo -e "[output]\t$Task\n$Output\n"
     echo 'stopped due to failure'
     (( rc == 0 )) && echo 'task reported success but condition not met'
 
     exit $rc
   fi
-}
-
-# RunCommand runs def and captures the output, optionally showing progress.
-# We cheat and refer to variables from the outer scope, so this can only be run by `run`.
-RunCommand() {
-  local command
-  [[ $BecomeUser == '' ]] &&
-    command=( def $* ) ||
-    command=( sudo -u $BecomeUser bash -c "$(declare -f def); def $*" )
-
-  ! (( ShowProgress )) && { Output=$("${command[@]}" 2>&1); return; }
-
-  echo -e "[progress]\t$task"
-  Output=$("${command[@]}" 2>&1 | tee /dev/tty)
 }
 
 
@@ -178,14 +182,14 @@ summarize() {
 cat <<END
 
 [summary]
-ok:      ${#Ok[*]}
-changed: ${#Changed[*]}
+ok:      ${#OKs[*]}
+changed: ${#Changeds[*]}
 END
 
-(( ${#Changed[*]} == 0 )) && return
+(( ${#Changeds[*]} == 0 )) && return
 
 local Task
-for Task in ${!Changed[*]}; do
+for Task in ${!Changeds[*]}; do
   echo -e "\t$Task"
 done
 }
@@ -194,6 +198,28 @@ Systems=()
 
 # system limits the scope of the following tasks to the given operating system(s).
 system() { Systems=( ${*,,} ); }
+
+Blue='\033[38;5;33m'
+Green='\033[38;5;82m'
+Orange='\033[38;5;208m'
+Purple='\033[38;5;201m'
+Red='\033[38;5;196m'
+Yellow='\033[38;5;220m'
+
+Reset='\033[0m'
+
+declare -A Translations=(
+  [begin]=$Yellow
+  [changed]=$Orange
+  [failed]=$Red
+  [ok]=$Green
+  [progress]=$Yellow
+)
+
+# T translates text for presentation.
+T() {
+  echo ${Translations[$1]}$1$Reset
+}
 
 # task defines the current task and, if given other arguments, creates a task and runs it.
 # Tasks can loop if they include a '$1' argument and get fed items via stdin.
@@ -207,54 +233,53 @@ task() {
 # Such tasks get marked ok.
 unchg() { UnchangedText=$1; }
 
-# predefined helper tasks
+# unstrictly disables strict mode while running a command.
+unstrictly() {
+  strict off
+  "$@"
+  strict on
+}
+
+## predefined helper tasks
 
 task.curl() {
-  task   "curl $1 >$2"
-  exist  $2
-  def    "mkdir -p $(dirname $2); curl -fsSL $1 >$2"
+  local url=$1 file=$2
+  task   "download ${url##*/} from ${url%%/*} as $(basename file)"
+  exist  $file
+  def    "mkdir -p $(dirname $file); curl -fsSL $url >$file"
 }
 
 task.git_checkout() {
   local branch=$1 dir=$2
-  task  "git checkout $branch"
+  task  "checkout branch $branch in repo $(basename $dir)"
   ok    "[[ $(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
   def   "cd $dir; git checkout $branch"
 }
 
 task.git_clone() {
-  task   "git clone $1 $2"
-  exist  $2
-  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $1 $2"
+  local repo=$1 dir=$2
+  task   "clone repo ${1#git@} to $(basename $dir)"
+  exist  $dir
+  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $repo $dir"
 }
 
 task.ln() {
-  (( $# == 0 )) && {
-    task "create symlink"
-    ok   'eval "set -- $1"; [[ -L $2 ]]'
+  local target=$1 link=$2
+  task   "symlink $link to $target"
+  ok     "[[ -L $link ]]"
+  eval "
     def() {
-      eval "set -- $1"
-      mkdir -p $(dirname $2)
-      [[ -L $2 ]] && rm $2
-      ln -sf $*
+      mkdir -p $(dirname $link)
+      [[ -L $link ]] && rm $link
+      ln -sf $target $link
     }
-    loop
-
-    return
-  }
-
-  task   "create symlink - $1 $2"
-  ok     "[[ -L $2 ]]"
-  eval "def() {
-    mkdir -p $(dirname $2)
-    [[ -L $2 ]] && rm $2
-    ln -sf $1 $2
-  }"
+  "
   run
 }
 
 task.mkdir() {
-  task "mkdir -p $1"
-  ok "[[ -d $1 ]]"
-  def "mkdir -p $1"
+  local dir=$1
+  task "make directory $(basename dir)"
+  ok "[[ -d $dir ]]"
+  def "mkdir -p $dir"
 }
