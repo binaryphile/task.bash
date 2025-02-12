@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 
 main() {
+  system linux
+    section system
+    task.apt_upgrade
+
+    section credential
+    task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
+  endsystem
+
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
   [[ $OSTYPE == darwin* ]] && context=macos || context=crostini
@@ -26,10 +34,33 @@ main() {
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   task.home-manager_switch
 
+  system linux
+    section projects
+    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/projects
+    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
+
+    section go
+    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
+    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+
+    section obsidian
+    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
+    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
+  endsystem
+
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   task.nvim_headless_PlugInstall
+
+  section tesht
+  task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  task.git_checkout develop ~/projects/tesht
+  task.ln ~/projects/tesht/tesht ~/.local/bin/tesht
+
+  section task.bash
+  task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
+  task.git_checkout develop ~/projects/task.bash
 
   section apps
   task.ln <<'  END'
@@ -119,7 +150,7 @@ task.nvim_headless_PlugInstall() {
   def   'nvim --headless +PlugInstall +qall'
 }
 
-# boilerplate
+## boilerplate
 
 if [[ -e task.bash ]]; then
   source ./task.bash
