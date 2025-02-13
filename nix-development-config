@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
 main() {
-  host penguin
+  register system detectSystem
+
+  system crostini
     section system
     task.apt_upgrade
 
     section credential
     task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
-  endhost
+  endsystem
 
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
@@ -29,7 +31,7 @@ main() {
   task.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   task.home-manager_switch
 
-  host penguin
+  system crostini
     section crostini
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
 
@@ -44,7 +46,7 @@ main() {
     section obsidian
     task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
     task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
-  endhost
+  endsystem
 
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
@@ -78,14 +80,14 @@ main() {
 ## helpers
 
 context() {
-  local context
-  if [[ $OSTYPE == darwin* ]]; then
-    context=macos
-  elif [[ $HOSTNAME == penguin ]]; then
-    context=crostini
-  fi
+  [[ $OSTYPE == darwin* ]] && { echo macos; return; }
+  [[ $HOSTNAME == penguin ]] && echo crostini || echo linux
+}
 
-  echo $context
+detectSystem() {
+  [[ $OSTYPE == darwin* ]] && { echo macos; return; }
+  echo linux
+  [[ $HOSTNAME != penguin ]] || echo crostini
 }
 
 ## task definitions
