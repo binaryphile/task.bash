@@ -84,7 +84,7 @@ ok() { Condition=$1; }
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
 HostnameFunc=Hostname   # the name of the function that determines hostname
-SystemFunc=System       # the name of the function that determines system type
+SystemFunc=SystemType       # the name of the function that determines system type
 
 # register registers either hostname or system functions.
 register() {
@@ -214,8 +214,8 @@ YesSystems=()
 # system limits the scope of the following tasks to the given operating system(s).
 system() { YesSystems=( ${*,,} ); }
 
-# System is the default function for determining the system type.
-System() { [[ $OSTYPE == darwin* ]] && echo macos || echo linux; }
+# SystemType is the default function for determining the system type.
+SystemType() { [[ $OSTYPE == darwin* ]] && echo macos || echo linux; }
 
 Blue='\033[38;5;33m'
 Green='\033[38;5;82m'

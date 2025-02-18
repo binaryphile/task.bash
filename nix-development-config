@@ -33,19 +33,19 @@ main() {
 
   system crostini
     section crostini
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
+    task.ln /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
 
     section projects
     task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
     ! [[ -e ~/projects ]] && task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects # workaround -- some systems I've overridden this but they have the same hostname
 
     section go
-    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+    task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
+    ! [[ -e ~/GolandProjects ]] && task.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
 
     section obsidian
-    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
+    task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
+    ! [[ -e ~/obsidian ]] && task.ln /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
   endsystem
 
   section neovim
