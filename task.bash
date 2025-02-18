@@ -84,15 +84,15 @@ ok() { Condition=$1; }
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
 HostnameFunc=Hostname   # the name of the function that determines hostname
-SystemFunc=SystemType       # the name of the function that determines system type
+SystemTypeFunc=SystemType       # the name of the function that determines system type
 
 # register registers either hostname or system functions.
 register() {
-  local function=$1 implementation=$2
+  local functionType=$1 implementation=$2
 
-  case $function in
-    hostname  ) HostnameFunc=$implementation;;
-    system    ) SystemFunc=$implementation;;
+  case $functionType in
+    hostnameFunc    ) HostnameFunc=$implementation;;
+    systemTypeFunc  ) SystemTypeFunc=$implementation;;
   esac
 }
 
@@ -160,7 +160,7 @@ ShouldSkip() {
   In NoHosts $hostname && return
   (( ${#YesHosts[*]} > 0 )) && ! In YesHosts $hostname && return
 
-  local systems=( $($SystemFunc) ) system
+  local systems=( $($SystemTypeFunc) ) system
   for system in ${systems[*]}; do
     In NoSystems $system && return
   done
@@ -282,7 +282,7 @@ task.git_clone() {
 }
 
 task.ln() {
-  local target=$1 link=$2
+  local target=$1 link=$(printf %q $2)
   task   "symlink $link to $target"
   ok     "[[ -L $link ]]"
   eval "
