@@ -39,7 +39,7 @@ main() {
     task.ln /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
   endsystem
 
-  host callalloo
+  host callaloo
     section projects
     task.mkdir ~/projects
     projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/projects
