@@ -22,6 +22,30 @@ endsystem() { YesSystems=(); NoSystems=(); }
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
+# glob executes the arguments with globbing on.
+glob() {
+  local command=$1
+
+  Globbing on
+  eval "$command"
+  Globbing off
+}
+
+# Globbing toggles globbing.
+Globbing() {
+  local command=$1
+  case $command in
+    off )
+      shopt -u nullglob
+      set -o noglob
+      ;;
+    on )
+      set +o noglob
+      shopt -s nullglob
+      ;;
+  esac
+}
+
 YesHosts=()
 
 # host limits the scope of following commands to a set of hosts.
@@ -83,8 +107,8 @@ ok() { Condition=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
-HostnameFunc=Hostname   # the name of the function that determines hostname
-SystemTypeFunc=SystemType       # the name of the function that determines system type
+HostnameFunc=Hostname       # the name of the function that determines hostname
+SystemTypeFunc=SystemType   # the name of the function that determines system type
 
 # register registers either hostname or system functions.
 register() {

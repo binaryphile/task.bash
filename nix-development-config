@@ -16,7 +16,12 @@ main() {
 
   section dotfiles
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
-  task.ln contexts/$(context) ~/dotfiles/context
+  system macos
+    task.ln contexts/macos ~/dotfiles/context
+  endsystem
+  system crostini
+    task.ln contexts/crostini ~/dotfiles/context
+  endsystem
 
   section ssh
   task.ln ~/dotfiles/ssh/config ~/.ssh/config
@@ -35,52 +40,31 @@ main() {
   task.home-manager_switch
 
   system crostini
+    crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
+
     section crostini
-    task.ln /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
-  endsystem
+    task.ln $crostiniDir ~/crostini
 
-  host callaloo
-    section projects
-    task.mkdir ~/projects
-    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/projects
-    set +o noglob
-    shopt -s nullglob
-    paths=( $projectDir/* )
-    shopt -u nullglob
-    set -o noglob
-    for path in ${paths[*]}; do
-      name=${path##*/}
-      task.ln ~/projects/$name $path
-    done
+    host callaloo
+      section projects
+      glob "paths=( $crostiniDir/projects/* )"
+      for path in ${paths[*]}; do
+        task.ln $path ~/projects/$(basename $path)
+      done
 
-    section go
-    task.mkdir ~/GolandProjects
-    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
-    set +o noglob
-    shopt -s nullglob
-    paths=( $projectDir/* )
-    shopt -u nullglob
-    set -o noglob
-    for path in ${paths[*]}; do
-      name=${path##*/}
-      task.ln ~/GolandProjects/$name $path
-    done
+      section go
+      glob "paths=( $crostiniDir/GolandProjects/* )"
+      for path in ${paths[*]}; do
+        task.ln $path ~/GolandProjects/$(basename $path)
+      done
 
-    section obsidian
-    task.mkdir ~/obsidian
-    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/obsidian
-    set +o noglob
-    shopt -s nullglob
-    paths=( $projectDir/* )
-    shopt -u nullglob
-    set -o noglob
-    for path in ${paths[*]}; do
-      name=${path##*/}
-      task.ln ~/obsidian/$name $path
-    done
-  endhost
+      section obsidian
+      glob "paths=( $crostiniDir/obsidian/* )"
+      for path in ${paths[*]}; do
+        task.ln $path ~/obsidian/$(basename $path)
+      done
+    endhost
 
-  system crostini
     nohost callalloo
       section projects
       task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
@@ -126,11 +110,6 @@ main() {
 }
 
 ## helpers
-
-context() {
-  [[ $OSTYPE == darwin* ]] && { echo macos; return; }
-  [[ $HOSTNAME == penguin ]] && echo crostini || echo linux
-}
 
 idHost() {
   local filename=/mnt/chromeos/MyFiles/Downloads/crostini/hostname hostname
