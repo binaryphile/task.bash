@@ -14,30 +14,26 @@ Def() {
 }
 
 # endhost resets the scope of the following tasks.
-endhost() { Hosts=(); NoHosts=(); }
-
-# endnohost resets the scope of the following tasks.
-endnohost() { endhost; }
-
-# endnosystem resets the scope of the following tasks.
-endnosystem() { endsystem; }
+endhost() { YesHosts=(); NoHosts=(); }
 
 # endsystem resets the scope of the following tasks.
-endsystem() { Systems=(); NoSystems=(); }
+endsystem() { YesSystems=(); NoSystems=(); }
 
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
-Hosts=()
+YesHosts=()
 
 # host limits the scope of following commands to a set of hosts.
-host() { Hosts=( ${*,,} ); }
+host() { YesHosts=( ${*,,} ); }
+
+# Hostname is the default implementation of the function that identifies the host.
+Hostname() { echo ${HOSTNAME,,}; }
 
 # In returns whether item is in the named array.
 In() {
   local -n array=$1
-  local item=$2
-  [[ "$IFS${array[*]}$IFS" == *"$IFS$item$IFS"* ]]
+  [[ "$IFS${array[*]}$IFS" == *"$IFS$2$IFS"* ]]
 }
 
 # InitTaskEnv initializes all relevant settings for a new task.
@@ -87,6 +83,19 @@ ok() { Condition=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
+HostnameFunc=Hostname   # the name of the function that determines hostname
+SystemFunc=System       # the name of the function that determines system type
+
+# register registers either hostname or system functions.
+register() {
+  local function=$1 implementation=$2
+
+  case $function in
+    hostname  ) HostnameFunc=$implementation;;
+    system    ) SystemFunc=$implementation;;
+  esac
+}
+
 declare -A OKs=()           # tasks that were already satisfied
 declare -A Changeds=()      # tasks that succeeded
 
@@ -108,18 +117,19 @@ run() {
   if [[ $BecomeUser == '' ]]; then
     command=( def )
   else
-    command=(
-      sudo -u $BecomeUser bash -c "
-        $(declare -f def)
-        def
-      "
-    )
+    remoteCommandString="
+      $(declare -f def)
+      def
+    "
+    command=( sudo -u $BecomeUser bash -c "$remoteCommandString" )
   fi
 
-  ! (( ShowProgress )) && { Output=$("${command[@]}" 2>&1); return; }
-
-  echo -e "[$(T progress)]\t$Task"
-  Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
+  if ! (( ShowProgress )); then
+    Output=$("${command[@]}" 2>&1) && rc=$? || rc=$?
+  else
+    echo -e "[$(T progress)]\t$Task"
+    Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
+  fi
 
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     OKs[$Task]=1
@@ -132,11 +142,10 @@ run() {
     ! (( ShowProgress )) && echo -e "[output]\t$Task\n$Output\n"
     echo 'stopped due to failure'
     (( rc == 0 )) && echo 'task reported success but condition not met'
-
-    exit $rc
   fi
-}
 
+  return $rc
+}
 
 # section announces the section name
 section() {
@@ -147,13 +156,19 @@ section() {
 
 # ShouldSkip returns whether the task should be skipped.
 ShouldSkip() {
-  local hostname=${HOSTNAME,,}
+  local hostname=$($HostnameFunc)
   In NoHosts $hostname && return
-  (( ${#Hosts[*]} > 0 )) && ! In Hosts $hostname && return
+  (( ${#YesHosts[*]} > 0 )) && ! In YesHosts $hostname && return
 
-  [[ $OSTYPE == darwin* ]] && local system=macos || local system=linux
-  In NoSystems $system && return
-  (( ${#Systems[*]} )) && ! In Systems $system
+  local systems=( $($SystemFunc) ) system
+  for system in ${systems[*]}; do
+    In NoSystems $system && return
+  done
+
+  (( ${#YesSystems[*]} > 0 )) &&
+    for system in ${systems[*]}; do
+      In YesSystems $system && return 1
+    done
 }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
@@ -194,10 +209,13 @@ for Task in ${!Changeds[*]}; do
 done
 }
 
-Systems=()
+YesSystems=()
 
 # system limits the scope of the following tasks to the given operating system(s).
-system() { Systems=( ${*,,} ); }
+system() { YesSystems=( ${*,,} ); }
+
+# System is the default function for determining the system type.
+System() { [[ $OSTYPE == darwin* ]] && echo macos || echo linux; }
 
 Blue='\033[38;5;33m'
 Green='\033[38;5;82m'
@@ -243,10 +261,10 @@ unstrictly() {
 ## predefined helper tasks
 
 task.curl() {
-  local url=$1 file=$2
-  task   "download ${url##*/} from ${url%%/*} as $(basename file)"
-  exist  $file
-  def    "mkdir -p $(dirname $file); curl -fsSL $url >$file"
+  local url=$1 filename=$2
+  task   "download ${url##*/} from ${url%/*} as $(basename $filename)"
+  exist  $filename
+  def    "mkdir -p $(dirname $filename); curl -fsSL $url >$filename"
 }
 
 task.git_checkout() {
