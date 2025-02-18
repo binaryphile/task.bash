@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 
 main() {
-  register system detectSystem
+  register systemTypeFunc idSystem
+  register hostnameFunc idHost
 
-  system crostini
+  system debian
     section system
     task.apt_upgrade
+  endsystem
 
+  system crostini
     section credential
     task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
   endsystem
@@ -33,19 +36,64 @@ main() {
 
   system crostini
     section crostini
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
+    task.ln /mnt/chromeos/MyFiles/Downloads/crostini ~/crostini
+  endsystem
 
+  host callalloo
     section projects
-    task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
-    ! [[ -e ~/projects ]] && task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects # workaround -- some systems I've overridden this but they have the same hostname
+    task.mkdir ~/projects
+    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/projects
+    set +o noglob
+    shopt -s nullglob
+    paths=( $projectDir/* )
+    shopt -u nullglob
+    set -o noglob
+    for path in ${paths[*]}; do
+      name=${path##*/}
+      task.ln ~/projects/$name $path
+    done
 
     section go
-    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+    task.mkdir ~/GolandProjects
+    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
+    set +o noglob
+    shopt -s nullglob
+    paths=( $projectDir/* )
+    shopt -u nullglob
+    set -o noglob
+    for path in ${paths[*]}; do
+      name=${path##*/}
+      task.ln ~/GolandProjects/$name $path
+    done
 
     section obsidian
-    task.mkdir  /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
-    task.ln     /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
+    task.mkdir ~/obsidian
+    projectDir=/mnt/chromeos/MyFiles/Downloads/crostini/obsidian
+    set +o noglob
+    shopt -s nullglob
+    paths=( $projectDir/* )
+    shopt -u nullglob
+    set -o noglob
+    for path in ${paths[*]}; do
+      name=${path##*/}
+      task.ln ~/obsidian/$name $path
+    done
+  endhost
+
+  system crostini
+    nohost callalloo
+      section projects
+      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
+      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
+
+      section go
+      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
+      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
+
+      section obsidian
+      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
+      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
+    endhost
   endsystem
 
   section neovim
@@ -84,10 +132,16 @@ context() {
   [[ $HOSTNAME == penguin ]] && echo crostini || echo linux
 }
 
-detectSystem() {
+idHost() {
+  local filename=/mnt/chromeos/MyFiles/Downloads/crostini/hostname hostname
+  [[ $HOSTNAME == penguin && -e $filename ]] && hostname=$(<$filename) || hostname=$HOSTNAME
+  echo ${hostname,,}
+}
+
+idSystem() {
   [[ $OSTYPE == darwin* ]] && { echo macos; return; }
   echo linux
-  [[ $HOSTNAME != penguin ]] || echo crostini
+  [[ $HOSTNAME != penguin ]] || { echo debian; echo crostini; }
 }
 
 ## task definitions
