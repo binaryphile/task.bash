@@ -14,19 +14,19 @@ Def() {
 }
 
 # endhost resets the scope of the following tasks.
-endhost() { YesHosts=(); NoHosts=(); }
+endhost() { YesHosts=(); NotHosts=(); }
 
 # endsystem resets the scope of the following tasks.
-endsystem() { YesSystems=(); NoSystems=(); }
+endsystem() { YesSystems=(); NotSystems=(); }
 
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
-# glob expands expression with globbing on.
+# glob expands $1 with globbing on.
 glob() {
   Globbing on
   set -- $1
-  echo "$*"
+  printf '%q\n' $*
   Globbing off
 }
 
@@ -82,15 +82,15 @@ iter() {
   Iterating=0
 }
 
-NoHosts=()
+NotHosts=()
 
-# nohost limits the scope of following tasks to not include the given hosts.
-nohost() { NoHosts=( ${*,,} ); }
+# nothost limits the scope of following tasks to not include the given hosts.
+nothost() { NotHosts=( ${*,,} ); }
 
-NoSystems=()
+NotSystems=()
 
-# nosystem limits the scope of following tasks to not include the given operating systems.
-nosystem() { NoSystems=( ${*,,} ); }
+# notsystem limits the scope of following tasks to not include the given operating systems.
+notsystem() { NotSystems=( ${*,,} ); }
 
 # ok sets the ok condition for the current task.
 ok() { Condition=$1; }
@@ -173,12 +173,12 @@ section() {
 # ShouldSkip returns whether the task should be skipped.
 ShouldSkip() {
   local hostname=$($HostnameFunc)
-  In NoHosts $hostname && return
+  In NotHosts $hostname && return
   (( ${#YesHosts[*]} > 0 )) && ! In YesHosts $hostname && return
 
   local systems=( $($SystemTypeFunc) ) system
   for system in ${systems[*]}; do
-    In NoSystems $system && return
+    In NotSystems $system && return
   done
 
   (( ${#YesSystems[*]} > 0 )) &&
@@ -196,15 +196,9 @@ ShouldSkip() {
 # which *is* covered here.
 strict() {
   case $1 in
-    off )
-      IFS=$' \t\n'
-      set +euf
-      ;;
-    on )
-      IFS=$'\n'
-      set -euf
-      ;;
-    * ) false;;
+    off ) IFS=$' \t\n'; set +euf;;
+    on  ) IFS=$'\n'; set -euf;;
+    *   ) false;;
   esac
 }
 
