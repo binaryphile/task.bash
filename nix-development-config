@@ -45,39 +45,23 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    host callaloo
-      section projects
-      paths=( $(glob $crostiniDir/projects/*) )
-      for path in ${paths[*]}; do
-        task.ln $path ~/projects/$(basename $path)
-      done
+    section projects
+    paths=( $(glob $crostiniDir/projects/*) )
+    for path in ${paths[*]}; do
+      echo "$path ~/projects/$(basename $path)"
+    done | iter task.ln
 
-      section go
-      paths=( $(glob $crostiniDir/GolandProjects/*) )
-      for path in ${paths[*]}; do
-        task.ln $path ~/GolandProjects/$(basename $path)
-      done
+    section go
+    paths=( $(glob $crostiniDir/GolandProjects/*) )
+    for path in ${paths[*]}; do
+      echo "$path ~/GolandProjects/$(basename $path)"
+    done | iter task.ln
 
-      section obsidian
-      paths=( $(glob $crostiniDir/obsidian/*) )
-      for path in ${paths[*]}; do
-        task.ln $path ~/obsidian/$(basename $path)
-      done
-    endhost
-
-    nohost callaloo
-      section projects
-      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
-      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects
-
-      section go
-      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects
-      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/GolandProjects ~/GolandProjects
-
-      section obsidian
-      task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/obsidian
-      task.ln /mnt/chromeos/MyFiles/Downloads/crostini/obsidian ~/obsidian
-    endhost
+    section obsidian
+    paths=( $(glob $crostiniDir/obsidian/*) )
+    for path in ${paths[*]}; do
+      echo "$path ~/obsidian/$(basename $path)"
+    done | iter task.ln
   endsystem
 
   section neovim
