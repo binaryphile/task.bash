@@ -26,7 +26,9 @@ exist() { ok "[[ -e $1 ]]"; }
 glob() {
   Globbing on
   set -- $1
-  printf '%q\n' $*
+  local out
+  printf -v out '%q\n' $*
+  [[ $out != $'\'\'\n' ]] && echo "$out"
   Globbing off
 }
 
@@ -34,7 +36,7 @@ glob() {
 Globbing() {
   case $1 in
     off ) shopt -u nullglob; set -o noglob;;
-    on  ) set +o noglob; shopt -s nullglob;;
+    on  ) shopt -s nullglob; set +o noglob;;
   esac
 }
 
@@ -118,7 +120,7 @@ declare -A Changeds=()      # tasks that succeeded
 # run runs def after checking that it is not already satisfied and records the result.
 # Task must be set externally already.
 run() {
-  ShouldSkip && return
+  ! ForMe && return
 
   [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
     OKs[$Task]=1
@@ -165,26 +167,29 @@ run() {
 
 # section announces the section name
 section() {
-  ShouldSkip && return
+  ! ForMe && return
   local IFS=' '
   echo -e "\n[section $*]"
 }
 
-# ShouldSkip returns whether the task should be skipped.
-ShouldSkip() {
+# ForMe returns whether this system meets the filters.
+ForMe() {
   local hostname=$($HostnameFunc)
-  In NotHosts $hostname && return
-  (( ${#YesHosts[*]} > 0 )) && ! In YesHosts $hostname && return
+  ! In NotHosts $hostname || return
+  (( ${#YesHosts[*]} == 0 )) || In YesHosts $hostname || return
 
   local systems=( $($SystemTypeFunc) ) system
   for system in ${systems[*]}; do
-    In NotSystems $system && return
+    ! In NotSystems $system || return
   done
 
-  (( ${#YesSystems[*]} > 0 )) &&
-    for system in ${systems[*]}; do
-      In YesSystems $system && return 1
-    done
+  (( ${#YesSystems[*]} == 0 )) && return
+
+  for system in ${systems[*]}; do
+    In YesSystems $system && return
+  done
+
+  return 1
 }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
@@ -292,7 +297,7 @@ task.git_clone() {
 }
 
 task.ln() {
-  local target=$(printf %q $1) link=$(printf %q $2)
+  local target=$1 link=$2
   task   "symlink $link to $target"
   ok     "[[ -L $link ]]"
   eval "

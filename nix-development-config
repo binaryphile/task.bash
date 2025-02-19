@@ -12,6 +12,10 @@ main() {
   system crostini
     section credential
     task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
+
+    host calzone
+      task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa ~/.ssh/id_rsa
+    endhost
   endsystem
 
   section dotfiles
