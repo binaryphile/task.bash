@@ -101,14 +101,16 @@ test_task.ln() {
 
   local -A case1=(
     [name]='spaces in link and target'
-    [args]='a\ target.txt a\ link.txt'
-    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\ link.txt to a\ target.txt
-[\E[38;5;208mchanged\E[0m]\tsymlink a\ link.txt to a\ target.txt'
+    [targetname]='a\ target.txt'
+    [linkname]='a\ link.txt'
+    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\\\\ link.txt to a\\\\ target.txt
+[\E[38;5;208mchanged\E[0m]\tsymlink a\\\\ link.txt to a\\\\ target.txt'
   )
 
   local -A case2=(
-    [name]='fail on link creation'
-    [args]='target.txt /doesntexist/link.txt'
+    [name]='fail on invalid link location'
+    [targetname]='target.txt'
+    [linkname]='/doesntexist/link.txt'
     [wanterr]=1
   )
 
@@ -121,20 +123,18 @@ test_task.ln() {
 
     ## arrange
 
-    # create variables from the keys/values of the test map
-    eval "$(t.inherit $casename)"
-
     # temporary directory
     dir=$(t.mktempdir) || return 128  # fatal if can't make dir
     trap "rm -rf $dir" EXIT           # always clean up
     cd $dir
 
-    eval "set -- $args"   # set positional args for command
+    # create variables from the keys/values of the test map
+    eval "$(t.inherit $casename)"
 
     ## act
 
     # run the command and capture the output and result code
-    got=$($command $* 2>&1)
+    got=$($command $targetname $linkname 2>&1)
     rc=$?
 
     ## assert
@@ -154,7 +154,7 @@ test_task.ln() {
     }
 
     # assert that the symlink was made
-    [[ -L $2 ]] || {
+    [[ -L $linkname ]] || {
       echo -e "\t$command: expected $2 to be symlink\n$got"
       return 1
     }

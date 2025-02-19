@@ -297,14 +297,17 @@ task.git_clone() {
 }
 
 task.ln() {
-  local target=$1 link=$2
-  task   "symlink $link to $target"
-  ok     "[[ -L $link ]]"
-  eval "
+  local targetname=$1 linkname=$2
+  printf -v targetname %q $targetname
+  printf -v linkname %q $linkname
+
+  task  "symlink $linkname to $targetname"
+  ok    "[[ -L $linkname ]]"
+  eval  "
     def() {
-      mkdir -p $(dirname $link)
-      [[ -L $link ]] && rm $link
-      ln -sf $target $link
+      mkdir -p $(dirname $linkname)
+      [[ -L $linkname ]] && rm $linkname
+      ln -sf $targetname $linkname
     }
   "
   run
