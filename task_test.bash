@@ -50,6 +50,49 @@ test_task.curl() {
   }
 }
 
+# test_task.git_clone tests whether git cloning works with github.
+# It does its work in a directory it creates in /tmp.
+test_task.git_clone() {
+  ## arrange
+
+  command=${FUNCNAME#test_}
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo https://github.com/binaryphile/task.bash to task.bash
+[\E[38;5;208mchanged\E[0m]\tclone repo https://github.com/binaryphile/task.bash to task.bash'
+
+  # temporary directory
+  dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+  trap "rm -rf $dir" EXIT           # always clean up
+  cd $dir
+
+  # TODO: build and clone local repo instead of from github
+
+  ## act
+
+  # run the command and capture the output and result code
+  got=$($command https://github.com/binaryphile/task.bash task.bash 2>&1)
+  rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "$command error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that the repo was cloned
+  [[ -e task.bash/.git ]] || {
+    echo -e "$command expected .git directory.\n$got"
+    return 1
+  }
+
+  # assert that we got the wanted output
+  [[ $got == "$want" ]] || {
+    echo -e "$command got doesn't match want:\n$(t.diff "$got" "$want")"
+    return 1
+  }
+}
+
 # test_task.ln tests whether the symlink task works.
 # There are subtests for link creation and when link creation fails.
 # Subtests are run with t.run.
@@ -57,15 +100,15 @@ test_task.ln() {
   command=${FUNCNAME#test_}
 
   local -A case1=(
-    [name]='basic'
-    [args]='target.txt link.txt'
-    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink link.txt to target.txt
-[\E[38;5;208mchanged\E[0m]\tsymlink link.txt to target.txt'
+    [name]='spaces in link and target'
+    [args]='a\ target.txt a\ link.txt'
+    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\ link.txt to a\ target.txt
+[\E[38;5;208mchanged\E[0m]\tsymlink a\ link.txt to a\ target.txt'
   )
 
   local -A case2=(
     [name]='fail on link creation'
-    [args]='target.txt /mnt/chromeos/MyFiles/Downloads/crostini/link.txt'
+    [args]='target.txt /doesntexist/link.txt'
     [wanterr]=1
   )
 
@@ -74,10 +117,11 @@ test_task.ln() {
   # case is expected to be the name of an associative array holding at least the key "name".
   # Each subtest that needs a directory creates it in /tmp.
   subtest() {
+    command=$1 casename=$2
+
     ## arrange
 
     # create variables from the keys/values of the test map
-    casename=$2
     eval "$(t.inherit $casename)"
 
     # temporary directory
@@ -85,7 +129,6 @@ test_task.ln() {
     trap "rm -rf $dir" EXIT           # always clean up
     cd $dir
 
-    command=$1
     eval "set -- $args"   # set positional args for command
 
     ## act
@@ -140,8 +183,8 @@ test_task.mkdir() {
   ## arrange
 
   command=${FUNCNAME#test_}
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory dir
-[\E[38;5;208mchanged\E[0m]\tmake directory dir'
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\ dir
+[\E[38;5;208mchanged\E[0m]\tmake directory a\ dir'
 
   # temporary directory
   dir=$(t.mktempdir) || return 128  # fatal if can't make dir
@@ -151,7 +194,7 @@ test_task.mkdir() {
   ## act
 
   # run the command and capture the output and result code
-  got=$($command mydir 2>&1)
+  got=$($command 'a dir' 2>&1)
   rc=$?
 
   ## assert
@@ -163,51 +206,8 @@ test_task.mkdir() {
   }
 
   # assert that the directory was made
-  [[ -d mydir ]] || {
-    echo -e "$command expected directory mydir.\n$got"
-    return 1
-  }
-
-  # assert that we got the wanted output
-  [[ $got == "$want" ]] || {
-    echo -e "$command got doesn't match want:\n$(t.diff "$got" "$want")"
-    return 1
-  }
-}
-
-# test_task.git_clone tests whether git cloning works with github.
-# It does its work in a directory it creates in /tmp.
-test_task.git_clone() {
-  ## arrange
-
-  command=${FUNCNAME#test_}
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo https://github.com/binaryphile/task.bash to task.bash
-[\E[38;5;208mchanged\E[0m]\tclone repo https://github.com/binaryphile/task.bash to task.bash'
-
-  # temporary directory
-  dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-  trap "rm -rf $dir" EXIT           # always clean up
-  cd $dir
-
-  # TODO: build and clone local repo instead of from github
-
-  ## act
-
-  # run the command and capture the output and result code
-  got=$($command https://github.com/binaryphile/task.bash task.bash 2>&1)
-  rc=$?
-
-  ## assert
-
-  # assert no error
-  (( rc == 0 )) || {
-    echo -e "$command error = $rc, want: 0\n$got"
-    return 1
-  }
-
-  # assert that the repo was cloned
-  [[ -e task.bash/.git ]] || {
-    echo -e "$command expected .git directory.\n$got"
+  [[ -d 'a dir' ]] || {
+    echo -e "$command expected directory a\ dir.\n$got"
     return 1
   }
 

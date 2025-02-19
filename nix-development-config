@@ -47,25 +47,25 @@ main() {
 
     host callaloo
       section projects
-      glob "paths=( $crostiniDir/projects/* )"
+      paths=( $(glob $crostiniDir/projects/*) )
       for path in ${paths[*]}; do
         task.ln $path ~/projects/$(basename $path)
       done
 
       section go
-      glob "paths=( $crostiniDir/GolandProjects/* )"
+      paths=( $(glob $crostiniDir/GolandProjects/*) )
       for path in ${paths[*]}; do
         task.ln $path ~/GolandProjects/$(basename $path)
       done
 
       section obsidian
-      glob "paths=( $crostiniDir/obsidian/* )"
+      paths=( $(glob $crostiniDir/obsidian/*) )
       for path in ${paths[*]}; do
         task.ln $path ~/obsidian/$(basename $path)
       done
     endhost
 
-    nohost callalloo
+    nohost callaloo
       section projects
       task.mkdir /mnt/chromeos/MyFiles/Downloads/crostini/projects
       task.ln /mnt/chromeos/MyFiles/Downloads/crostini/projects ~/projects

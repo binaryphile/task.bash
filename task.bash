@@ -22,27 +22,19 @@ endsystem() { YesSystems=(); NoSystems=(); }
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
-# glob executes the arguments with globbing on.
+# glob expands expression with globbing on.
 glob() {
-  local command=$1
-
   Globbing on
-  eval "$command"
+  set -- $1
+  echo "$*"
   Globbing off
 }
 
 # Globbing toggles globbing.
 Globbing() {
-  local command=$1
-  case $command in
-    off )
-      shopt -u nullglob
-      set -o noglob
-      ;;
-    on )
-      set +o noglob
-      shopt -s nullglob
-      ;;
+  case $1 in
+    off ) shopt -u nullglob; set -o noglob;;
+    on  ) set +o noglob; shopt -s nullglob;;
   esac
 }
 
@@ -306,7 +298,7 @@ task.git_clone() {
 }
 
 task.ln() {
-  local target=$1 link=$(printf %q $2)
+  local target=$(printf %q $1) link=$(printf %q $2)
   task   "symlink $link to $target"
   ok     "[[ -L $link ]]"
   eval "
@@ -320,8 +312,8 @@ task.ln() {
 }
 
 task.mkdir() {
-  local dir=$1
-  task "make directory $(basename dir)"
+  local dir=$(printf %q $1)
+  task "make directory $(basename $dir)"
   ok "[[ -d $dir ]]"
   def "mkdir -p $dir"
 }
