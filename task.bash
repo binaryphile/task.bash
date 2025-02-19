@@ -22,6 +22,22 @@ endsystem() { YesSystems=(); NoSystems=(); }
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
+# glob expands expression with globbing on.
+glob() {
+  Globbing on
+  set -- $1
+  echo "$*"
+  Globbing off
+}
+
+# Globbing toggles globbing.
+Globbing() {
+  case $1 in
+    off ) shopt -u nullglob; set -o noglob;;
+    on  ) set +o noglob; shopt -s nullglob;;
+  esac
+}
+
 YesHosts=()
 
 # host limits the scope of following commands to a set of hosts.
@@ -83,8 +99,8 @@ ok() { Condition=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
 
-HostnameFunc=Hostname   # the name of the function that determines hostname
-SystemTypeFunc=SystemType       # the name of the function that determines system type
+HostnameFunc=Hostname       # the name of the function that determines hostname
+SystemTypeFunc=SystemType   # the name of the function that determines system type
 
 # register registers either hostname or system functions.
 register() {
@@ -282,7 +298,7 @@ task.git_clone() {
 }
 
 task.ln() {
-  local target=$1 link=$(printf %q $2)
+  local target=$(printf %q $1) link=$(printf %q $2)
   task   "symlink $link to $target"
   ok     "[[ -L $link ]]"
   eval "
@@ -296,8 +312,8 @@ task.ln() {
 }
 
 task.mkdir() {
-  local dir=$1
-  task "make directory $(basename dir)"
+  local dir=$(printf %q $1)
+  task "make directory $(basename $dir)"
   ok "[[ -d $dir ]]"
   def "mkdir -p $dir"
 }
