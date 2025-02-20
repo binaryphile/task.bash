@@ -49,23 +49,29 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    section projects
     paths=( $(glob $crostiniDir/projects/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/projects/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section projects directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/projects/$(basename $path)"
+      done | iter task.ln
+    }
 
-    section go
     paths=( $(glob $crostiniDir/GolandProjects/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/GolandProjects/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section go directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/GolandProjects/$(basename $path)"
+      done | iter task.ln
+    }
 
-    section obsidian
     paths=( $(glob $crostiniDir/obsidian/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/obsidian/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section obsidian directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/obsidian/$(basename $path)"
+      done | iter task.ln
+    }
   endsystem
 
   section neovim
@@ -81,6 +87,9 @@ main() {
   section task.bash
   task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
   task.git_checkout develop ~/projects/task.bash
+
+  section obsidian
+  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
 
   section apps
   iter task.ln <<'  END'
