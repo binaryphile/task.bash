@@ -9,7 +9,9 @@ become() { BecomeUser=$1; }
 # arguments and redefines def to run that command then runs it by calling run,
 # which is hardcoded to call def.
 Def() {
-  eval "def() { $1; }"
+  eval "def() {
+    $1
+  }"
   run
 }
 

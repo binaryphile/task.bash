@@ -9,13 +9,15 @@ main() {
     task.apt_upgrade
   endsystem
 
-  system crostini
-    section credential
-    task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_ed25519 ~/.ssh/id_ed25519
+  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
-    host calzone
-      task.install /mnt/chromeos/MyFiles/Downloads/crostini/id_rsa ~/.ssh/id_rsa
-    endhost
+  system crostini
+    # copy non-passphrased key if it exists and there isn't already a key
+    [[ -e $crostiniDir/np_id_ed25519 ]] && {
+      section credential
+      task.install $crostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
+      task.install $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    }
   endsystem
 
   section dotfiles
@@ -44,28 +46,32 @@ main() {
   task.home-manager_switch
 
   system crostini
-    crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
-
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    section projects
     paths=( $(glob $crostiniDir/projects/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/projects/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section projects directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/projects/$(basename $path)"
+      done | iter task.ln
+    }
 
-    section go
     paths=( $(glob $crostiniDir/GolandProjects/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/GolandProjects/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section go directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/GolandProjects/$(basename $path)"
+      done | iter task.ln
+    }
 
-    section obsidian
     paths=( $(glob $crostiniDir/obsidian/*) )
-    for path in ${paths[*]}; do
-      echo "$path ~/obsidian/$(basename $path)"
-    done | iter task.ln
+    [[ ${#paths[*]} > 0 ]] && {
+      section obsidian directory contents
+      for path in ${paths[*]}; do
+        echo "$path ~/obsidian/$(basename $path)"
+      done | iter task.ln
+    }
   endsystem
 
   section neovim
@@ -82,6 +88,9 @@ main() {
   task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
   task.git_checkout develop ~/projects/task.bash
 
+  section obsidian
+  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
+
   section apps
   iter task.ln <<'  END'
     ~/.config                                 ~/config
@@ -95,6 +104,15 @@ main() {
     ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
+
+  system crostini
+    section credential redux
+    if [[ -e $crostiniDir/np_id_ed25519 ]]; then
+      task.ssh_keygen_replace $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519
+    else
+      task.ssh_keygen ~/.ssh/id_ed25519
+    fi
+  endsystem
 }
 
 ## helpers
@@ -132,9 +150,10 @@ task.apt_upgrade() {
 
 # credential
 task.install() {
-  task  "install -m 600 $1 $2"
-  exist $2
-  def   "mkdir -pm 700 $(dirname $2); install -m 600 $1 $2"
+  local src=$1 dst=$2
+  task  "privately copy $src to $dst"
+  exist $dst
+  def   "install -m 600 $src $dst"
 }
 
 # nix
@@ -183,6 +202,43 @@ task.nvim_headless_PlugInstall() {
   task  'install neovim plugins'
   exist ~/.local/share/nvim/plugged
   def   'nvim --headless +PlugInstall +qall'
+}
+
+# credential
+
+task.ssh_keygen() {
+  local keyFilename=$1
+  task  'generate an ssh key'
+  prog  on
+  ok    "[[ -e $keyFilename ]]"
+  def   "
+    read -sp 'generating ssh key.  passphrase: ' passphrase
+    read -sp $'\nagain: ' passphrase2
+    [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
+    echo
+    ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C $USER@$(idHost)
+    cat $keyFilename.pub
+  "
+}
+
+task.ssh_keygen_replace() {
+  local replacePubFilename=$1 keyFilename=$2
+  task  'replace a specific ssh key with a new one'
+  prog  on
+  ok    "[[ -e $keyFilename && \$(<$keyFilename.pub) != \$(<$replacePubFilename) ]]"
+  def   "
+    read -sp 'generating ssh key.  passphrase: ' passphrase
+    read -sp $'\nagain: ' passphrase2
+    [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
+    echo
+    [[ -e $keyFilename ]] && {
+      tmpfile=\$(mktemp ~/.ssh/$(basename $keyFilename).XXXXXX)
+      echo \"moving $keyFilename to \$tmpfile\"
+      mv $keyFilename \$tmpfile
+    }
+    ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C $USER@$(idHost)
+    cat $keyFilename.pub
+  "
 }
 
 ## boilerplate
