@@ -24,7 +24,6 @@ main() {
   task.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
   system macos
     task.ln contexts/macos ~/dotfiles/context
-  endsystem
   system crostini
     task.ln contexts/crostini ~/dotfiles/context
   endsystem
@@ -49,29 +48,9 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    paths=( $(glob $crostiniDir/projects/*) )
-    [[ ${#paths[*]} > 0 ]] && {
-      section projects directory contents
-      for path in ${paths[*]}; do
-        echo "$path ~/projects/$(basename $path)"
-      done | iter task.ln
-    }
-
-    paths=( $(glob $crostiniDir/GolandProjects/*) )
-    [[ ${#paths[*]} > 0 ]] && {
-      section go directory contents
-      for path in ${paths[*]}; do
-        echo "$path ~/GolandProjects/$(basename $path)"
-      done | iter task.ln
-    }
-
-    paths=( $(glob $crostiniDir/obsidian/*) )
-    [[ ${#paths[*]} > 0 ]] && {
-      section obsidian directory contents
-      for path in ${paths[*]}; do
-        echo "$path ~/obsidian/$(basename $path)"
-      done | iter task.ln
-    }
+    glob $crostiniDir/projects/*        | map target '$target ~/projects/$(basename $target)'       | each task.ln
+    glob $crostiniDir/GolandProjects/*  | map target '$target ~/GolandProjects/$(basename $target)' | each task.ln
+    glob $crostiniDir/obsidian/*        | map target '$target ~/obsidian/$(basename $target)'       | each task.ln
   endsystem
 
   section neovim
@@ -92,7 +71,7 @@ main() {
   task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
 
   section apps
-  iter task.ln <<'  END'
+  each task.ln <<'  END'
     ~/.config                                 ~/config
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
