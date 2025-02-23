@@ -1,5 +1,128 @@
 source ./task.bash
 
+# test_each tests the application of a command with no output to a list of invocations from stdin.
+# There are subtests that are run with t.run.
+test_each() {
+  command=${FUNCNAME#test_}
+
+  local -A case1=(
+    [name]='puts items in a file as a side effect'
+    [args]=$'Hello\nWorld!'
+    [lambda]=$(appendToFile out.txt)
+    [want]=''
+    [wantInFile]=$'Hello\nWorld!'
+  )
+
+  # subtest runs each subtest.
+  # command is the parent function name.
+  # case is expected to be the name of an associative array holding at least the key "name".
+  subtest() {
+    command=$1 casename=$2
+
+    ## arrange
+
+    # temporary directory
+    dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+    trap "rm -rf $dir" EXIT           # always clean up
+    cd $dir
+
+    # create variables from the keys/values of the test map
+    eval "$(t.inherit $casename)"
+
+    ## act
+
+    # run the command and capture the output and result code
+    got=$(echo "$args" | $command $lambda 2>&1)
+    rc=$?
+
+    ## assert
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo -e "\t$command: error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    # assert that the file got the output
+    content=$(<out.txt)
+    [[ $content == "$wantInFile" ]] || {
+      echo -e "\t$command: out.txt content doesn't match wantInFile:\n$(t.diff "$content" "$wantInFile")"
+      return 1
+    }
+
+    # assert that we got no output
+    [[ $got == "$want" ]] || {
+      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      return 1
+    }
+  }
+
+  failed=0
+  for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
+    t.run subtest $command $casename || {
+      (( $? == 128 )) && return   # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
+# test_map tests the application of an expression to a list of invocations from stdin.
+# There are subtests that are run with t.run.
+test_map() {
+  command=${FUNCNAME#test_}
+
+  local -A case1=(
+    [name]='basic'
+    [args]=$'Hello\nWorld!'
+    [varname]='target'
+    [expression]='[$target]'
+    [want]=$'[Hello]\n[World!]'
+  )
+
+  # subtest runs each subtest.
+  # command is the parent function name.
+  # case is expected to be the name of an associative array holding at least the key "name".
+  subtest() {
+    command=$1 casename=$2
+
+    ## arrange
+    # create variables from the keys/values of the test map
+    eval "$(t.inherit $casename)"
+
+    ## act
+
+    # run the command and capture the output and result code
+    got=$($command $varname $expression <<<"$args" 2>&1)
+    rc=$?
+
+    ## assert
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo -e "\t$command: error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    # assert that we got the wanted output
+    [[ $got == "$want" ]] || {
+      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      return 1
+    }
+  }
+
+  failed=0
+  for casename in ${!case@}; do
+    t.run subtest $command $casename || {
+      (( $? == 128 )) && return   # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
 # test_task.curl tests whether the curl download task receives a file from a local test http server.
 # It does its work in a directory it creates in /tmp.
 test_task.curl() {
@@ -216,4 +339,9 @@ test_task.mkdir() {
     echo -e "$command got doesn't match want:\n$(t.diff "$got" "$want")"
     return 1
   }
+}
+
+appendToFile() {
+  local filename=$1
+  echo "_() { echo \$* >>$filename; }; _"
 }

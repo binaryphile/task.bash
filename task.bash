@@ -15,6 +15,19 @@ Def() {
   run
 }
 
+Iterating=0
+
+# each runs command with the arguments of each line from stdin.
+each() {
+  local lambda=$1 line
+
+  Iterating=1
+  while IFS=$' \t' read -r line; do
+    eval "$lambda $line"
+  done
+  Iterating=0
+}
+
 # endhost resets the scope of the following tasks.
 endhost() { YesHosts=(); NotHosts=(); }
 
@@ -70,20 +83,14 @@ InitTaskEnv() {
   def() { Def "$@"; }
 }
 
-Iterating=0
+# map returns expression evaluated with each value from stdin.
+map() {
+  local varname=$1 expression=$2
 
-# iter runs func with the arguments of each line from stdin.
-iter() {
-  local func=$1 line
-
-  Iterating=1
-
-  while IFS=$' \t' read -r line; do
-    eval "set -- $line"
-    $func $*
+  local $varname
+  while IFS=$' \t' read -r $varname; do
+    eval "echo \"${expression}\""
   done
-
-  Iterating=0
 }
 
 NotHosts=()
