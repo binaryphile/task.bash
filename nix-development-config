@@ -143,9 +143,11 @@ task.curlpipe_lix_installer() {
   exist  /nix/var/nix/profiles/default/bin/nix-env
   def    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install linux --no-confirm --init none'
 
-  task 'change store ownership for single user'
-  ok   '[[ $(stat -c %U /nix):$(stat -c %G /nix) == ted:ted ]]'
-  def  'sudo chown -R ted:ted /nix'
+  [[ $OSTYPE == darwin* ]] && local flag=f || local flag=c
+  task    'change store ownership to single user'
+  become  root
+  ok      "[[ $(stat -$flag %u /nix):$(stat -$flag %g /nix) == $(id -u):$(id -g) ]]"
+  def     'chown -R $(id -u):$(id -g) /nix'
 }
 
 # home manager
