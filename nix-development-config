@@ -9,7 +9,7 @@ main() {
     task.apt_upgrade
   endsystem
 
-  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
+  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini/test
 
   system crostini
     # copy non-passphrased key if it exists and there isn't already a key
@@ -73,6 +73,7 @@ main() {
   section apps
   each task.ln <<'  END'
     ~/.config                                 ~/config
+    ~/.local                                  ~/local
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
@@ -233,7 +234,19 @@ fi
 return 2>/dev/null
 set -e
 
-[[ ${1:-} == -x ]] && { shift; set -x; }
+# parse options
+while [[ ${1:-} == -?* ]]; do
+  case $1 in
+    # --help  ) echo "$Usage"  ;;
+
+    -x ) set -x;;
+
+    -s ) shortRun;;
+
+    -- ) shift; break;;
+  esac
+  shift
+done
 
 main
 summarize
