@@ -158,7 +158,7 @@ run() {
     return
   }
 
-  ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[$(T begin)]\t\t$Task"
+  ! (( ShortRun )) && ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[$(T begin)]\t\t$Task"
 
   local command
   if [[ $BecomeUser == '' ]]; then
@@ -171,11 +171,20 @@ run() {
     command=( sudo -u $BecomeUser bash -c "$remoteCommandString" )
   fi
 
-  if ! (( ShowProgress )); then
-    Output=$("${command[@]}" 2>&1) && rc=$? || rc=$?
-  else
+  (( ShortRun )) && {
+    (( ShowProgress )) || [[ $UnchangedText != '' ]] && {
+      echo -e "[skipping]\t$Task"
+
+      return
+    }
+  }
+
+  local rc=0
+  if (( ShowProgress )); then
     echo -e "[$(T progress)]\t$Task"
     Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
+  else
+    Output=$("${command[@]}" 2>&1) && rc=$? || rc=$?
   fi
 
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
@@ -200,6 +209,11 @@ section() {
   local IFS=' '
   echo -e "\n[section $*]"
 }
+
+ShortRun=0
+
+# shortRun says not to run tasks with progress.
+shortRun() { ShortRun=1; }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.
