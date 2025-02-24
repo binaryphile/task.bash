@@ -37,13 +37,33 @@ endsystem() { YesSystems=(); NotSystems=(); }
 # exist is a shortcut for ok that tests for existence.
 exist() { ok "[[ -e $1 ]]"; }
 
+# ForMe returns whether this system meets the filters.
+ForMe() {
+  local hostname=$($HostnameFunc)
+  ! In NotHosts $hostname || return
+  (( ${#YesHosts[*]} == 0 )) || In YesHosts $hostname || return
+
+  local systems=( $($SystemTypeFunc) ) system
+  for system in ${systems[*]}; do
+    ! In NotSystems $system || return
+  done
+
+  (( ${#YesSystems[*]} == 0 )) && return
+
+  for system in ${systems[*]}; do
+    In YesSystems $system && return
+  done
+
+  return 1
+}
+
 # glob expands $1 with globbing on.
 glob() {
   Globbing on
   set -- $1
   local out
   printf -v out '%q\n' $*
-  [[ $out != $'\'\'\n' ]] && echo "$out"
+  [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
   Globbing off
 }
 
@@ -179,26 +199,6 @@ section() {
   ! ForMe && return
   local IFS=' '
   echo -e "\n[section $*]"
-}
-
-# ForMe returns whether this system meets the filters.
-ForMe() {
-  local hostname=$($HostnameFunc)
-  ! In NotHosts $hostname || return
-  (( ${#YesHosts[*]} == 0 )) || In YesHosts $hostname || return
-
-  local systems=( $($SystemTypeFunc) ) system
-  for system in ${systems[*]}; do
-    ! In NotSystems $system || return
-  done
-
-  (( ${#YesSystems[*]} == 0 )) && return
-
-  for system in ${systems[*]}; do
-    In YesSystems $system && return
-  done
-
-  return 1
 }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.

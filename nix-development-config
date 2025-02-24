@@ -9,7 +9,7 @@ main() {
     task.apt_upgrade
   endsystem
 
-  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
+  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini/test
 
   system crostini
     # copy non-passphrased key if it exists and there isn't already a key
