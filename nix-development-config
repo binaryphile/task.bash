@@ -9,15 +9,20 @@ main() {
     task.apt_upgrade
   endsystem
 
-  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini/test
+  crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
   system crostini
     # copy non-passphrased key if it exists and there isn't already a key
-    [[ -e $crostiniDir/np_id_ed25519 ]] && {
+    if [[ -e $crostiniDir/np_id_ed25519.pub ]]; then
       section credential
-      task.install $crostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-      task.install $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
-    }
+      task.install 600 $crostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
+      task.install 644 $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    # copy unique key if it exists and there isn't already a key
+    elif [[ -e $crostiniDir/id_ed25519.pub ]]; then
+      section credential
+      task.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
+      task.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    fi
   endsystem
 
   section dotfiles
@@ -86,12 +91,15 @@ main() {
   END
 
   system crostini
-    section credential redux
-    if [[ -e $crostiniDir/np_id_ed25519 ]]; then
-      task.ssh_keygen_replace $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519
-    else
-      task.ssh_keygen ~/.ssh/id_ed25519
-    fi
+    section generate new credential
+    [[ -e $crostiniDir/np_id_ed25519.pub ]] && {
+      task.remove_matching_file ~/.ssh/id_ed25519.pub $crostiniDir/np_id_ed25519.pub
+      task.remove_matching_file ~/.ssh/id_ed25519 $crostiniDir/np_id_ed25519
+      rm $crostiniDir/np_id_ed25519{,.pub}
+    }
+    task.ssh_keygen $crostiniDir/id_ed25519
+    task.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
+    task.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
   endsystem
 }
 
@@ -126,14 +134,6 @@ task.apt_upgrade() {
   become root
   unchg  '0 upgraded, 0 newly installed'
   def    'apt upgrade -y'
-}
-
-# credential
-task.install() {
-  local src=$1 dst=$2
-  task  "privately copy $src to $dst"
-  exist $dst
-  def   "install -m 600 $src $dst"
 }
 
 # nix
@@ -188,6 +188,25 @@ task.nvim_headless_PlugInstall() {
 
 # credential
 
+task.install() {
+  local mode=$1 src=$2 dst=$3
+  task  "copy $src to $dst with mode $mode"
+  exist $dst
+  def   "install -m $mode $src $dst"
+}
+
+task.remove_matching_file() {
+  local targetFilename=$1 matchFilename=$2
+  task  "remove file $targetFilename if it matches $matchFilename"
+  ok    "[[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ $(<$targetFilename) != $(<$matchFilename) ]]"
+  def   "if [[
+            -e $matchFilename && -e $targetFilename &&
+            $(<$targetFilename) == $(<$matchFilename)
+          ]]; then
+            rm $targetFilename
+          fi"
+}
+
 task.ssh_keygen() {
   local keyFilename=$1
   task  'generate an ssh key'
@@ -198,26 +217,6 @@ task.ssh_keygen() {
     read -sp $'\nagain: ' passphrase2
     [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
     echo
-    ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C $USER@$(idHost)
-    cat $keyFilename.pub
-  "
-}
-
-task.ssh_keygen_replace() {
-  local replacePubFilename=$1 keyFilename=$2
-  task  'replace a specific ssh key with a new one'
-  prog  on
-  ok    "[[ -e $keyFilename && \$(<$keyFilename.pub) != \$(<$replacePubFilename) ]]"
-  def   "
-    read -sp 'generating ssh key.  passphrase: ' passphrase
-    read -sp $'\nagain: ' passphrase2
-    [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
-    echo
-    [[ -e $keyFilename ]] && {
-      tmpfile=\$(mktemp ~/.ssh/$(basename $keyFilename).XXXXXX)
-      echo \"moving $keyFilename to \$tmpfile\"
-      mv $keyFilename \$tmpfile
-    }
     ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C $USER@$(idHost)
     cat $keyFilename.pub
   "
