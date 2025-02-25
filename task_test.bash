@@ -68,6 +68,76 @@ test_each() {
   return $failed
 }
 
+# test_glob tests
+# There are subtests that are run with t.run.
+test_glob() {
+  command=${FUNCNAME#test_}
+
+  local -A case1=(
+    [name]='generates a list of two items'
+    [pattern]='*'
+    [filenames]=$'file1\nfile2'
+    [want]=$'file1\nfile2'
+  )
+
+  local -A case2=(
+    [name]='returns an empty list'
+    [pattern]='*'
+    [want]=''
+  )
+
+  # subtest runs each subtest.
+  # command is the parent function name.
+  # case is expected to be the name of an associative array holding at least the key "name".
+  subtest() {
+    local command=$1 casename=$2
+
+    ## arrange
+
+    # temporary directory
+    dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+    trap "rm -rf $dir" EXIT           # always clean up
+    cd $dir
+
+    # create variables from the keys/values of the test map
+    unset -v filenames  # necessary for testing for existence with -v
+    eval "$(t.inherit $casename)"
+
+    # create files if requested
+    [[ -v filenames ]] && echo "$filenames" | each 'echo >'
+
+    ## act
+
+    # run the command and capture the output and result code
+    got=$($command $pattern 2>&1)
+    rc=$?
+
+    ## assert
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo -e "\t$command: error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    # assert that we got expected output
+    [[ $got == "$want" ]] || {
+      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      return 1
+    }
+  }
+
+  failed=0
+  for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
+    t.run subtest $command $casename || {
+      (( $? == 128 )) && return   # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
 # test_map tests the application of an expression to a list of invocations from stdin.
 # There are subtests that are run with t.run.
 test_map() {
@@ -252,6 +322,7 @@ test_task.ln() {
     cd $dir
 
     # create variables from the keys/values of the test map
+    unset -v wanterr  # necessary for testing for existence with -v
     eval "$(t.inherit $casename)"
 
     ## act
