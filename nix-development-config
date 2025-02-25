@@ -201,7 +201,7 @@ task.remove_matching_file() {
   ok    "[[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ $(<$targetFilename) != $(<$matchFilename) ]]"
   def   "if [[
             -e $matchFilename && -e $targetFilename &&
-            $(<$targetFilename) == $(<$matchFilename)
+            \$(<$targetFilename) == \$(<$matchFilename)
           ]]; then
             rm $targetFilename
           fi"
