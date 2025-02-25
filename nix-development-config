@@ -78,7 +78,9 @@ main() {
   section apps
   each task.ln <<'  END'
     ~/.config                                 ~/config
+    ~/.config/nvim                            ~/nvim
     ~/.local                                  ~/local
+    ~/.ssh                                    ~/ssh
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
