@@ -103,13 +103,13 @@ InitTaskEnv() {
   def() { Def "$@"; }
 }
 
-# map returns expression evaluated with each value from stdin.
-map() {
+# mapas returns expression evaluated with the value of stdin as $varname.
+mapas() {
   local varname=$1 expression=$2
 
   local $varname
   while IFS=$' \t' read -r $varname; do
-    eval "echo \"${expression}\""
+    eval "echo \"$expression\""
   done
 }
 
