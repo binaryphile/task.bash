@@ -53,9 +53,9 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    glob $crostiniDir/projects/*        | map target '$target ~/projects/$(basename $target)'       | each task.ln
-    glob $crostiniDir/GolandProjects/*  | map target '$target ~/GolandProjects/$(basename $target)' | each task.ln
-    glob $crostiniDir/obsidian/*        | map target '$target ~/obsidian/$(basename $target)'       | each task.ln
+    glob $crostiniDir/projects/*        | mapas target '$target ~/projects/$(basename $target)'       | each task.ln
+    glob $crostiniDir/GolandProjects/*  | mapas target '$target ~/GolandProjects/$(basename $target)' | each task.ln
+    glob $crostiniDir/obsidian/*        | mapas target '$target ~/obsidian/$(basename $target)'       | each task.ln
   endsystem
 
   section neovim
@@ -78,7 +78,9 @@ main() {
   section apps
   each task.ln <<'  END'
     ~/.config                                 ~/config
+    ~/.config/nvim                            ~/nvim
     ~/.local                                  ~/local
+    ~/.ssh                                    ~/ssh
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
@@ -89,6 +91,7 @@ main() {
     ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
+  task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
 
   system crostini
     section generate new credential
