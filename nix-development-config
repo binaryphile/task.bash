@@ -53,27 +53,31 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    glob $crostiniDir/projects/*        | mapas target '$target ~/projects/$(basename $target)'       | each task.ln
-    glob $crostiniDir/GolandProjects/*  | mapas target '$target ~/GolandProjects/$(basename $target)' | each task.ln
-    glob $crostiniDir/obsidian/*        | mapas target '$target ~/obsidian/$(basename $target)'       | each task.ln
+    glob $crostiniDir/projects/*        | map target '$target ~/projects/$(basename $target)'       | each task.ln
+    glob $crostiniDir/GolandProjects/*  | map target '$target ~/GolandProjects/$(basename $target)' | each task.ln
+    glob $crostiniDir/obsidian/*        | map target '$target ~/obsidian/$(basename $target)'       | each task.ln
   endsystem
+
+  section mk.bash
+  task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
+  task.git_checkout develop ~/projects/mk.bash
 
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   task.nvim_headless_PlugInstall
 
-  section tesht
-  task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
-  task.git_checkout develop ~/projects/tesht
-  task.ln ~/projects/tesht/tesht ~/.local/bin/tesht
+  section obsidian
+  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
 
   section task.bash
   task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
   task.git_checkout develop ~/projects/task.bash
 
-  section obsidian
-  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
+  section tesht
+  task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  task.git_checkout develop ~/projects/tesht
+  task.ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps
   each task.ln <<'  END'
@@ -91,10 +95,9 @@ main() {
     ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
-  task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
 
   system crostini
-    section generate new credential
+    section unique credential
     [[ -e $crostiniDir/np_id_ed25519.pub ]] && {
       task.remove_matching_file ~/.ssh/id_ed25519.pub $crostiniDir/np_id_ed25519.pub
       task.remove_matching_file ~/.ssh/id_ed25519 $crostiniDir/np_id_ed25519

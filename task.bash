@@ -17,17 +17,6 @@ Def() {
 
 Iterating=0
 
-# each runs command with the arguments of each line from stdin.
-each() {
-  local lambda=$1 line
-
-  Iterating=1
-  while IFS=$' \t' read -r line; do
-    eval "$lambda $line"
-  done
-  Iterating=0
-}
-
 # endhost resets the scope of the following tasks.
 endhost() { YesHosts=(); NotHosts=(); }
 
@@ -101,16 +90,6 @@ InitTaskEnv() {
   UnchangedText=''          # text to test for in the output to see task didn't change anything (i.e. is ok)
 
   def() { Def "$@"; }
-}
-
-# mapas returns expression evaluated with the value of stdin as $varname.
-mapas() {
-  local varname=$1 expression=$2
-
-  local $varname
-  while IFS=$' \t' read -r $varname; do
-    eval "echo \"$expression\""
-  done
 }
 
 NotHosts=()
@@ -296,7 +275,42 @@ unstrictly() {
   strict on
 }
 
-## predefined helper tasks
+## fp
+
+# each applies command to each argument from stdin.
+# Works with commands containing newlines.
+each() {
+  local command=$1 arg
+
+  Iterating=1
+  while IFS=$'' read -r arg; do
+    eval "$command $arg"
+  done
+  Iterating=0
+  return 0  # so we don't accidentally return false
+}
+
+# keepIf filters lines from stdin using command.
+# Works with commands containing newlines.
+keepIf() {
+  local command=$1 arg
+  while IFS='' read -r arg; do
+    eval "$command $arg" && echo $arg
+  done
+  return 0  # so we don't accidentally return false
+}
+
+
+# map returns expression evaluated with the value of stdin as $varname.
+map() {
+  local varname=$1 expression=$2
+  local $varname
+  while IFS=$'' read -r $varname; do
+    eval "echo \"$expression\""
+  done
+}
+
+## helper tasks
 
 task.curl() {
   local url=$1 filename=$2
