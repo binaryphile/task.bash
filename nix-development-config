@@ -246,11 +246,11 @@ set -e
 # parse options
 while [[ ${1:-} == -?* ]]; do
   case $1 in
-    # --help  ) echo "$Usage"  ;;
+    --help  ) [[ -v Usage ]] && echo "$Usage"; exit;;
 
     -x ) set -x;;
 
-    -s ) shortRun;;
+    -s ) setShortRun;;
 
     -- ) shift; break;;
   esac

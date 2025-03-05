@@ -57,7 +57,7 @@ test_each() {
 
   local failed=0 casename
   for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
-    t.run subtest test_each $casename || {
+    t.run test_each $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -125,7 +125,7 @@ test_glob() {
 
   local failed=0 casename
   for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
-    t.run subtest test_glob $casename || {
+    t.run test_glob $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -178,7 +178,7 @@ test_map() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    t.run subtest test_map $casename || {
+    t.run test_map $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -352,7 +352,7 @@ test_task.ln() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    t.run subtest test_task.ln $casename || {
+    t.run test_task.ln $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }

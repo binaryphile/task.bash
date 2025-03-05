@@ -192,7 +192,7 @@ section() {
 ShortRun=0
 
 # shortRun says not to run tasks with progress.
-shortRun() { ShortRun=1; }
+setShortRun() { ShortRun=1; }
 
 # strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
 # It is used to set expectations properly for third-party code you may need to source.
