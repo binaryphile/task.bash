@@ -53,32 +53,38 @@ main() {
     section crostini
     task.ln $crostiniDir ~/crostini
 
-    glob $crostiniDir/projects/*        | mapas target '$target ~/projects/$(basename $target)'       | each task.ln
-    glob $crostiniDir/GolandProjects/*  | mapas target '$target ~/GolandProjects/$(basename $target)' | each task.ln
-    glob $crostiniDir/obsidian/*        | mapas target '$target ~/obsidian/$(basename $target)'       | each task.ln
+    glob $crostiniDir/projects/*        | map target '$target ~/projects/$(basename $target)'       | each task.ln
+    glob $crostiniDir/GolandProjects/*  | map target '$target ~/GolandProjects/$(basename $target)' | each task.ln
+    glob $crostiniDir/obsidian/*        | map target '$target ~/obsidian/$(basename $target)'       | each task.ln
   endsystem
+
+  section mk.bash
+  task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
+  task.git_checkout develop ~/projects/mk.bash
+  task.install 644 ~/projects/mk.bash/mk.bash ~/.local/libexec/mk.bash
+  task.ln ~/projects/mk.bash/mk-example ~/mk
 
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
   task.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   task.nvim_headless_PlugInstall
+  task.ln ~/.config/nvim ~/nvim
+
+  section obsidian
+  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
+
+  section task.bash
+  task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
+  task.git_checkout develop ~/projects/task.bash
 
   section tesht
   task.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
   task.git_checkout develop ~/projects/tesht
   task.ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
-  section task.bash
-  task.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
-  task.git_checkout develop ~/projects/task.bash
-
-  section obsidian
-  task.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
-
   section apps
   each task.ln <<'  END'
     ~/.config                                 ~/config
-    ~/.config/nvim                            ~/nvim
     ~/.local                                  ~/local
     ~/.ssh                                    ~/ssh
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
@@ -91,10 +97,9 @@ main() {
     ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
     ~/dotfiles/tmux.conf                      ~/.tmux.conf
   END
-  task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
 
   system crostini
-    section generate new credential
+    section unique credential
     [[ -e $crostiniDir/np_id_ed25519.pub ]] && {
       task.remove_matching_file ~/.ssh/id_ed25519.pub $crostiniDir/np_id_ed25519.pub
       task.remove_matching_file ~/.ssh/id_ed25519 $crostiniDir/np_id_ed25519
@@ -241,11 +246,11 @@ set -e
 # parse options
 while [[ ${1:-} == -?* ]]; do
   case $1 in
-    # --help  ) echo "$Usage"  ;;
+    --help  ) [[ -v Usage ]] && echo "$Usage"; exit;;
 
     -x ) set -x;;
 
-    -s ) shortRun;;
+    -s ) setShortRun;;
 
     -- ) shift; break;;
   esac

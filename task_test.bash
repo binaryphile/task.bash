@@ -3,12 +3,10 @@ source ./task.bash
 # test_each tests the application of a command with no output to a list of invocations from stdin.
 # There are subtests that are run with t.run.
 test_each() {
-  command=${FUNCNAME#test_}
-
   local -A case1=(
     [name]='puts items in a file as a side effect'
     [args]=$'Hello\nWorld!'
-    [lambda]=$(appendToFile out.txt)
+    [expression]=$(appendToFile out.txt)
     [want]=''
     [wantInFile]=$'Hello\nWorld!'
   )
@@ -17,13 +15,13 @@ test_each() {
   # command is the parent function name.
   # case is expected to be the name of an associative array holding at least the key "name".
   subtest() {
-    command=$1 casename=$2
+    local casename=$1
 
     ## arrange
 
     # temporary directory
-    dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-    trap "rm -rf $dir" EXIT           # always clean up
+    local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+    trap "rm -rf $dir" EXIT                 # always clean up
     cd $dir
 
     # create variables from the keys/values of the test map
@@ -32,34 +30,34 @@ test_each() {
     ## act
 
     # run the command and capture the output and result code
-    got=$(echo "$args" | $command $lambda 2>&1)
-    rc=$?
+    local got rc
+    got=$(echo "$args" | each $expression 2>&1) && rc=$? || rc=$?
 
     ## assert
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\t$command: error = $rc, want: 0\n$got"
+      echo -e "\teach: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the file got the output
-    content=$(<out.txt)
+    local content=$(<out.txt)
     [[ $content == "$wantInFile" ]] || {
-      echo -e "\t$command: out.txt content doesn't match wantInFile:\n$(t.diff "$content" "$wantInFile")"
+      echo -e "\teach: out.txt content doesn't match wantInFile:\n$(t.diff "$content" "$wantInFile")"
       return 1
     }
 
     # assert that we got no output
     [[ $got == "$want" ]] || {
-      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\teach: got doesn't match want:\n$(t.diff "$got" "$want")"
       return 1
     }
   }
 
-  failed=0
+  local failed=0 casename
   for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
-    t.run subtest $command $casename || {
+    t.run test_each $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -71,8 +69,6 @@ test_each() {
 # test_glob tests
 # There are subtests that are run with t.run.
 test_glob() {
-  command=${FUNCNAME#test_}
-
   local -A case1=(
     [name]='generates a list of two items'
     [pattern]='*'
@@ -90,13 +86,13 @@ test_glob() {
   # command is the parent function name.
   # case is expected to be the name of an associative array holding at least the key "name".
   subtest() {
-    local command=$1 casename=$2
+    local casename=$1
 
     ## arrange
 
     # temporary directory
-    dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-    trap "rm -rf $dir" EXIT           # always clean up
+    local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+    trap "rm -rf $dir" EXIT                 # always clean up
     cd $dir
 
     # create variables from the keys/values of the test map
@@ -109,27 +105,27 @@ test_glob() {
     ## act
 
     # run the command and capture the output and result code
-    got=$($command $pattern 2>&1)
-    rc=$?
+    local got rc
+    got=$(glob $pattern 2>&1) && rc=$? || rc=$?
 
     ## assert
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\t$command: error = $rc, want: 0\n$got"
+      echo -e "\tglob: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that we got expected output
     [[ $got == "$want" ]] || {
-      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\tglob: got doesn't match want:\n$(t.diff "$got" "$want")"
       return 1
     }
   }
 
-  failed=0
+  local failed=0 casename
   for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
-    t.run subtest $command $casename || {
+    t.run test_glob $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -141,8 +137,6 @@ test_glob() {
 # test_map tests the application of an expression to a list of invocations from stdin.
 # There are subtests that are run with t.run.
 test_map() {
-  command=${FUNCNAME#test_}
-
   local -A case1=(
     [name]='basic'
     [args]=$'Hello\nWorld!'
@@ -155,7 +149,7 @@ test_map() {
   # command is the parent function name.
   # case is expected to be the name of an associative array holding at least the key "name".
   subtest() {
-    command=$1 casename=$2
+    local casename=$1
 
     ## arrange
     # create variables from the keys/values of the test map
@@ -164,27 +158,27 @@ test_map() {
     ## act
 
     # run the command and capture the output and result code
-    got=$($command $varname $expression <<<"$args" 2>&1)
-    rc=$?
+    local got rc
+    got=$(map $varname $expression <<<"$args" 2>&1) && rc=$? || rc=$?
 
     ## assert
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\t$command: error = $rc, want: 0\n$got"
+      echo -e "\tmap: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\tmap: got doesn't match want:\n$(t.diff "$got" "$want")"
       return 1
     }
   }
 
-  failed=0
+  local failed=0 casename
   for casename in ${!case@}; do
-    t.run subtest $command $casename || {
+    t.run test_map $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -196,11 +190,10 @@ test_map() {
 # test_task.curl tests whether the curl download task receives a file from a local test http server.
 # It does its work in a directory it creates in /tmp.
 test_task.curl() {
-  command=${FUNCNAME#test_}
-
   ## arrange
 
   # temporary directory
+  local dir trapcmd
   dir=$(t.mktempdir) || return 128  # fatal
   trapcmd="rm -rf $dir"
   trap $trapcmd EXIT  # always clean up
@@ -209,36 +202,37 @@ test_task.curl() {
   # create the downloadable file
   echo 'hello there' >src.txt
 
+  local pid
   pid=$(t.start_http_server) || { echo $pid; return 128; }  # if fatal pid is the error message
   trapcmd="kill $pid >/dev/null; $trapcmd"
   trap $trapcmd EXIT  # always clean up
 
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tdownload src.txt from http://127.0.0.1:8000 as dst.txt
-[\E[38;5;208mchanged\E[0m]\tdownload src.txt from http://127.0.0.1:8000 as dst.txt'
-
   ## act
 
   # run the command and capture the output and result code
-  got=$($command http://127.0.0.1:8000/src.txt dst.txt 2>&1)
-  rc=$?
+  local got rc
+  got=$(task.curl http://127.0.0.1:8000/src.txt dst.txt 2>&1) && rc=$? || rc=$?
 
   ## assert
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "$command: error = $rc, want: 0\n$got"
+    echo -e "task.curl: error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the file was downloaded
   [[ -f dst.txt && $(<src.txt) == $(<dst.txt) ]] || {
-    echo -e "$command: expected file contents to match.\n$got"
+    echo -e "task.curl: expected file contents to match.\n$got"
     return 1
   }
 
   # assert that we got the wanted output
+  local want=$'[\E[38;5;220mbegin\E[0m]\t\tdownload src.txt from http://127.0.0.1:8000 as dst.txt
+[\E[38;5;208mchanged\E[0m]\tdownload src.txt from http://127.0.0.1:8000 as dst.txt'
+
   [[ $got == "$want" ]] || {
-    echo -e "$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.curl: got doesn't match want:\n$(t.diff "$got" "$want")"
     return 1
   }
 }
@@ -247,14 +241,9 @@ test_task.curl() {
 # It does its work in a directory it creates in /tmp.
 test_task.git_clone() {
   ## arrange
-
-  command=${FUNCNAME#test_}
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo https://github.com/binaryphile/task.bash to task.bash
-[\E[38;5;208mchanged\E[0m]\tclone repo https://github.com/binaryphile/task.bash to task.bash'
-
   # temporary directory
-  dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-  trap "rm -rf $dir" EXIT           # always clean up
+  local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+  trap "rm -rf $dir" EXIT                 # always clean up
   cd $dir
 
   # TODO: build and clone local repo instead of from github
@@ -262,26 +251,29 @@ test_task.git_clone() {
   ## act
 
   # run the command and capture the output and result code
-  got=$($command https://github.com/binaryphile/task.bash task.bash 2>&1)
-  rc=$?
+  local got rc
+  got=$(task.git_clone https://github.com/binaryphile/task.bash task.bash 2>&1) && rc=$? || rc=$?
 
   ## assert
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "$command error = $rc, want: 0\n$got"
+    echo -e "task.git_clone error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the repo was cloned
   [[ -e task.bash/.git ]] || {
-    echo -e "$command expected .git directory.\n$got"
+    echo -e "task.git_clone expected .git directory.\n$got"
     return 1
   }
 
   # assert that we got the wanted output
+  local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo https://github.com/binaryphile/task.bash to task.bash
+[\E[38;5;208mchanged\E[0m]\tclone repo https://github.com/binaryphile/task.bash to task.bash'
+
   [[ $got == "$want" ]] || {
-    echo -e "$command got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.git_clone got doesn't match want:\n$(t.diff "$got" "$want")"
     return 1
   }
 }
@@ -290,8 +282,6 @@ test_task.git_clone() {
 # There are subtests for link creation and when link creation fails.
 # Subtests are run with t.run.
 test_task.ln() {
-  command=${FUNCNAME#test_}
-
   local -A case1=(
     [name]='spaces in link and target'
     [targetname]='a\ target.txt'
@@ -312,13 +302,13 @@ test_task.ln() {
   # case is expected to be the name of an associative array holding at least the key "name".
   # Each subtest that needs a directory creates it in /tmp.
   subtest() {
-    command=$1 casename=$2
+    local casename=$1
 
     ## arrange
 
     # temporary directory
-    dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-    trap "rm -rf $dir" EXIT           # always clean up
+    local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+    trap "rm -rf $dir" EXIT                 # always clean up
     cd $dir
 
     # create variables from the keys/values of the test map
@@ -328,8 +318,8 @@ test_task.ln() {
     ## act
 
     # run the command and capture the output and result code
-    got=$($command $targetname $linkname 2>&1)
-    rc=$?
+    local got rc
+    got=$(task.ln $targetname $linkname 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -337,32 +327,32 @@ test_task.ln() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "\t$command: error = $rc, want: $wanterr\n$got"
+      echo -e "\ttask.ln: error = $rc, want: $wanterr\n$got"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\t$command: error = $rc, want: 0\n$got"
+      echo -e "\ttask.ln: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the symlink was made
     [[ -L $linkname ]] || {
-      echo -e "\t$command: expected $2 to be symlink\n$got"
+      echo -e "\ttask.ln: expected $2 to be symlink\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\t$command: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\ttask.ln: got doesn't match want:\n$(t.diff "$got" "$want")"
       return 1
     }
   }
 
-  failed=0
+  local failed=0 casename
   for casename in ${!case@}; do
-    t.run subtest $command $casename || {
+    t.run test_task.ln $casename || {
       (( $? == 128 )) && return   # fatal
       failed=1
     }
@@ -375,44 +365,39 @@ test_task.ln() {
 # It does its work in a directory it creates in /tmp.
 test_task.mkdir() {
   ## arrange
-
-  command=${FUNCNAME#test_}
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\ dir
-[\E[38;5;208mchanged\E[0m]\tmake directory a\ dir'
-
   # temporary directory
-  dir=$(t.mktempdir) || return 128  # fatal if can't make dir
-  trap "rm -rf $dir" EXIT           # always clean up
+  local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+  trap "rm -rf $dir" EXIT                 # always clean up
   cd $dir
 
   ## act
 
   # run the command and capture the output and result code
-  got=$($command 'a dir' 2>&1)
-  rc=$?
+  local got rc
+  got=$(task.mkdir 'a dir' 2>&1) && rc=$? || rc=$?
 
   ## assert
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "$command error = $rc, want: 0\n$got"
+    echo -e "task.mkdir error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the directory was made
   [[ -d 'a dir' ]] || {
-    echo -e "$command expected directory a\ dir.\n$got"
+    echo -e "task.mkdir expected directory a\ dir.\n$got"
     return 1
   }
 
   # assert that we got the wanted output
+  local want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\ dir
+[\E[38;5;208mchanged\E[0m]\tmake directory a\ dir'
+
   [[ $got == "$want" ]] || {
-    echo -e "$command got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.mkdir got doesn't match want:\n$(t.diff "$got" "$want")"
     return 1
   }
 }
 
-appendToFile() {
-  local filename=$1
-  echo "_() { echo \$* >>$filename; }; _"
-}
+appendToFile() { echo "_() { echo \$* >>$1; }; _"; }
