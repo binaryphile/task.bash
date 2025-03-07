@@ -50,7 +50,8 @@ test_each() {
 
     # assert that we got no output
     [[ $got == "$want" ]] || {
-      echo -e "\teach: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\teach: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
   }
@@ -118,7 +119,8 @@ test_glob() {
 
     # assert that we got expected output
     [[ $got == "$want" ]] || {
-      echo -e "\tglob: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\tglob: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
   }
@@ -171,7 +173,8 @@ test_map() {
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\tmap: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\tmap: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo got=${got@Q}
       return 1
     }
   }
@@ -228,11 +231,54 @@ test_task.curl() {
   }
 
   # assert that we got the wanted output
-  local want=$'[\E[38;5;220mbegin\E[0m]\t\tdownload src.txt from http://127.0.0.1:8000 as dst.txt
-[\E[38;5;208mchanged\E[0m]\tdownload src.txt from http://127.0.0.1:8000 as dst.txt'
+  local want
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tdownload src.txt from http://127.0.0.1:8000 as dst.txt\r[\E[38;5;82mchanged\E[0m]\tdownload src.txt from http://127.0.0.1:8000 as dst.txt'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.curl: got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.curl: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    return 1
+  }
+}
+
+# test_task.git_checkout tests whether a branch is checkout out.
+# It does its work in a directory it creates in /tmp.
+test_task.git_checkout() {
+  ## arrange
+  # temporary directory
+  local dir=$(t.mktempdir) || return 128  # fatal if can't make dir
+  trap "rm -rf $dir" EXIT                 # always clean up
+  cd $dir
+
+  createCheckoutRepo develop
+
+  ## act
+
+  # run the command and capture the output and result code
+  local got rc
+  got=$(task.git_checkout develop . 2>&1) && rc=$? || rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "task.git_checkout error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that the branch was checked out
+  [[ $(git rev-parse --abbrev-ref HEAD) == develop ]] || {
+    echo -e "task.git_checkout could not switch to branch develop.\n$got"
+    return 1
+  }
+
+  # assert that we got the wanted output
+  local want
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tcheckout branch develop in repo .\r[\E[38;5;82mchanged\E[0m]\tcheckout branch develop in repo .'
+
+  [[ $got == "$want" ]] || {
+    echo -e "task.git_checkout got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
 }
@@ -246,13 +292,13 @@ test_task.git_clone() {
   trap "rm -rf $dir" EXIT                 # always clean up
   cd $dir
 
-  # TODO: build and clone local repo instead of from github
+  createCloneRepo
 
   ## act
 
   # run the command and capture the output and result code
   local got rc
-  got=$(task.git_clone https://github.com/binaryphile/task.bash task.bash 2>&1) && rc=$? || rc=$?
+  got=$(task.git_clone clone clone2 2>&1) && rc=$? || rc=$?
 
   ## assert
 
@@ -263,17 +309,18 @@ test_task.git_clone() {
   }
 
   # assert that the repo was cloned
-  [[ -e task.bash/.git ]] || {
+  [[ -e clone2/.git ]] || {
     echo -e "task.git_clone expected .git directory.\n$got"
     return 1
   }
 
   # assert that we got the wanted output
-  local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo https://github.com/binaryphile/task.bash to task.bash
-[\E[38;5;208mchanged\E[0m]\tclone repo https://github.com/binaryphile/task.bash to task.bash'
+  local want
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.git_clone got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.git_clone got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
 }
@@ -286,8 +333,7 @@ test_task.ln() {
     [name]='spaces in link and target'
     [targetname]='a\ target.txt'
     [linkname]='a\ link.txt'
-    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\\\\ link.txt to a\\\\ target.txt
-[\E[38;5;208mchanged\E[0m]\tsymlink a\\\\ link.txt to a\\\\ target.txt'
+    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\\\\ link.txt to a\\\\ target.txt\r[\E[38;5;82mchanged\E[0m]\tsymlink a\\\\ link.txt to a\\\\ target.txt'
   )
 
   local -A case2=(
@@ -345,7 +391,8 @@ test_task.ln() {
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\ttask.ln: got doesn't match want:\n$(t.diff "$got" "$want")"
+      echo -e "\ttask.ln: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
   }
@@ -391,13 +438,43 @@ test_task.mkdir() {
   }
 
   # assert that we got the wanted output
-  local want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\ dir
-[\E[38;5;208mchanged\E[0m]\tmake directory a\ dir'
+  local want
+  want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\\ dir\r[\E[38;5;82mchanged\E[0m]\tmake directory a\\ dir'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.mkdir got doesn't match want:\n$(t.diff "$got" "$want")"
+    echo -e "task.mkdir got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
 }
 
+## helpers
+
+# appendToFile creates a lambda that echoes its arguments to the provided filename argument.
 appendToFile() { echo "_() { echo \$* >>$1; }; _"; }
+
+# createCheckoutRepo creates a git repository in the current directory.
+# It creates an initial commit.
+# It creates, but does not switch to, branchname.
+# It suppresses stdout with a redirection of the entire function.
+createCheckoutRepo() {
+  local branchname=$1
+
+  git init
+  echo hello >hello.txt
+  git add hello.txt
+  git commit -m init
+  git branch $branchname
+} >/dev/null
+
+# createCloneRepo creates a git repository as a subdirectory of the current directory.
+# It creates an initial commit.
+# It runs in a subshell so it can change directory without affecting the caller.
+# It suppresses stdout with a redirection of the entire function.
+createCloneRepo() (
+  git init clone
+  cd clone
+  echo hello >hello.txt
+  git add hello.txt
+  git commit -m init
+) >/dev/null
