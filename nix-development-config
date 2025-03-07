@@ -200,7 +200,7 @@ task.install() {
   local mode=$1 src=$2 dst=$3
   task  "copy $src to $dst with mode $mode"
   exist $dst
-  def   "install -m $mode $src $dst"
+  def   "mkdir -p $(dirname $dst); install -m $mode $src $dst"
 }
 
 task.remove_matching_file() {
