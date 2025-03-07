@@ -137,7 +137,7 @@ run() {
     return
   }
 
-  ! (( ShortRun )) && ! (( ShowProgress )) && ! (( Iterating )) && echo -e "[$(T begin)]\t\t$Task"
+  ! (( ShortRun )) && ! (( ShowProgress )) && ! (( Iterating )) && echo -ne "[$(T begin)]\t\t$Task"
 
   local command
   if [[ $BecomeUser == '' ]]; then
@@ -168,12 +168,12 @@ run() {
 
   if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
     OKs[$Task]=1
-    echo -e "[$(T ok)]\t\t$Task"
+    echo -e "\r[$(T ok)]\t\t$Task"
   elif (( rc == 0 )) && ( eval $Condition &>/dev/null ); then
     Changeds[$Task]=1
-    echo -e "[$(T changed)]\t$Task"
+    echo -e "\r[$(T changed)]\t$Task"
   else
-    echo -e "[$(T failed)]\t$Task"
+    echo -e "\r[$(T failed)]\t$Task"
     ! (( ShowProgress )) && echo -e "[output]\t$Task\n$Output\n"
     echo 'stopped due to failure'
     (( rc == 0 )) && echo 'task reported success but condition not met'
@@ -234,10 +234,7 @@ system() { YesSystems=( ${*,,} ); }
 # SystemType is the default function for determining the system type.
 SystemType() { [[ $OSTYPE == darwin* ]] && echo macos || echo linux; }
 
-Blue='\033[38;5;33m'
 Green='\033[38;5;82m'
-Orange='\033[38;5;208m'
-Purple='\033[38;5;201m'
 Red='\033[38;5;196m'
 Yellow='\033[38;5;220m'
 
@@ -245,7 +242,7 @@ Reset='\033[0m'
 
 declare -A Translations=(
   [begin]=$Yellow
-  [changed]=$Orange
+  [changed]=$Green
   [failed]=$Red
   [ok]=$Green
   [progress]=$Yellow
@@ -322,7 +319,7 @@ task.curl() {
 task.git_checkout() {
   local branch=$1 dir=$2
   task  "checkout branch $branch in repo $(basename $dir)"
-  ok    "[[ $(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
+  ok    "[[ \$(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
   def   "cd $dir; git checkout $branch"
 }
 

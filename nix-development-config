@@ -154,8 +154,8 @@ task.curlpipe_lix_installer() {
   [[ $OSTYPE == darwin* ]] && local flag=f || local flag=c
   task    'change store ownership to single user'
   become  root
-  ok      "[[ $(stat -$flag %u /nix):$(stat -$flag %g /nix) == $(id -u):$(id -g) ]]"
-  def     'chown -R $(id -u):$(id -g) /nix'
+  ok      "[[ \$(stat -$flag %u /nix):\$(stat -$flag %g /nix) == $(id -u):$(id -g) ]]"
+  def     "chown -R $(id -u):$(id -g) /nix"
 }
 
 # home manager
