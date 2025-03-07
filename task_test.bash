@@ -37,20 +37,20 @@ test_each() {
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\teach: error = $rc, want: 0\n$got"
+      echo -e "\n\teach: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the file got the output
     local content=$(<out.txt)
     [[ $content == "$wantInFile" ]] || {
-      echo -e "\teach: out.txt content doesn't match wantInFile:\n$(t.diff "$content" "$wantInFile")"
+      echo -e "\n\teach: out.txt content doesn't match wantInFile:\n$(t.diff "$content" "$wantInFile")"
       return 1
     }
 
     # assert that we got no output
     [[ $got == "$want" ]] || {
-      echo -e "\teach: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "\n\teach: got doesn't match want:\n$(t.diff "$got" "$want")\n"
       echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
@@ -113,13 +113,13 @@ test_glob() {
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\tglob: error = $rc, want: 0\n$got"
+      echo -e "\n\tglob: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that we got expected output
     [[ $got == "$want" ]] || {
-      echo -e "\tglob: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "\n\tglob: got doesn't match want:\n$(t.diff "$got" "$want")\n"
       echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
@@ -167,13 +167,13 @@ test_map() {
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\tmap: error = $rc, want: 0\n$got"
+      echo -e "\n\tmap: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\tmap: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "\n\tmap: got doesn't match want:\n$(t.diff "$got" "$want")\n"
       echo got=${got@Q}
       return 1
     }
@@ -220,13 +220,13 @@ test_task.curl() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "task.curl: error = $rc, want: 0\n$got"
+    echo -e "\ntask.curl: error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the file was downloaded
   [[ -f dst.txt && $(<src.txt) == $(<dst.txt) ]] || {
-    echo -e "task.curl: expected file contents to match.\n$got"
+    echo -e "\ntask.curl: expected file contents to match.\n$got"
     return 1
   }
 
@@ -235,7 +235,7 @@ test_task.curl() {
   want=$'[\E[38;5;220mbegin\E[0m]\t\tdownload src.txt from http://127.0.0.1:8000 as dst.txt\r[\E[38;5;82mchanged\E[0m]\tdownload src.txt from http://127.0.0.1:8000 as dst.txt'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.curl: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "\ntask.curl: got doesn't match want:\n$(t.diff "$got" "$want")\n"
     echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
@@ -262,13 +262,13 @@ test_task.git_checkout() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "task.git_checkout error = $rc, want: 0\n$got"
+    echo -e "\ntask.git_checkout error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the branch was checked out
   [[ $(git rev-parse --abbrev-ref HEAD) == develop ]] || {
-    echo -e "task.git_checkout could not switch to branch develop.\n$got"
+    echo -e "\ntask.git_checkout could not switch to branch develop.\n$got"
     return 1
   }
 
@@ -277,7 +277,7 @@ test_task.git_checkout() {
   want=$'[\E[38;5;220mbegin\E[0m]\t\tcheckout branch develop in repo .\r[\E[38;5;82mchanged\E[0m]\tcheckout branch develop in repo .'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.git_checkout got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "\ntask.git_checkout got doesn't match want:\n$(t.diff "$got" "$want")\n"
     echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
@@ -304,13 +304,13 @@ test_task.git_clone() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "task.git_clone error = $rc, want: 0\n$got"
+    echo -e "\ntask.git_clone error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the repo was cloned
   [[ -e clone2/.git ]] || {
-    echo -e "task.git_clone expected .git directory.\n$got"
+    echo -e "\ntask.git_clone expected .git directory.\n$got"
     return 1
   }
 
@@ -319,7 +319,7 @@ test_task.git_clone() {
   want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.git_clone got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "\ntask.git_clone got doesn't match want:\n$(t.diff "$got" "$want")\n"
     echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
@@ -373,25 +373,25 @@ test_task.ln() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "\ttask.ln: error = $rc, want: $wanterr\n$got"
+      echo -e "\n\ttask.ln: error = $rc, want: $wanterr\n$got"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\ttask.ln: error = $rc, want: 0\n$got"
+      echo -e "\n\ttask.ln: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the symlink was made
     [[ -L $linkname ]] || {
-      echo -e "\ttask.ln: expected $2 to be symlink\n$got"
+      echo -e "\n\ttask.ln: expected $2 to be symlink\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\ttask.ln: got doesn't match want:\n$(t.diff "$got" "$want")\n"
+      echo -e "\n\ttask.ln: got doesn't match want:\n$(t.diff "$got" "$want")\n"
       echo -e "use this line to update want to match this output:\nwant=${got@Q}"
       return 1
     }
@@ -427,13 +427,13 @@ test_task.mkdir() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "task.mkdir error = $rc, want: 0\n$got"
+    echo -e "\ntask.mkdir error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that the directory was made
   [[ -d 'a dir' ]] || {
-    echo -e "task.mkdir expected directory a\ dir.\n$got"
+    echo -e "\ntask.mkdir expected directory a\ dir.\n$got"
     return 1
   }
 
@@ -442,7 +442,7 @@ test_task.mkdir() {
   want=$'[\E[38;5;220mbegin\E[0m]\t\tmake directory a\\ dir\r[\E[38;5;82mchanged\E[0m]\tmake directory a\\ dir'
 
   [[ $got == "$want" ]] || {
-    echo -e "task.mkdir got doesn't match want:\n$(t.diff "$got" "$want")\n"
+    echo -e "\ntask.mkdir got doesn't match want:\n$(t.diff "$got" "$want")\n"
     echo -e "use this line to update want to match this output:\nwant=${got@Q}"
     return 1
   }
