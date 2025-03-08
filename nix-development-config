@@ -62,7 +62,7 @@ main() {
   task.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
   task.git_checkout develop ~/projects/mk.bash
   task.install 644 ~/projects/mk.bash/mk.bash ~/.local/libexec/mk.bash
-  task.ln ~/projects/mk.bash/mk-example ~/mk
+  task.ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
 
   section neovim
   task.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
@@ -109,6 +109,8 @@ main() {
     task.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
     task.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
   endsystem
+
+  task.mk git-update $(glob ~/obsidian/*) $(glob ~/projects/*) ~/.config/nvim ~/dotfiles
 }
 
 ## helpers
@@ -228,6 +230,15 @@ task.ssh_keygen() {
     ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C $USER@$(idHost)
     cat $keyFilename.pub
   "
+}
+
+# mk
+task.mk() {
+  local args
+  printf -v args '%q ' $*
+  task "mk $args"
+  prog on
+  def  "mk $args"
 }
 
 ## boilerplate
