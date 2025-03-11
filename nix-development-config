@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 main() {
-  register systemTypeFunc idSystem
-  register hostnameFunc idHost
+  set -euo pipefail   # enable strict mode
+  register systemTypeFunc idSystem    # identify debian and crostini
+  register hostnameFunc idHost        # identify crostini alternative hostname
 
   system debian
     section system
@@ -53,9 +54,10 @@ main() {
     section crostini
     t.ln $crostiniDir ~/crostini
 
-    glob $crostiniDir/projects/*        | map target '$target ~/projects/$(basename $target)'       | each t.ln
-    glob $crostiniDir/GolandProjects/*  | map target '$target ~/GolandProjects/$(basename $target)' | each t.ln
-    glob $crostiniDir/obsidian/*        | map target '$target ~/obsidian/$(basename $target)'       | each t.ln
+    # link to permanent project directories from home dir
+    glob $crostiniDir/projects/* $crostiniDir/GolandProjects/* $crostiniDir/obsidian/* |
+      map target "\$target ~/\${target#$crostiniDir/}"   |
+      each t.ln
   endsystem
 
   section mk.bash
@@ -243,25 +245,25 @@ t.ssh_keygen() {
 
 ## boilerplate
 
-if [[ -e task.bash ]]; then
-  source ./task.bash
-else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
-  eval "$lib"
-  unset -v lib
-fi
+here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
+# if [[ -e "$here"/task.bash ]]; then
+  source "$here"/task.bash
+# else
+#   lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
+#   eval "$lib"
+#   unset -v lib
+# fi
 
 return 2>/dev/null
-set -e
 
 # parse options
 while [[ ${1:-} == -?* ]]; do
   case $1 in
-    --help  ) [[ -v Usage ]] && echo "$Usage"; exit;;
+    -h|--help )   [[ -v Usage ]] && echo "$Usage"; exit;;
 
-    -x ) set -x;;
+    -x|--trace )  set -x;;
 
-    -s ) setShortRun;;
+    -s|--short )  setShortRun;;
 
     -- ) shift; break;;
   esac

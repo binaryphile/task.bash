@@ -46,22 +46,14 @@ ForMe() {
   return 1
 }
 
-# glob expands $1 with globbing on.
+# glob expands its arguments with globbing on.
 glob() {
   SetGlobbing on
-  set -- $1
+  set -- $*
   local out
   printf -v out '%q\n' $*
   [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
   SetGlobbing off
-}
-
-# SetGlobbing toggles globbing.
-SetGlobbing() {
-  case $1 in
-    off ) shopt -u nullglob; set -o noglob;;
-    on  ) shopt -s nullglob; set +o noglob;;
-  esac
 }
 
 YesHosts=()
@@ -187,6 +179,14 @@ section() {
   ! ForMe && return
   local IFS=' '
   echo -e "\n[section $*]"
+}
+
+# SetGlobbing toggles globbing.
+SetGlobbing() {
+  case $1 in
+    off ) shopt -u nullglob; set -o noglob;;
+    on  ) shopt -s nullglob; set +o noglob;;
+  esac
 }
 
 ShortRun=0

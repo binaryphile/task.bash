@@ -71,16 +71,23 @@ test_each() {
 # There are subtests that are run with tesht.run.
 test_glob() {
   local -A case1=(
-    [name]='generates a list of two items'
+    [name]='generate a list of two items'
     [pattern]='*'
     [filenames]=$'file1\nfile2'
     [want]=$'file1\nfile2'
   )
 
   local -A case2=(
-    [name]='returns an empty list'
+    [name]='return an empty list'
     [pattern]='*'
     [want]=''
+  )
+
+  local -A case3=(
+    [name]='path expand two arguments'
+    [pattern]='* *'
+    [filenames]='file1'
+    [want]=$'file1\nfile1'
   )
 
   # subtest runs each subtest.
@@ -109,7 +116,7 @@ test_glob() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(glob $pattern 2>&1) && rc=$? || rc=$?
+    got=$(eval "glob $pattern" 2>&1) && rc=$? || rc=$?
 
     ## assert
 
