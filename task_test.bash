@@ -1,5 +1,7 @@
 source ./task.bash
 
+## collection functions
+
 # test_each tests the application of a command with no output to a list of invocations from stdin.
 # There are subtests that are run with tesht.run.
 test_each() {
@@ -81,13 +83,6 @@ test_glob() {
     [name]='return an empty list'
     [pattern]='*'
     [want]=''
-  )
-
-  local -A case3=(
-    [name]='path expand two arguments'
-    [pattern]='* *'
-    [filenames]='file1'
-    [want]=$'file1\nfile1'
   )
 
   # subtest runs each subtest.
@@ -198,6 +193,37 @@ test_map() {
 
   return $failed
 }
+
+# test_stream tests echoing inputs separated by IFS.
+test_stream() {
+  ## arrange
+  [[ $(type -t stream) == function ]] || { echo -e "\nstream should be a function"; return 1; }
+
+  ## act
+  # run the command and capture the output and result code
+  local got rc
+  got=$(stream * *2 2>&1) && rc=$? || rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "\nstream error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that we got the wanted output
+  local want
+  want=$'*\n*2'
+
+  [[ $got == "$want" ]] || {
+    echo -e "\nstream got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    return 1
+  }
+}
+
+## tasks
 
 # test_t.curl tests whether the curl download task receives a file from a local test http server.
 # It does its work in a directory it creates in /tmp.

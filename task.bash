@@ -307,6 +307,11 @@ map() {
   done
 }
 
+# stream echoes arguments separated by IFS.
+stream() {
+  echo "$*"
+}
+
 ## helper tasks
 
 t.curl() {
