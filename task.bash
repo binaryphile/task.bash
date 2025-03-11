@@ -48,16 +48,16 @@ ForMe() {
 
 # glob expands $1 with globbing on.
 glob() {
-  Globbing on
+  SetGlobbing on
   set -- $1
   local out
   printf -v out '%q\n' $*
   [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
-  Globbing off
+  SetGlobbing off
 }
 
-# Globbing toggles globbing.
-Globbing() {
+# SetGlobbing toggles globbing.
+SetGlobbing() {
   case $1 in
     off ) shopt -u nullglob; set -o noglob;;
     on  ) shopt -s nullglob; set +o noglob;;
@@ -309,28 +309,28 @@ map() {
 
 ## helper tasks
 
-task.curl() {
+t.curl() {
   local url=$1 filename=$2
   task   "download ${url##*/} from ${url%/*} as $(basename $filename)"
   exist  $filename
   def    "mkdir -p $(dirname $filename); curl -fsSL $url >$filename"
 }
 
-task.git_checkout() {
+t.git_checkout() {
   local branch=$1 dir=$2
   task  "checkout branch $branch in repo $(basename $dir)"
   ok    "[[ \$(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
   def   "cd $dir; git checkout $branch"
 }
 
-task.git_clone() {
+t.git_clone() {
   local repo=$1 dir=$2
   task   "clone repo ${1#git@} to $(basename $dir)"
   exist  $dir
   def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $repo $dir"
 }
 
-task.ln() {
+t.ln() {
   local targetname=$1 linkname=$2
   printf -v targetname %q $targetname
   printf -v linkname %q $linkname
@@ -347,7 +347,7 @@ task.ln() {
   run
 }
 
-task.mkdir() {
+t.mkdir() {
   local dir=$(printf %q $1)
   task "make directory $(basename $dir)"
   ok "[[ -d $dir ]]"
