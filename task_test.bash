@@ -53,7 +53,7 @@ test_each() {
     # assert that we got no output
     [[ $got == "$want" ]] || {
       echo -e "\n\teach: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+      echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
       return 1
     }
   }
@@ -99,7 +99,7 @@ test_glob() {
     cd $dir
 
     # create variables from the keys/values of the test map
-    unset -v filenames  # necessary for testing for existence with -v
+    unset -v filenames  # unset optional fields
     eval "$(tesht.inherit $casename)"
 
     # create files if requested
@@ -111,7 +111,7 @@ test_glob() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(eval "glob $pattern" 2>&1) && rc=$? || rc=$?
+    got=$(glob $pattern 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -124,7 +124,7 @@ test_glob() {
     # assert that we got expected output
     [[ $got == "$want" ]] || {
       echo -e "\n\tglob: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+      echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
       return 1
     }
   }
@@ -218,7 +218,7 @@ test_stream() {
 
   [[ $got == "$want" ]] || {
     echo -e "\nstream got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
     return 1
   }
 }
@@ -271,7 +271,7 @@ test_t.curl() {
 
   [[ $got == "$want" ]] || {
     echo -e "\nt.curl: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
     return 1
   }
 }
@@ -313,7 +313,7 @@ test_t.git_checkout() {
 
   [[ $got == "$want" ]] || {
     echo -e "\nt.git_checkout got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
     return 1
   }
 }
@@ -355,7 +355,7 @@ test_t.git_clone() {
 
   [[ $got == "$want" ]] || {
     echo -e "\nt.git_clone got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
     return 1
   }
 }
@@ -427,7 +427,7 @@ test_t.ln() {
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
       echo -e "\n\tt.ln: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-      echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+      echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
       return 1
     }
   }
@@ -478,7 +478,7 @@ test_t.mkdir() {
 
   [[ $got == "$want" ]] || {
     echo -e "\nt.mkdir got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "use this line to update want to match this output:\nwant=${got@Q}"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
     return 1
   }
 }

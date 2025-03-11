@@ -46,13 +46,15 @@ ForMe() {
   return 1
 }
 
-# glob expands its arguments with globbing on.
+# glob path expands patterns.
 glob() {
+  local pattern=$1
   SetGlobbing on
-  set -- $*
+
   local out
-  printf -v out '%q\n' $*
+  printf -v out '%q\n' $pattern
   [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
+
   SetGlobbing off
 }
 
