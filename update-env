@@ -95,7 +95,7 @@ main() {
     ~/dotfiles/ranger/rifle.conf                  ~/.config/ranger/rifle.conf
     ~/dotfiles/ssh/config                         ~/.ssh/config
     ~/dotfiles/tmux.conf                          ~/.tmux.conf
-    ~/projects/task.bash/nix-development-config   ~/.local/bin/nix-development-config
+    ~/projects/task.bash/update-env               ~/.local/bin/update-env
   END
 
   system crostini
@@ -113,7 +113,7 @@ main() {
   stream ~/obsidian/* ~/projects/* ~/.config/nvim ~/dotfiles |
     each glob |
     collect |
-    each t.mk git-update
+    each 't.mk git-update'
 }
 
 ## helpers

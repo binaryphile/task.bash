@@ -53,31 +53,50 @@ test_collect() {
   return $failed
 }
 
-# test_each tests the application of a command with no output to a list of invocations from stdin.
+# test_each_side_effect tests each's ability to create side effects.
+test_each_side_effect() {
+  ## arrange
+  # temporary directory
+  local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
+  trap "rm -rf $dir" EXIT                     # always clean up
+  cd $dir
+
+  ## act
+  # run the command and capture the output and result code
+  local got rc
+  got=$(echo $'Hello\nWorld!' | each $(appendToFile out.txt) 2>&1) && rc=$? || rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "\n\teach: error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that the file got the output
+  want=$'Hello\nWorld!'
+  [[ -e out.txt && $(<out.txt) == "$want" ]] || {
+    echo -e "\n\teach: out.txt content does not match want:\n$(tesht.diff "$(<out.txt)" "$want")"
+    return 1
+  }
+
+  # assert that we got no output
+  [[ $got == '' ]] || {
+    echo -e "\n\teach: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
+    return 1
+  }
+}
+
+# test_each tests the application of a command with to a list of invocations from stdin.
 # There are subtests that are run with tesht.run.
 test_each() {
   local -A case1=(
-    [name]='put items in a file as a side effect'
-
-    [assertion]='
-      # assert that the file got the output
-      local content=$(<out.txt)
-      [[ $content == "$wantInFile" ]] || {
-        echo -e "\n\teach: out.txt content does not match wantInFile:\n$(tesht.diff "$content" "$wantInFile")"
-        return 1
-      }
-    '
-    [args]=$'Hello\nWorld!'
-    [expression]=$(appendToFile out.txt)
-    [wantInFile]=$'Hello\nWorld!'
-    [want]=''
-  )
-
-  local -A case2=(
-    [name]='take commands of multiple tokens'
+    [name]='take commands'
 
     [args]=$'Hello\nWorld!'
-    [expression]=$'echo\n "one "'
+    [expression]=$'echo one'
     [want]=$'one Hello\none World!'
   )
 
@@ -88,18 +107,10 @@ test_each() {
     local casename=$1
 
     ## arrange
-
-    # temporary directory
-    local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
-    trap "rm -rf $dir" EXIT                     # always clean up
-    cd $dir
-
     # create variables from the keys/values of the test map
-    unset -v assertion wantInFile   # unset optional fields
     eval "$(tesht.inherit $casename)"
 
     ## act
-
     # run the command and capture the output and result code
     local got rc
     got=$(echo "$args" | each $expression 2>&1) && rc=$? || rc=$?
@@ -111,9 +122,6 @@ test_each() {
       echo -e "\n\teach: error = $rc, want: 0\n$got"
       return 1
     }
-
-    # custom assertion
-    [[ -v assertion ]] && eval "$assertion"
 
     # assert that we got the output we wanted
     [[ $got == "$want" ]] || {

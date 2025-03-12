@@ -282,7 +282,7 @@ collect() {
 
 # each applies its arguments as a command to each argument from stdin.
 each() {
-  local command=$(stream $* | collect) arg
+  local command=$1 arg
   Iterating=1
   while IFS='' read -r arg; do
     eval "$command $arg"
