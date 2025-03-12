@@ -50,11 +50,7 @@ ForMe() {
 glob() {
   local pattern=$1
   SetGlobbing on
-
-  local out
-  printf -v out '%q\n' $pattern
-  [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
-
+  stream $pattern
   SetGlobbing off
 }
 
@@ -276,21 +272,19 @@ unstrictly() {
 
 ## fp
 
-# collect echos an input stream as a safe, space-separated string.
+# collect echos an input stream as a space-separated string.
 collect() {
-  local items out
-  readarray -t items
-  printf -v out '%q ' ${items[*]}
-  echo ${out% }
+  local results
+  readarray -t results
+  local IFS=' '
+  echo "${results[*]}"
 }
 
-# each applies command to each argument from stdin.
-# Works with commands containing newlines.
+# each applies its arguments as a command to each argument from stdin.
 each() {
-  local command=$1 arg
-
+  local command=$(stream $* | collect) arg
   Iterating=1
-  while IFS=$'' read -r arg; do
+  while IFS='' read -r arg; do
     eval "$command $arg"
   done
   Iterating=0
@@ -314,11 +308,15 @@ map() {
   while IFS=$'' read -r $varname; do
     eval "echo \"$expression\""
   done
+  return 0  # so we don't accidentally return false
 }
 
-# stream echoes arguments separated by IFS.
+# stream echoes arguments escaped and separated by newline.
 stream() {
-  echo "$*"
+  local arg
+  for arg in $*; do
+    printf '%q\n' $arg
+  done
 }
 
 ## helper tasks

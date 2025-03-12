@@ -6,9 +6,9 @@ source ./task.bash
 # There are subtests that are run with tesht.run.
 test_collect() {
   local -A case1=(
-    [name]='turn a stream into a safe, space-separated string'
+    [name]='turn a stream into a space-separated string'
     [args]=$'Hello there,\n World!'
-    [want]='Hello\ there\, \ World\!'
+    [want]='Hello there,  World!'
   )
 
   # subtest runs each subtest.
@@ -58,10 +58,27 @@ test_collect() {
 test_each() {
   local -A case1=(
     [name]='put items in a file as a side effect'
+
+    [assertion]='
+      # assert that the file got the output
+      local content=$(<out.txt)
+      [[ $content == "$wantInFile" ]] || {
+        echo -e "\n\teach: out.txt content does not match wantInFile:\n$(tesht.diff "$content" "$wantInFile")"
+        return 1
+      }
+    '
     [args]=$'Hello\nWorld!'
     [expression]=$(appendToFile out.txt)
-    [want]=''
     [wantInFile]=$'Hello\nWorld!'
+    [want]=''
+  )
+
+  local -A case2=(
+    [name]='take commands of multiple tokens'
+
+    [args]=$'Hello\nWorld!'
+    [expression]=$'echo\n "one "'
+    [want]=$'one Hello\none World!'
   )
 
   # subtest runs each subtest.
@@ -73,11 +90,12 @@ test_each() {
     ## arrange
 
     # temporary directory
-    local dir=$(tesht.mktempdir) || return 128   # fatal if can't make dir
+    local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
     trap "rm -rf $dir" EXIT                     # always clean up
     cd $dir
 
     # create variables from the keys/values of the test map
+    unset -v assertion wantInFile   # unset optional fields
     eval "$(tesht.inherit $casename)"
 
     ## act
@@ -94,14 +112,10 @@ test_each() {
       return 1
     }
 
-    # assert that the file got the output
-    local content=$(<out.txt)
-    [[ $content == "$wantInFile" ]] || {
-      echo -e "\n\teach: out.txt content doesn't match wantInFile:\n$(tesht.diff "$content" "$wantInFile")"
-      return 1
-    }
+    # custom assertion
+    [[ -v assertion ]] && eval "$assertion"
 
-    # assert that we got no output
+    # assert that we got the output we wanted
     [[ $got == "$want" ]] || {
       echo -e "\n\teach: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
       echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
@@ -245,9 +259,10 @@ test_map() {
   return $failed
 }
 
-# test_stream tests echoing inputs separated by IFS.
+# test_stream tests echoing inputs separated by newline.
 test_stream() {
   ## arrange
+  # check that it's our stream since stream is already a command on some systems
   [[ $(type -t stream) == function ]] || { echo -e "\nstream should be a function"; return 1; }
 
   ## act
@@ -265,7 +280,7 @@ test_stream() {
 
   # assert that we got the wanted output
   local want
-  want=$'*\n*2'
+  want=$'\*\n\*2'
 
   [[ $got == "$want" ]] || {
     echo -e "\nstream got doesn't match want:\n$(tesht.diff "$got" "$want")\n"

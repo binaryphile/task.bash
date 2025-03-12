@@ -82,9 +82,9 @@ main() {
   section apps
   t.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
   each t.ln <<'  END'
-    ~/.config                                 config
-    ~/.local                                  local
-    ~/.ssh                                    ssh
+    .config                                   ~/config
+    .local                                    ~/local
+    .ssh                                      ~/ssh
     ~/dotfiles/bash/init.bash                 ~/.bash_profile
     ~/dotfiles/bash/init.bash                 ~/.bashrc
     ~/dotfiles/bash/init.bash                 ~/.profile
@@ -112,7 +112,7 @@ main() {
   stream ~/obsidian/* ~/projects/* ~/.config/nvim ~/dotfiles |
     each glob |
     collect |
-    each 't.mk git-update'
+    each t.mk git-update
 }
 
 ## helpers
