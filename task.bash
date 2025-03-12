@@ -276,6 +276,14 @@ unstrictly() {
 
 ## fp
 
+# collect echos an input stream as a safe, space-separated string.
+collect() {
+  local items out
+  readarray -t items
+  printf -v out '%q ' ${items[*]}
+  echo ${out% }
+}
+
 # each applies command to each argument from stdin.
 # Works with commands containing newlines.
 each() {
@@ -286,7 +294,6 @@ each() {
     eval "$command $arg"
   done
   Iterating=0
-  return 0  # so we don't accidentally return false
 }
 
 # keepIf filters lines from stdin using command.

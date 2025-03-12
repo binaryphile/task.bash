@@ -1,120 +1,118 @@
 #!/usr/bin/env bash
 
 main() {
-  set -euo pipefail   # enable strict mode
+  set -euo pipefail                   # enable strict mode
   register systemTypeFunc idSystem    # identify debian and crostini
   register hostnameFunc idHost        # identify crostini alternative hostname
 
-#  system debian
-#    section system
-#    t.apt_upgrade
-#  endsystem
+  system debian
+    section system
+    t.apt_upgrade
+  endsystem
 
   crostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
-#  system crostini
-#    # copy non-passphrased key if it exists and there isn't already a key
-#    if [[ -e $crostiniDir/np_id_ed25519.pub ]]; then
-#      section credential
-#      t.install 600 $crostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-#      t.install 644 $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
-#    # copy unique key if it exists and there isn't already a key
-#    elif [[ -e $crostiniDir/id_ed25519.pub ]]; then
-#      section credential
-#      t.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
-#      t.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-#    fi
-#  endsystem
-#
-#  section dotfiles
-#  t.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
-#  system macos
-#    t.ln contexts/macos ~/dotfiles/context
-#  system crostini
-#    t.ln contexts/crostini ~/dotfiles/context
-#  endsystem
-#
-#  section ssh
-#  t.ln ~/dotfiles/ssh/config ~/.ssh/config
-#
-#  section nix
-#  t.curlpipe_lix_installer
-#  unstrictly source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-#  t.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
-#
-#  section home-manager
-#  t.nix-channel_add_home-manager
-#  t.nix-channel_update
-#  t.nix-shell_home-manager_install
-#  unstrictly source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
-#  t.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
-#  t.home-manager_switch
+  system crostini
+    # copy non-passphrased key if it exists and there isn't already a key
+    if [[ -e $crostiniDir/np_id_ed25519.pub ]]; then
+      section credential
+      t.install 600 $crostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
+      t.install 644 $crostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    # copy unique key if it exists and there isn't already a key
+    elif [[ -e $crostiniDir/id_ed25519.pub ]]; then
+      section credential
+      t.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
+      t.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    fi
+  endsystem
+
+  section dotfiles
+  t.git_clone git@github.com:binaryphile/dotfiles ~/dotfiles
+  system macos
+    t.ln contexts/macos ~/dotfiles/context
+  system crostini
+    t.ln contexts/crostini ~/dotfiles/context
+  endsystem
+
+  section nix
+  t.curlpipe_lix_installer
+  unstrictly source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  t.ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
+
+  section home-manager
+  t.nix-channel_add_home-manager
+  t.nix-channel_update
+  t.nix-shell_home-manager_install
+  unstrictly source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
+  t.ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
+  t.home-manager_switch
 
   system crostini
     section crostini
     t.ln $crostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    stream $crostiniDir/projects/* $crostiniDir/GolandProjects/* $crostiniDir/obsidian/* | each glob |
-      map target "\$target ~/\${target#$crostiniDir/}" |
+    stream $crostiniDir/projects/* $crostiniDir/GolandProjects/* $crostiniDir/obsidian/* |
+      each glob |
+      map target '$target ~/${target#$crostiniDir/}' |
       each t.ln
   endsystem
 
-#  section mk.bash
-#  t.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
-#  t.git_checkout develop ~/projects/mk.bash
-#  t.install 644 ~/projects/mk.bash/mk.bash ~/.local/libexec/mk.bash
-#  t.ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
-#
-#  section neovim
-#  t.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
-#  t.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
-#  t.nvim_headless_PlugInstall
-#  t.ln ~/.config/nvim ~/nvim
-#
-#  section obsidian
-#  t.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
-#
-#  section task.bash
-#  t.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
-#  t.git_checkout develop ~/projects/task.bash
-#
-#  section tesht
-#  t.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
-#  t.git_checkout develop ~/projects/tesht
-#  t.ln ~/projects/tesht/tesht ~/.local/bin/tesht
-#
-#  section apps
-#  each t.ln <<'  END'
-#    ~/.config                                 ~/config
-#    ~/.local                                  ~/local
-#    ~/.ssh                                    ~/ssh
-#    ~/dotfiles/bash/ini.bash                 ~/.bash_profile
-#    ~/dotfiles/bash/ini.bash                 ~/.bashrc
-#    ~/dotfiles/bash/ini.bash                 ~/.profile
-#    ~/dotfiles/gitconfig                      ~/.gitconfig
-#    ~/dotfiles/liquidprompt/liquid.theme      ~/.config/liquidprompt/liquid.theme
-#    ~/dotfiles/liquidprompt/liquidpromptrc    ~/.config/liquidpromptrc
-#    ~/dotfiles/ranger/rc.conf                 ~/.config/ranger/rc.conf
-#    ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
-#    ~/dotfiles/tmux.conf                      ~/.tmux.conf
-#  END
-#
-#  system crostini
-#    section unique credential
-#    [[ -e $crostiniDir/np_id_ed25519.pub ]] && {
-#      t.remove_matching_file ~/.ssh/id_ed25519.pub $crostiniDir/np_id_ed25519.pub
-#      t.remove_matching_file ~/.ssh/id_ed25519 $crostiniDir/np_id_ed25519
-#      rm $crostiniDir/np_id_ed25519{,.pub}
-#    }
-#    t.ssh_keygen $crostiniDir/id_ed25519
-#    t.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
-#    t.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-#  endsystem
-#
-#  stream ~/obsidian/* ~/projects/* ~/.config/nvim ~/dotfiles |
-#    glob |
-#    each t.mk git-update
+  section mk.bash
+  t.git_clone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
+  t.git_checkout develop ~/projects/mk.bash
+  t.ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
+  t.ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
+
+  section neovim
+  t.git_clone git@github.com:binaryphile/dot_vim ~/.config/nvim
+  t.curl https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
+  t.nvim_headless_PlugInstall
+  t.ln ~/.config/nvim ~/nvim
+
+  section task.bash
+  t.git_clone git@github.com:binaryphile/task.bash ~/projects/task.bash
+  t.git_checkout develop ~/projects/task.bash
+
+  section tesht
+  t.git_clone git@github.com:binaryphile/tesht ~/projects/tesht
+  t.git_checkout develop ~/projects/tesht
+  t.ln ~/projects/tesht/tesht ~/.local/bin/tesht
+
+  section apps
+  t.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
+  each t.ln <<'  END'
+    ~/.config                                 ~/config
+    ~/.local                                  ~/local
+    ~/.ssh                                    ~/ssh
+    ~/dotfiles/bash/init.bash                 ~/.bash_profile
+    ~/dotfiles/bash/init.bash                 ~/.bashrc
+    ~/dotfiles/bash/init.bash                 ~/.profile
+    ~/dotfiles/gitconfig                      ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme      ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc    ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                 ~/.config/ranger/rc.conf
+    ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
+    ~/dotfiles/ssh/config                     ~/.ssh/config
+    ~/dotfiles/tmux.conf                      ~/.tmux.conf
+  END
+
+  system crostini
+    section unique credential
+    [[ -e $crostiniDir/np_id_ed25519.pub ]] && {
+      t.remove_matching_file ~/.ssh/id_ed25519.pub $crostiniDir/np_id_ed25519.pub
+      t.remove_matching_file ~/.ssh/id_ed25519 $crostiniDir/np_id_ed25519
+      rm $crostiniDir/np_id_ed25519{,.pub}
+    }
+    t.ssh_keygen $crostiniDir/id_ed25519
+    t.install 600 $crostiniDir/id_ed25519 ~/.ssh/id_ed25519
+    t.install 644 $crostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+  endsystem
+
+  stream ~/obsidian/* ~/projects/* ~/.config/nvim ~/dotfiles |
+    each glob |
+    collect |
+    each 't.mk git-update'
 }
 
 ## helpers
@@ -253,10 +251,10 @@ if [[ -e "$here"/task.bash ]]; then
 else
   lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
   eval "$lib"
-  unset -v lib
 fi
+unset -v here lib
 
-return 2>/dev/null
+return 2>/dev/null  # stop here if sourced, for interactive debugging
 
 # parse options
 while [[ ${1:-} == -?* ]]; do

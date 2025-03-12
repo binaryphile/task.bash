@@ -2,11 +2,62 @@ source ./task.bash
 
 ## collection functions
 
+# test_collect tests the collection of a stream into a safe, space-separated string.
+# There are subtests that are run with tesht.run.
+test_collect() {
+  local -A case1=(
+    [name]='turn a stream into a safe, space-separated string'
+    [args]=$'Hello there,\n World!'
+    [want]='Hello\ there\, \ World\!'
+  )
+
+  # subtest runs each subtest.
+  # command is the parent function name.
+  # case is expected to be the name of an associative array holding at least the key "name".
+  subtest() {
+    local casename=$1
+
+    ## arrange
+    # create variables from the keys/values of the test map
+    eval "$(tesht.inherit $casename)"
+
+    ## act
+    # run the command and capture the output and result code
+    local got rc
+    got=$(echo "$args" | collect 2>&1) && rc=$? || rc=$?
+
+    ## assert
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo -e "\n\tcollect: error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    # assert that we got expected output
+    [[ $got == "$want" ]] || {
+      echo -e "\n\tcollect: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+      echo -e "\tuse this line to update want to match this output:\n\twant=${got@Q}"
+      return 1
+    }
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do   # ${!case@} lists all variable names starting with "case"
+    tesht.run test_collect $casename || {
+      (( $? == 128 )) && return   # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
 # test_each tests the application of a command with no output to a list of invocations from stdin.
 # There are subtests that are run with tesht.run.
 test_each() {
   local -A case1=(
-    [name]='puts items in a file as a side effect'
+    [name]='put items in a file as a side effect'
     [args]=$'Hello\nWorld!'
     [expression]=$(appendToFile out.txt)
     [want]=''
