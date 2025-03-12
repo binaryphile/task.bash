@@ -82,19 +82,20 @@ main() {
   section apps
   t.git_clone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
   each t.ln <<'  END'
-    .config                                   ~/config
-    .local                                    ~/local
-    .ssh                                      ~/ssh
-    ~/dotfiles/bash/init.bash                 ~/.bash_profile
-    ~/dotfiles/bash/init.bash                 ~/.bashrc
-    ~/dotfiles/bash/init.bash                 ~/.profile
-    ~/dotfiles/gitconfig                      ~/.gitconfig
-    ~/dotfiles/liquidprompt/liquid.theme      ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc    ~/.config/liquidpromptrc
-    ~/dotfiles/ranger/rc.conf                 ~/.config/ranger/rc.conf
-    ~/dotfiles/ranger/rifle.conf              ~/.config/ranger/rifle.conf
-    ~/dotfiles/ssh/config                     ~/.ssh/config
-    ~/dotfiles/tmux.conf                      ~/.tmux.conf
+    .config                                       ~/config
+    .local                                        ~/local
+    .ssh                                          ~/ssh
+    ~/dotfiles/bash/init.bash                     ~/.bash_profile
+    ~/dotfiles/bash/init.bash                     ~/.bashrc
+    ~/dotfiles/bash/init.bash                     ~/.profile
+    ~/dotfiles/gitconfig                          ~/.gitconfig
+    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
+    ~/dotfiles/ranger/rc.conf                     ~/.config/ranger/rc.conf
+    ~/dotfiles/ranger/rifle.conf                  ~/.config/ranger/rifle.conf
+    ~/dotfiles/ssh/config                         ~/.ssh/config
+    ~/dotfiles/tmux.conf                          ~/.tmux.conf
+    ~/projects/task.bash/nix-development-config   ~/.local/bin/nix-development-config
   END
 
   system crostini
