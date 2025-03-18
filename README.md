@@ -1,4 +1,4 @@
-# task.bash -- harmonize your Unix environments
+# task.bash -- harmonize your Unix work environments
 
 Use task.bash to create a custom work environment configuration that follows you everywhere
 and stays maintained because it is integrated into your daily workflow.
@@ -26,7 +26,7 @@ task.bash offers other useful features as well:
 
 ## Getting Started
 
-`Requires Bash 5`
+**Requires Bash 5**
 
 ### Installation
 
