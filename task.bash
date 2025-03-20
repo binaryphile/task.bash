@@ -1,3 +1,5 @@
+# task.bash -- harmonize your Unix work environments
+
 # Naming Policy:
 #
 # All function and variable names are camelCased, but they may begin with uppercase letters.
@@ -125,10 +127,12 @@ task.initTaskEnv() {
 ShortRunX=0
 
 # task.SetShortRun says not to run tasks with progress.
-task.SetShortRun() { ShortRunX=1; }
-
-# task.IsShortRun returns whether ShortRunX has been set.
-task.IsShortRun() { (( $ShortRunX )); }
+task.SetShortRun() {
+  case $1 in
+    on  ) ShortRunX=1;;
+    *   ) ShortRunX=0;;
+  esac
+}
 
 # task.Summarize is run by the user at the end to report the results.
 task.Summarize() {
@@ -164,29 +168,18 @@ task.t() {
 
 ## helper tasks
 
-task.GitCheckout() {
-  local branch=$1 dir=$2
-  desc  "checkout branch $branch in repo $(basename $dir)"
-  ok    "[[ \$(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
-  cmd   "cd '$dir'; git checkout '$branch'"
-}
-
 task.GitClone() {
-  local repo=$1 dir=$2
+  local repo=$1 dir=$2 branch=$3
   desc   "clone repo ${1#git@} to $(basename $dir)"
   exist  "$dir"
-  cmd    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $repo $dir"
+  cmd    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch $branch $repo $dir"
 }
 
 task.Install() {
   local mode=$1 src=$2 dst=$3
   desc  "copy $src to $dst with mode $mode"
   exist "$dst"
-  local dirMode
-  case $mode in
-    600 ) dirMode=700;;
-    644 ) dirMode=755;;
-  esac
+  [[ $mode == 600 ]] && local dirMode=700
   cmd   "mkdir -p${dirMode:+m $dirMode} -- $(dirname $dst); install -m $mode -- $src $dst"
 }
 

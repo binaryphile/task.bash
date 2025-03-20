@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# update-env -- create and maintain my work environment
+
 # Naming Policy:
 #
 # All function and variable names are camelCased, but variable names may begin with
@@ -12,17 +14,19 @@
 #
 # Locally-defined task functions are suffixed with "Task".
 
+# the persistent crostini directory
+# it does not have spaces and is exempt from quoting
 CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
 main() {
   set -euo pipefail   # enable strict mode
-  setSafeExpansionMode on
+  shopt -s nullglob   # return empty when globs don't match at all
 
   platform=$(platform)
-  [[ $platform == crostini ]] && {
+  if [[ $platform == crostini ]]; then
     section system
     aptUpgradeTask
-  }
+  fi
 
   # copy non-passphrased key if it exists and there isn't already a key
   if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
@@ -37,7 +41,7 @@ main() {
   fi
 
   section dotfiles
-  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles
+  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
   case $platform in
     crostini  ) task.Ln contexts/crostini ~/dotfiles/context;;
     macos     ) task.Ln contexts/macos ~/dotfiles/context;;
@@ -57,40 +61,41 @@ main() {
   task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   homeManagerSwitchTask
 
-  [[ $platform == crostini ]] && {
+  if [[ $platform == crostini ]]; then
     section crostini
     task.Ln $CrostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    stream $(glob $CrostiniDir/{flakes,projects,GolandProjects,obsidian}/*) |
+    dirs=( $CrostiniDir/{flakes,GolandProjects,obsidian,projects}/* )
+    stream "${dirs[@]}" |
+      keepIf isDir |
       map target '$target ~/${target#$CrostiniDir/}' |
       each task.Ln
-  }
+    unset -v dirs
+  fi
+
+  section fp.bash
+  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
 
   section mk.bash
-  task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash
-  task.GitCheckout develop ~/projects/mk.bash
+  task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash develop
   task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
   task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
-  PATH+=:~/.local/bin
 
   section neovim
-  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim
+  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim master
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
-  section task.bash
-  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash
-  task.GitCheckout develop ~/projects/task.bash
-
   section tesht
-  task.GitClone git@github.com:binaryphile/tesht ~/projects/tesht
-  task.GitCheckout develop ~/projects/tesht
+  task.GitClone git@github.com:binaryphile/tesht ~/projects/tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps
-  task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes
+  task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
+  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
+  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
   each task.Ln <<'  END'
     .config                                       ~/config
     .local                                        ~/local
@@ -108,24 +113,24 @@ main() {
     ~/projects/task.bash/update-env               ~/.local/bin/update-env
   END
 
-  [[ $platform == crostini ]] && {
+  if [[ $platform == crostini ]]; then
     section unique_credential
-    [[ -e $CrostiniDir/np_id_ed25519.pub ]] && {
+    if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
       removeMatchingFileTask ~/.ssh/id_ed25519.pub $CrostiniDir/np_id_ed25519.pub
       removeMatchingFileTask ~/.ssh/id_ed25519 $CrostiniDir/np_id_ed25519
       rm $CrostiniDir/np_id_ed25519{,.pub}
-    }
+    fi
     sshKeygenTask $CrostiniDir/id_ed25519
     task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
     task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-  }
+  fi
 
   task.Summarize
   echo
 
   # update all project git repositories
   # not a task, so not part of the summary
-  task.IsShortRun || mk git-update $(glob ~/{GolandProjects,obsidian,projects}/*)
+  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{GolandProjects,obsidian,projects}/*
 }
 
 ## task definitions
@@ -246,31 +251,19 @@ fatal() {
   exit $rc
 }
 
-# glob path-expands its arguments and echoes them as a list.
-# It employs nullglob, so an unmatched glob is empty, not returned as the original pattern string.
-glob() {
-  local globbingWasOn=0 nullGlobWasOn=0
-  [[ $- != *f* ]] && globbingWasOn=1 || set +o noglob  # or enable globbing by disabling noglob
-  [[ $(shopt nullglob) == *on ]] && nullGlobWasOn=1 || shopt -s nullglob   # or enable nullglob
-
-  local results=( $* )
-  echo "${results[*]}"
-
-  (( globbingWasOn )) || set -o noglob   # or disable globbing by enabling noglob
-  (( nullGlobWasOn )) || shopt -u nullglob   # or disable nullglob
-}
-
 host() {
   [[ $HOSTNAME == penguin && -e $CrostiniDir/hostname ]] && cat $CrostiniDir/hostname
   echo $HOSTNAME
 }
 
+isDir() { [[ -d "$1" ]]; }
+
 loosely() {
-  setSafeExpansionMode off
+  shopt -u nullglob
   set +euo pipefail
   "$@"
   set -euo pipefail
-  setSafeExpansionMode on
+  shopt -s nullglob
 }
 
 ownerAndGroup() {
@@ -287,26 +280,6 @@ platform() {
 
 section() { echo -e "\n[section $1]"; }
 
-# setSafeExpansionMode disables word-splitting on space|tab and path expansion (globbing).
-# An argument of "on" enables it and any other argument disables it,
-# restoring the behavior of before it was invoked.
-# It does not maintain a stack, so it cannot be invoked on multiple times in a row without
-# losing the original behavior from before it was invoked.
-setSafeExpansionMode() {
-  case $1 in
-    on )
-      OldIFS=$IFS
-      IFS=$'\n'
-      [[ $- == *f* ]] && OldGlob=- || OldGlob=+
-      set -o noglob
-      ;;
-    * )
-      IFS=$OldIFS
-      set ${OldGlob}o noglob
-      ;;
-  esac
-}
-
 ## fp
 
 # each applies its arguments as a command to each argument from stdin.
@@ -317,23 +290,31 @@ each() {
   done
 }
 
-# map returns $expression evaluated with the value of stdin as $varname.
-# $expression must respect double-quoting rules and so can't contain naked quotes.
-# $varname may not be "varname" or "expression".
+# keepIf filters lines from stdin using command.
+keepIf() {
+  local command=$1 arg
+  while IFS='' read -r arg; do
+    eval "$command $arg" && echo "$arg"
+  done
+}
+
+# map returns $EXPRESSION evaluated with the value of stdin as $VARNAME.
+# $EXPRESSION must respect double-quoting rules and so can't contain naked quotes.
+# $VARNAME may not be "VARNAME" or "EXPRESSION".
 map() {
-  local varname=$1 expression=$2
-  case $varname in varname|expression ) fatal "map: varname may not be 'varname' or 'expression'";; esac
-  local $varname
-  while IFS='' read -r $varname; do
-    eval "echo \"$expression\""
+  local VARNAME=$1 EXPRESSION=$2
+  case $VARNAME in VARNAME|EXPRESSION ) fatal "map: VARNAME may not be 'VARNAME' or 'EXPRESSION'";; esac
+  local "$VARNAME"
+  while IFS='' read -r "$VARNAME"; do
+    eval "echo \"$EXPRESSION\""
   done
 }
 
 # stream echoes arguments escaped and separated by newline.
 stream() {
   local arg
-  for arg in $*; do
-    printf '%q\n' $arg
+  for arg in "$@"; do
+    printf '%q\n' "$arg"
   done
 }
 
@@ -350,6 +331,8 @@ unset -v here lib
 
 return 2>/dev/null  # stop here if sourced, for interactive debugging
 
+IsShortRun=0
+
 # parse options
 while [[ ${1:-} == -?* ]]; do
   case $1 in
@@ -357,7 +340,10 @@ while [[ ${1:-} == -?* ]]; do
 
     -x|--trace )  set -x;;
 
-    -s|--short )  task.SetShortRun;;
+    -s|--short )
+      task.SetShortRun on
+      IsShortRun=1
+      ;;
 
     -- ) shift; break;;
   esac

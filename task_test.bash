@@ -2,49 +2,6 @@ source ./task.bash
 
 ## tasks
 
-# test_task.GitCheckout tests checking out a branch.
-# It does its work in a directory it creates in /tmp.
-test_task.GitCheckout() {
-  ## arrange
-  # temporary directory
-  local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
-  trap "rm -rf $dir" EXIT                 # always clean up
-  cd $dir
-
-  createCheckoutRepo develop
-
-  ## act
-
-  # run the command and capture the output and result code
-  local got rc
-  got=$(task.GitCheckout develop . 2>&1) && rc=$? || rc=$?
-
-  ## assert
-
-  # assert no error
-  (( rc == 0 )) || {
-    echo -e "\n\ttask.GitCheckout error = $rc, want: 0\n$got"
-    return 1
-  }
-
-  # assert that the branch was checked out
-  [[ $(git rev-parse --abbrev-ref HEAD) == develop ]] || {
-    echo -e "\n\ttask.GitCheckout could not switch to branch develop.\n$got"
-    return 1
-  }
-
-  # assert that we got the wanted output
-  local want
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tcheckout branch develop in repo .\r[\E[38;5;82mchanged\E[0m]\tcheckout branch develop in repo .'
-
-  [[ $got == "$want" ]] || {
-    echo -e "\n\ttask.GitCheckout got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
-    echo -e "\tuse this line to update want to match this output:"
-    printf '\twant=%s\n' "${got@Q}"
-    return 1
-  }
-}
-
 # test_task.GitClone tests whether git cloning works.
 # It does its work in a directory it creates in /tmp.
 test_task.GitClone() {
@@ -60,7 +17,7 @@ test_task.GitClone() {
 
   # run the command and capture the output and result code
   local got rc
-  got=$(task.GitClone clone clone2 2>&1) && rc=$? || rc=$?
+  got=$(task.GitClone clone clone2 main 2>&1) && rc=$? || rc=$?
 
   ## assert
 
