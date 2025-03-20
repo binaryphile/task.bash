@@ -20,7 +20,6 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
 main() {
   set -euo pipefail   # enable strict mode
-  shopt -s nullglob   # return empty when globs don't match at all
 
   platform=$(platform)
   if [[ $platform == crostini ]]; then
@@ -69,7 +68,7 @@ main() {
     dirs=( $CrostiniDir/{flakes,GolandProjects,obsidian,projects}/* )
     stream "${dirs[@]}" |
       keepIf isDir |
-      map target '$target ~/${target#$CrostiniDir/}' |
+      map target '"$target" ~/"${target#$CrostiniDir/}"' |
       each task.Ln
     unset -v dirs
   fi
@@ -96,6 +95,11 @@ main() {
   task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
   task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
   task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
+  glob '~/dotfiles/ranger/*' |
+    keepIf isFile |
+    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
+    each task.Ln
+
   each task.Ln <<'  END'
     .config                                       ~/config
     .local                                        ~/local
@@ -106,8 +110,6 @@ main() {
     ~/dotfiles/gitconfig                          ~/.gitconfig
     ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
-    ~/dotfiles/ranger/rc.conf                     ~/.config/ranger/rc.conf
-    ~/dotfiles/ranger/rifle.conf                  ~/.config/ranger/rifle.conf
     ~/dotfiles/ssh/config                         ~/.ssh/config
     ~/dotfiles/tmux.conf                          ~/.tmux.conf
     ~/projects/task.bash/update-env               ~/.local/bin/update-env
@@ -251,12 +253,28 @@ fatal() {
   exit $rc
 }
 
+glob() {
+  local nullglobWasOn=0 noglobWasOn=1 results
+  [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
+  [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
+
+  eval "results=( $1 )"
+
+  # reset to old settings
+  (( noglobWasOn )) && set -o noglob
+  (( nullglobWasOn )) || shopt -u nullglob
+
+  stream "${results[@]}"
+}
+
 host() {
   [[ $HOSTNAME == penguin && -e $CrostiniDir/hostname ]] && cat $CrostiniDir/hostname
   echo $HOSTNAME
 }
 
 isDir() { [[ -d "$1" ]]; }
+
+isFile() { [[ -f "$1" ]]; }
 
 loosely() {
   shopt -u nullglob
