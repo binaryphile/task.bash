@@ -9,9 +9,6 @@
 #
 # Local variable names begin with lowercase letters.
 # Global variable names begin with uppercase letters.
-# (Global variable names are not namespaced
-# by suffixing them with a randomly-generated letter
-# because this script is the library consumer.)
 #
 # Locally-defined task functions are suffixed with "Task".
 
@@ -29,15 +26,15 @@ main() {
   fi
 
   # copy non-passphrased key if it exists and there isn't already a key
-  if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
+  if [[ -e "$CrostiniDir"/np_id_ed25519.pub ]]; then
     section credential
-    task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    task.Install 600 "$CrostiniDir"/np_id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 "$CrostiniDir"/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
   # copy unique key if it exists and there isn't already a key
-  elif [[ -e $CrostiniDir/id_ed25519.pub ]]; then
+  elif [[ -e "$CrostiniDir"/id_ed25519.pub ]]; then
     section credential
-    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    task.Install 600 "$CrostiniDir"/id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 "$CrostiniDir"/id_ed25519.pub ~/.ssh/id_ed25519.pub
   fi
 
   section dotfiles
@@ -63,11 +60,10 @@ main() {
 
   if [[ $platform == crostini ]]; then
     section crostini
-    task.Ln $CrostiniDir ~/crostini
+    task.Ln "$CrostiniDir" ~/crostini
 
     # link to permanent project directories from home dir
-    dirs=( $CrostiniDir/{flakes,GolandProjects,obsidian,projects}/* )
-    stream "${dirs[@]}" |
+    glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
       keepIf isDir |
       map target '"$target" ~/"${target#$CrostiniDir/}"' |
       each task.Ln
@@ -269,7 +265,7 @@ glob() {
 }
 
 host() {
-  [[ $HOSTNAME == penguin && -e $CrostiniDir/hostname ]] && cat $CrostiniDir/hostname
+  [[ $HOSTNAME == penguin && -e "$CrostiniDir"/hostname ]] && cat "$CrostiniDir"/hostname
   echo $HOSTNAME
 }
 
@@ -280,7 +276,9 @@ isFile() { [[ -f "$1" ]]; }
 loosely() {
   shopt -u nullglob
   set +euo pipefail
+
   "$@"
+
   set -euo pipefail
   shopt -s nullglob
 }

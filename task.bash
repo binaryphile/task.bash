@@ -198,7 +198,7 @@ task.Ln() {
   desc  "symlink $linkname to $targetname"
   ok    "[[ -L $linkname ]]"
   eval  "
-    mkdir -p $(dirname $linkname)
+    mkdir -p \$(dirname $linkname)
     [[ -L $linkname ]] && rm $linkname
     ln -sf $targetname $linkname
   "
