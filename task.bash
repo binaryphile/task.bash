@@ -79,7 +79,7 @@ run() {
   if [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]]; then
     OksX[$DescriptionX]=1
     echo -e "\r[$(task.t ok)]\t\t$DescriptionX"
-  elif (( rc == 0 )) && ( eval "$ConditionX" &>/dev/null ); then  # not supporting multiline conditions -- consumer can write a function and call that
+  elif (( rc == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
     ChangedsX[$DescriptionX]=1
     echo -e "\r[$(task.t changed)]\t$DescriptionX"
   else
@@ -177,6 +177,11 @@ task.GitClone() {
 
 task.Install() {
   local mode=$1 src=$2 dst=$3
+
+  # for paths with spaces
+  printf -v src %q "$src"
+  printf -v dst %q "$dst"
+
   desc  "copy $src to $dst with mode $mode"
   exist "$dst"
   [[ $mode == 600 ]] && local dirMode=700
@@ -185,17 +190,17 @@ task.Install() {
 
 task.Ln() {
   local targetname=$1 linkname=$2
+
+  # for paths with spaces
   printf -v targetname %q "$targetname"
   printf -v linkname %q "$linkname"
 
   desc  "symlink $linkname to $targetname"
   ok    "[[ -L $linkname ]]"
   eval  "
-    cmd() {
-      mkdir -p $(dirname $linkname)
-      [[ -L $linkname ]] && rm $linkname
-      ln -sf $targetname $linkname
-    }
+    mkdir -p $(dirname $linkname)
+    [[ -L $linkname ]] && rm $linkname
+    ln -sf $targetname $linkname
   "
   run
 }
