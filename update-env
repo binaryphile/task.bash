@@ -4,13 +4,14 @@
 
 # Naming Policy:
 #
-# All function and variable names are camelCased, but variable names may begin with
-# uppercase letters.
+# All function and variable names are camelCased,
+# but variable names may begin with uppercase letters.
 #
 # Local variable names begin with lowercase letters.
 # Global variable names begin with uppercase letters.
-# (Global variable names are not namespaced by suffixing them with a randomly-generated
-# letter because this script is the library consumer.)
+# (Global variable names are not namespaced
+# by suffixing them with a randomly-generated letter
+# because this script is the library consumer.)
 #
 # Locally-defined task functions are suffixed with "Task".
 
