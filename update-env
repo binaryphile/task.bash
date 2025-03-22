@@ -105,6 +105,7 @@ main() {
     ~/dotfiles/bash/init.bash                     ~/.bashrc
     ~/dotfiles/bash/init.bash                     ~/.profile
     ~/dotfiles/gitconfig                          ~/.gitconfig
+    ~/dotfiles/gitignore_global                   ~/.gitignore_global
     ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
     ~/dotfiles/ssh/config                         ~/.ssh/config
