@@ -71,8 +71,8 @@ cmd() {
 # desc sets DescriptionX, the task description.
 # Beginning a new task this way also demands reinitialization of the task environment.
 desc() {
-  DescriptionX=${1:-}
   task.initTaskEnv
+  DescriptionX=${1:-}
 }
 
 # exist is a shortcut for ok that tests for existence.
@@ -100,12 +100,15 @@ unchg() { UnchangedTextX=$1; }
 # task.initTaskEnv initializes all relevant settings for a new task.
 task.initTaskEnv() {
   ConditionX=''              # an expression to tell when the task is already satisfied
+  DescriptionX=''
   OutputX=''                 # OutputX from the task, including stderr
   RunAsUserX=''              # the user to sudo with
   ShowProgressX=0            # flag for showing OutputX as the task runs
   UnchangedTextX=''          # text to test for in the OutputX to see task didn't change anything (i.e. is ok)
 }
 
+# initialize environment
+task.initTaskEnv
 ShortRunX=0
 
 # task.SetShortRun says not to run tasks with progress.

@@ -1,5 +1,126 @@
 source ./task.bash
 
+## functions
+
+# test_cmd tests the function that runs tasks.
+# Subtests are run with tesht.run.
+test_cmd() {
+  local -A case1=(
+    [name]='not run when ok'
+
+    [cmd]='echo hello'
+    [ok]=true
+    [want]=$'[\E[38;5;82mok\E[0m]\t\tnot run when ok'
+  )
+
+  local -A case2=(
+    [name]='given short run, when progress, then skip'
+
+    [cmd]='echo hello'
+    [prog]=on
+    [shortrun]=1
+    [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when progress, then skip'
+  )
+
+  local -A case3=(
+    [name]='given short run, when unchg, then skip'
+
+    [cmd]='echo hello'
+    [shortrun]=1
+    [unchg]=hello
+    [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when unchg, then skip'
+  )
+
+  # subtest runs each subtest.
+  # casename is expected to be the name of an associative array holding at least the key "name".
+  subtest() {
+    local casename=$1
+
+    ## arrange
+
+    # create variables from the keys/values of the test map
+    unset -v ok shortrun prog unchg want wanterr  # clear optional fields
+    eval "$(tesht.inherit "$casename")"
+
+    desc "$name"  # desc resets the environment so make other changes after
+
+    [[ -v ok ]] && ok "$ok"
+    [[ -v prog ]] && prog on
+    [[ -v shortrun ]] && ShortRunX=1
+    [[ -v unchg ]] && unchg "$unchg"
+
+    ## act
+
+    # run the command and capture the output and result code
+    local got rc
+    got=$(cmd "$cmd" 2>&1) && rc=$? || rc=$?
+
+    ## assert
+
+    # if this is a test for error behavior, check it
+    [[ -v wanterr ]] && {
+      (( rc == wanterr )) && return
+
+      echo -e "\n\tcmd: error = $rc, want: $wanterr\n$got"
+      return 1
+    }
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo -e "\n\tcmd: error = $rc, want: 0\n$got"
+      return 1
+    }
+
+    # assert that we got the wanted output
+    [[ $got == "$want" ]] || {
+      echo -e "\n\tcmd: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+      echo -e "\tuse this line to update want to match this output:"
+      printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+      return 1
+    }
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.run test_cmd $casename || {
+      (( $? == 128 )) && return 128 # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
+# test_cmd_GivenShortRunWhenProgressThenNotRun sees that an ok task does not invoke the command.
+test_cmd_GivenShortRunWhenProgressThenNotRun() {
+  ## arrange
+  task.SetShortRun on
+  desc 'test_cmd_GivenShortRunWhenProgressThenNotRun'
+  prog on
+
+  ## act
+  # run the command and capture the output and result code
+  local got rc
+  got=$(cmd 'echo hello' 2>&1) && rc=$? || rc=$?
+
+  ## assert
+
+  # assert no error
+  (( rc == 0 )) || {
+    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: error = $rc, want: 0\n$got"
+    return 1
+  }
+
+  # assert that we got the wanted output
+  local want=$'\r[\E[38;5;208mskipping\E[0m]\ttest_cmd_GivenShortRunWhenProgressThenNotRun'
+  [[ $got == "$want" ]] || {
+    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "\tuse this line to update want to match this output:"
+    printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+    return 1
+  }
+}
+
 ## tasks
 
 # test_task.GitClone tests whether git cloning works.
@@ -23,24 +144,23 @@ test_task.GitClone() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "\n\ttask.GitClone error = $rc, want: 0\n$got"
-    return 1
-  }
+    echo -e "\n\ttask.GitClone: error = $rc, want: 0\n$got"
+      return 1
+    }
 
   # assert that the repo was cloned
   [[ -e clone2/.git ]] || {
-    echo -e "\n\ttask.GitClone expected .git directory.\n$got"
-    return 1
-  }
+    echo -e "\n\ttask.GitClone: expected .git directory.\n$got"
+      return 1
+    }
 
   # assert that we got the wanted output
-  local want
-  want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
+  local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
 
   [[ $got == "$want" ]] || {
-    echo -e "\n\ttask.GitClone got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "\n\ttask.GitClone: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
     echo -e "\tuse this line to update want to match this output:"
-    echo -e "\twant=${got@Q}"
+    printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
     return 1
   }
 }
@@ -113,7 +233,7 @@ test_task.Ln() {
     [[ $got == "$want" ]] || {
       echo -e "\n\ttask.Ln: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
       echo -e "\tuse this line to update want to match this output:"
-      echo -e "\twant=${got@Q}"
+      printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
       return 1
     }
   }
@@ -121,7 +241,7 @@ test_task.Ln() {
   local failed=0 casename
   for casename in ${!case@}; do
     tesht.run test_task.Ln $casename || {
-      (( $? == 128 )) && return   # fatal
+      (( $? == 128 )) && return 128   # fatal
       failed=1
     }
   done
