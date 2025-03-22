@@ -4,16 +4,16 @@
 #
 # All function and variable names are camelCased, but they may begin with uppercase letters.
 #
-# Function names are prefixed with "task." (always lowercase) so they are namespaced.
-# Keyword function names are the exception to this.
-# They are all lowercase letters and attempt to be five letters or shorter.
-#
 # Local variable names begin with lowercase letters.
 # Global variable names begin with uppercase letters.
 # Global variable names are namespaced by suffixing them with the randomly-generated letter X.
 #
 # Private function names begin with lowercase letters.
 # Public function names begin with uppercase letters.
+# Function names are prefixed with "task." (always lowercase) so they are namespaced.
+#
+# Keyword function names are the exception to this.
+# They are all lowercase letters and attempt to be five letters or shorter.
 
 ## task definition keywords
 
@@ -25,7 +25,7 @@ desc() {
 }
 
 # exist is a shortcut for ok that tests for existence.
-exist() { ok "[[ -e '$1' ]]"; }
+exist() { ok "[[ -e $1 ]]"; }
 
 # ok sets the ok ConditionX for the current task.
 ok() { ConditionX=$1; }
@@ -191,16 +191,15 @@ task.Install() {
 task.Ln() {
   local targetname=$1 linkname=$2
 
-  # for paths with spaces
+  # make strings eval-ready
   printf -v targetname %q "$targetname"
   printf -v linkname %q "$linkname"
 
   desc  "symlink $linkname to $targetname"
   ok    "[[ -L $linkname ]]"
-  eval  "
-    mkdir -p \$(dirname $linkname)
+  cmd "
+    mkdir -p $(dirname $linkname)
     [[ -L $linkname ]] && rm $linkname
     ln -sf $targetname $linkname
   "
-  run
 }

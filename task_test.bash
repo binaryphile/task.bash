@@ -9,7 +9,7 @@ test_task.GitClone() {
   # temporary directory
   local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
   trap "rm -rf $dir" EXIT                 # always clean up
-  cd $dir
+  cd "$dir"
 
   createCloneRepo
 
@@ -40,7 +40,7 @@ test_task.GitClone() {
   [[ $got == "$want" ]] || {
     echo -e "\n\ttask.GitClone got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
     echo -e "\tuse this line to update want to match this output:"
-    printf '\twant=%s\n' "${got@Q}"
+    echo -e "\twant=${got@Q}"
     return 1
   }
 }
@@ -79,13 +79,13 @@ test_task.Ln() {
 
     # create variables from the keys/values of the test map
     unset -v wanterr  # unset optional fields
-    eval "$(tesht.inherit $casename)"
+    eval "$(tesht.inherit "$casename")"
 
     ## act
 
     # run the command and capture the output and result code
     local got rc
-    got=$(task.Ln $targetname $linkname 2>&1) && rc=$? || rc=$?
+    got=$(task.Ln "$targetname" "$linkname" 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -113,7 +113,7 @@ test_task.Ln() {
     [[ $got == "$want" ]] || {
       echo -e "\n\ttask.Ln: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
       echo -e "\tuse this line to update want to match this output:"
-      printf '\twant=%s\n' "${got@Q}"
+      echo -e "\twant=${got@Q}"
       return 1
     }
   }
