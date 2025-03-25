@@ -286,7 +286,7 @@ loosely() {
 
 ownerAndGroup() {
   local path=$1
-  [[ $OSTYPE == darwin* ]] && local flag=f || local flag=c
+  [[ $OSTYPE == darwin* && $(type -p stat) == /usr/bin/stat ]] && local flag=f || local flag=c
   echo $(stat -$flag %u $path):$(stat -$flag %g $path)
 }
 
