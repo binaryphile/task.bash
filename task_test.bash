@@ -3,7 +3,7 @@ source ./task.bash
 ## functions
 
 # test_cmd tests the function that runs tasks.
-# Subtests are run with tesht.run.
+# Subtests are run with tesht.Run.
 test_cmd() {
   local -A case1=(
     [name]='not run when ok'
@@ -40,7 +40,7 @@ test_cmd() {
 
     # create variables from the keys/values of the test map
     unset -v ok shortrun prog unchg want wanterr  # clear optional fields
-    eval "$(tesht.inherit "$casename")"
+    eval "$(tesht.Inherit "$casename")"
 
     desc "$name"  # desc resets the environment so make other changes after
 
@@ -73,7 +73,7 @@ test_cmd() {
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\n\tcmd: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+      echo -e "\n\tcmd: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
       echo -e "\tuse this line to update want to match this output:"
       printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
       return 1
@@ -82,7 +82,7 @@ test_cmd() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    tesht.run test_cmd $casename || {
+    tesht.Run test_cmd $casename || {
       (( $? == 128 )) && return 128 # fatal
       failed=1
     }
@@ -114,7 +114,7 @@ test_cmd_GivenShortRunWhenProgressThenNotRun() {
   # assert that we got the wanted output
   local want=$'\r[\E[38;5;208mskipping\E[0m]\ttest_cmd_GivenShortRunWhenProgressThenNotRun'
   [[ $got == "$want" ]] || {
-    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
     echo -e "\tuse this line to update want to match this output:"
     printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
     return 1
@@ -128,7 +128,7 @@ test_cmd_GivenShortRunWhenProgressThenNotRun() {
 test_task.GitClone() {
   ## arrange
   # temporary directory
-  local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
+  local dir=$(tesht.MktempDir) || return 128  # fatal if can't make dir
   trap "rm -rf $dir" EXIT                 # always clean up
   cd "$dir"
 
@@ -158,7 +158,7 @@ test_task.GitClone() {
   local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
 
   [[ $got == "$want" ]] || {
-    echo -e "\n\ttask.GitClone: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+    echo -e "\n\ttask.GitClone: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
     echo -e "\tuse this line to update want to match this output:"
     printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
     return 1
@@ -167,7 +167,7 @@ test_task.GitClone() {
 
 # test_task.Ln tests whether the symlink task works.
 # There are subtests for link creation and when link creation fails.
-# Subtests are run with tesht.run.
+# Subtests are run with tesht.Run.
 test_task.Ln() {
   local -A case1=(
     [name]='spaces in link and target'
@@ -193,13 +193,13 @@ test_task.Ln() {
     ## arrange
 
     # temporary directory
-    local dir=$(tesht.mktempdir) || return 128  # fatal if can't make dir
+    local dir=$(tesht.MktempDir) || return 128  # fatal if can't make dir
     trap "rm -rf $dir" EXIT                     # always clean up
     cd $dir
 
     # create variables from the keys/values of the test map
     unset -v wanterr  # unset optional fields
-    eval "$(tesht.inherit "$casename")"
+    eval "$(tesht.Inherit "$casename")"
 
     ## act
 
@@ -231,7 +231,7 @@ test_task.Ln() {
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\n\ttask.Ln: got doesn't match want:\n$(tesht.diff "$got" "$want")\n"
+      echo -e "\n\ttask.Ln: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
       echo -e "\tuse this line to update want to match this output:"
       printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
       return 1
@@ -240,7 +240,7 @@ test_task.Ln() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    tesht.run test_task.Ln $casename || {
+    tesht.Run test_task.Ln $casename || {
       (( $? == 128 )) && return 128   # fatal
       failed=1
     }

@@ -3,7 +3,6 @@
 # Naming Policy:
 #
 # All function and variable names are camelCased.
-#
 # Local variable names begin with lowercase letters, e.g. localVariable.
 #
 # Global variable names begin with uppercase letters, e.g. GlobalVariable.
@@ -11,6 +10,9 @@
 # the randomly-generated letter X, e.g. GlobalVariableX.
 # Global variables are not public.  Library consumers should not be aware of them.
 # If users need to interact with them, create accessor functions for the purpose.
+#
+# Variable declarations that are name references borrow the environment namespace, e.g.
+# "local -n ARRAY=$1".
 #
 # Private function names begin with lowercase letters.
 # Public function names begin with uppercase letters.
