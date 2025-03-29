@@ -18,7 +18,7 @@ test_cmd() {
 
     [cmd]='echo hello'
     [prog]=on
-    [shortrun]=1
+    [shortrun]=on
     [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when progress, then skip'
   )
 
@@ -26,7 +26,7 @@ test_cmd() {
     [name]='given short run, when unchg, then skip'
 
     [cmd]='echo hello'
-    [shortrun]=1
+    [shortrun]=on
     [unchg]=hello
     [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when unchg, then skip'
   )
@@ -44,10 +44,10 @@ test_cmd() {
 
     desc "$name"  # desc resets the environment so make other changes after
 
-    [[ -v ok ]] && ok "$ok"
-    [[ -v prog ]] && prog on
-    [[ -v shortrun ]] && ShortRunX=1
-    [[ -v unchg ]] && unchg "$unchg"
+    [[ -v ok        ]] && ok "$ok"
+    [[ -v prog      ]] && prog "$prog"
+    [[ -v shortrun  ]] && task.SetShortRun "$shortrun"
+    [[ -v unchg     ]] && unchg "$unchg"
 
     ## act
 
