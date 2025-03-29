@@ -61,21 +61,21 @@ test_cmd() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "\n\tcmd: error = $rc, want: $wanterr\n$got"
+      echo -e "\ncmd: error = $rc, want: $wanterr\n$got"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\n\tcmd: error = $rc, want: 0\n$got"
+      echo -e "\ncmd: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\n\tcmd: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
-      echo -e "\tuse this line to update want to match this output:"
-      printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+      echo -e "\ncmd: got doesn't match want:\n$(tesht.Diff "$got" "$want" 1)\n"
+      echo "use this line to update want to match this output:"
+      printf "want=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
       return 1
     }
   }
@@ -107,16 +107,16 @@ test_cmd_GivenShortRunWhenProgressThenNotRun() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: error = $rc, want: 0\n$got"
+    echo -e "\ncmd_GivenShortRunWhenProgressThenNotRun: error = $rc, want: 0\n$got"
     return 1
   }
 
   # assert that we got the wanted output
   local want=$'\r[\E[38;5;208mskipping\E[0m]\ttest_cmd_GivenShortRunWhenProgressThenNotRun'
   [[ $got == "$want" ]] || {
-    echo -e "\n\tcmd_GivenShortRunWhenProgressThenNotRun: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
-    echo -e "\tuse this line to update want to match this output:"
-    printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+    echo -e "\ncmd_GivenShortRunWhenProgressThenNotRun: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:"
+    printf "want=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
     return 1
   }
 }
@@ -144,23 +144,23 @@ test_task.GitClone() {
 
   # assert no error
   (( rc == 0 )) || {
-    echo -e "\n\ttask.GitClone: error = $rc, want: 0\n$got"
-      return 1
-    }
+    echo -e "\ntask.GitClone: error = $rc, want: 0\n$got"
+    return 1
+  }
 
   # assert that the repo was cloned
   [[ -e clone2/.git ]] || {
     echo -e "\n\ttask.GitClone: expected .git directory.\n$got"
-      return 1
-    }
+    return 1
+  }
 
   # assert that we got the wanted output
   local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
 
   [[ $got == "$want" ]] || {
-    echo -e "\n\ttask.GitClone: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
-    echo -e "\tuse this line to update want to match this output:"
-    printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+    echo -e "\ntask.GitClone: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
+    echo -e "use this line to update want to match this output:"
+    printf "want=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
     return 1
   }
 }
@@ -213,27 +213,27 @@ test_task.Ln() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "\n\ttask.Ln: error = $rc, want: $wanterr\n$got"
+      echo -e "\ntask.Ln: error = $rc, want: $wanterr\n$got"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo -e "\n\ttask.Ln: error = $rc, want: 0\n$got"
+      echo -e "\ntask.Ln: error = $rc, want: 0\n$got"
       return 1
     }
 
     # assert that the symlink was made
     [[ -L $linkname ]] || {
-      echo -e "\n\ttask.Ln: expected '$linkname' to be symlink\n$got"
+      echo -e "\ntask.Ln: expected '$linkname' to be symlink\n$got"
       return 1
     }
 
     # assert that we got the wanted output
     [[ $got == "$want" ]] || {
-      echo -e "\n\ttask.Ln: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
-      echo -e "\tuse this line to update want to match this output:"
-      printf "\twant=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
+      echo -e "\ntask.Ln: got doesn't match want:\n$(tesht.Diff "$got" "$want")\n"
+      echo -e "use this line to update want to match this output:"
+      printf "want=%s\n" "${got@Q}"   # got@Q doesn't work well with echo -e
       return 1
     }
   }
