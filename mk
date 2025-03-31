@@ -14,7 +14,10 @@ Usage:
     cover -- run kcov and record results
     lines -- run scc and record results
     test -- run tesht and record results
+
     badges -- run all three and create badges from the results
+
+    gif -- create a gif of the tool being run
 
   Options (if multiple, must be provided as separate flags):
 

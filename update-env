@@ -143,6 +143,7 @@ aptUpgradeTask() {
   prog   on
   runas  root
   unchg  '0 upgraded, 0 newly installed'
+
   cmd    'apt update -qq && apt upgrade -y'
 }
 
@@ -152,6 +153,7 @@ curlPipeLixInstallerTask() {
   desc   'install single-user nix'
   prog   on
   exist  /nix/var/nix/profiles/default/bin/nix-env
+
   cmd    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install linux --no-confirm --init none'
 }
 
@@ -164,6 +166,7 @@ chownRTask() {
   desc    "recursively change ownership of $path to $user:$group"
   runas   root
   ok      "[[ \$(ownerAndGroup $path) == $user:$group ]]"
+
   cmd     "chown -R -- $user:$group $path"
 }
 
@@ -172,6 +175,7 @@ chownRTask() {
 nixChannelAddHomeManagerTask() {
   desc   'add home manager channel'
   exist  ~/.nix-channels
+
   cmd    'nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager'
 }
 
@@ -179,6 +183,7 @@ nixChannelUpdateTask() {
   desc   'update nix channels'
   prog   on
   exist  ~/.nix-defexpr/channels/home-manager
+
   cmd    'nix-channel --update'
 }
 
@@ -186,6 +191,7 @@ nixShellHomeManagerInstallTask() {
   desc   'install home manager'
   prog   on
   exist  ~/.config/home-manager
+
   cmd    "nix-shell '<home-manager>' -A install"
 }
 
@@ -193,6 +199,7 @@ homeManagerSwitchTask() {
   desc  'apply home manager configuration'
   prog  on
   unchg 'No change so reusing latest profile generation'
+
   cmd   'home-manager switch'
 }
 
@@ -202,12 +209,14 @@ curlTask() {
   local url=$1 filename=$2
   desc   "download ${url##*/} from ${url%/*} as $(basename $filename)"
   exist  $filename
+
   cmd    "mkdir -p -- $(dirname $filename); curl -fsSL -- $url >$filename"
 }
 
 nvimHeadlessPlugInstallTask() {
   desc  'install neovim plugins'
   exist ~/.local/share/nvim/plugged
+
   cmd   'nvim --headless +PlugInstall +qall'
 }
 
@@ -217,6 +226,7 @@ removeMatchingFileTask() {
   local targetFilename=$1 matchFilename=$2
   desc  "remove file $targetFilename if it matches $matchFilename"
   ok    "[[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ \$(<$targetFilename) != \$(<$matchFilename) ]]"
+
   cmd   "
     if [[
       -e $matchFilename && -e $targetFilename &&
@@ -230,8 +240,9 @@ removeMatchingFileTask() {
 sshKeygenTask() {
   local keyFilename=$1
   desc  'generate an ssh key'
+  exist $keyFilename
   prog  on
-  ok    "[[ -e $keyFilename ]]"
+
   cmd   "
     read -sp 'generating ssh key.  passphrase: ' passphrase
     read -sp $'\nagain: ' passphrase2
