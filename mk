@@ -43,7 +43,7 @@ cmd.cover() {
   (( ${#filenames[*]} == 1 )) || mk.Fatal 'could not identify report file' 1
 
   local percent=$(jq -r .percent_covered ${filenames[0]})
-  setField coverage_percent ${percent%%.*} report.json
+  setField code_coverage ${percent%%.*} report.json
 }
 
 cmd.lines() {
