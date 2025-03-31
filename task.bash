@@ -3,6 +3,14 @@
 # Naming Policy:
 #
 # All function and variable names are camelCased.
+#
+# Private function names begin with lowercase letters.
+# Public function names begin with uppercase letters.
+# Function names are prefixed with "task." (always lowercase) so they are namespaced.
+#
+# Keyword function names are the exception.
+# They are all lowercase letters and should be five letters or shorter.
+#
 # Local variable names begin with lowercase letters, e.g. localVariable.
 #
 # Global variable names begin with uppercase letters, e.g. GlobalVariable.
@@ -13,13 +21,6 @@
 #
 # Variable declarations that are name references borrow the environment namespace, e.g.
 # "local -n ARRAY=$1".
-#
-# Private function names begin with lowercase letters.
-# Public function names begin with uppercase letters.
-# Function names are prefixed with "task." (always lowercase) so they are namespaced.
-#
-# Keyword function names are the exception.
-# They are all lowercase letters and should be five letters or shorter.
 
 ## task definition keywords
 

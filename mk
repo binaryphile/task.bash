@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 
-mkProg=$(basename "$0")   # use the invoked filename as the program name
+Prog=$(basename "$0")   # use the invoked filename as the program name
+Version=0.1
 
-read -rd '' mkUsage <<END
+read -rd '' Usage <<END
 Usage:
 
-  $mkProg [OPTIONS] [--] COMMAND
+  $Prog [OPTIONS] [--] COMMAND
 
   Commands:
 
-  The following commands update REPORT.json:
-    cover -- run kcov and record coverage_percent
-    lines -- run scc and record code_lines
-    test -- run tesht on task_test.bash and record test_failures
-    stats -- run all three
+  The following commands update report.json:
+    cover -- run kcov and record results
+    lines -- run scc and record results
+    test -- run tesht and record results
+    badges -- run all three and create badges from the results
 
   Options (if multiple, must be provided as separate flags):
 
@@ -24,35 +25,35 @@ END
 
 ## commands
 
+cmd.badges() {
+  cmd.cover
+  cmd.lines
+  local result=$(tesht | tail -n 1)
+  setField tests_passed \"$result\" report.json
+
+  mkdir -p badges
+  makeSVG "coverage"      "$(jq -r .code_coverage report.json)%"            "#4c1"    badges/coverage.svg
+  makeSVG "source lines"  $(addCommas $(jq -r .code_lines report.json))     "#007ec6" badges/lines.svg
+  makeSVG "tests"         $(addCommas $(jq -r .tests_passed report.json))   "#4c1"    badges/tests.svg
+}
+
 cmd.cover() {
-  kcov --include-path task.bash kcov tesht >/dev/null
-  local filenames=( $(glob kcov/tesht.*/coverage.json) )
-  (( ${#filenames[*]} == 1 )) || { echo 'fatal: could not identify report file'; exit 1; }
+  kcov --include-path task.bash kcov tesht &>/dev/null
+  local filenames=( $(mk.Glob kcov/tesht.*/coverage.json) )
+  (( ${#filenames[*]} == 1 )) || mk.Fatal 'could not identify report file' 1
 
   local percent=$(jq -r .percent_covered ${filenames[0]})
-  setField coverage_percent ${percent%%.*} REPORT.json
+  setField coverage_percent ${percent%%.*} report.json
 }
 
 cmd.lines() {
   local lines=$(scc -f csv task.bash | tail -n 1 | { IFS=, read -r language rawLines lines rest; echo $lines; })
-  setField code_lines $lines REPORT.json
-}
-
-cmd.stats() {
-  cmd.cover
-  cmd.lines
-  count=$(tesht | grep -o FAIL | wc -l)
-  setField test_failures $count REPORT.json
-
-  mkdir -p badges
-  makeSVG "coverage" "$(jq -r .code_coverage REPORT.json)%" "#4c1" badges/coverage.svg
-  makeSVG "source lines" $(addCommas $(jq -r .code_lines REPORT.json)) "#007ec6" badges/lines.svg
-  makeSVG "tests" $(addCommas $(jq -r .test_failures REPORT.json)) "#4c1" badges/tests.svg
+  setField code_lines $lines report.json
 }
 
 cmd.test() {
-  count=$(tesht | tee /dev/tty | grep -o FAIL | wc -l)
-  setField test_failures $count REPORT.json
+  local result=$(tesht | tee /dev/tty | tail -n 1)
+  setField tests_passed \"$result\" report.json
 }
 
 ## helpers
@@ -93,34 +94,6 @@ addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
 #
 # This repeats the substitution until no more changes are made, i.e., all commas are inserted.
 
-createReport() {
-  cat >$1 <<'END'
-{
-  "code_lines": 0,
-  "coverage_percent": 0,
-  "test_failures": 0
-}
-END
-}
-
-# glob works the same independent of IFS, noglob and nullglob
-glob() {
-  local pattern=$1
-
-  local nullglobWasOn=0 noglobWasOn=1
-  [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
-  [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
-
-  local sep=${IFS:0:1} result
-  local results=( $pattern )
-  printf -v result "%q$sep" "${results[@]}"
-  echo "${result%$sep}"
-
-  # reset to old settings
-  (( noglobWasOn )) && set -o noglob
-  (( nullglobWasOn )) || shopt -u nullglob
-}
-
 makeSVG() {
   local label=$1 value=$2 color=$3 filename=$4
 
@@ -137,8 +110,8 @@ END
 setField() {
   local fieldname=$1 value=$2 filename=$3
 
-  [[ -e REPORT.json ]] || createReport REPORT.json
-  tmpname=$(mktemp tmp.XXXXXX) && trap "rm -f $tmpname" EXIT
+  [[ -e $filename ]] || echo {} >$filename
+  tmpname=$(mktemp tmp.XXXXXX)
   jq ".$fieldname = $value" $filename >$tmpname && mv $tmpname $filename
 }
 
@@ -152,6 +125,10 @@ source ~/.local/lib/mk.bash 2>/dev/null || { echo 'fatal: mk.bash not found' >&2
 IFS=$'\n'
 set -o noglob
 
+mk.SetProg $Prog
+mk.SetUsage "$Usage"
+mk.SetVersion $Version
+
 return 2>/dev/null    # stop if sourced, for interactive debugging
-mk.handleOptions $*   # standard options
-mk.main ${*:$?+1}     # showtime
+mk.HandleOptions $*   # standard options
+mk.Main ${*:$?+1}     # showtime
