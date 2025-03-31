@@ -1,6 +1,6 @@
 # task.bash -- harmonize your Unix work environments
 
-![lines](badges/lines.svg) ![tests](badges/tests.svg) ![coverage](badges/coverage.svg)
+![version](badges/version.svg) ![lines](badges/lines.svg) ![tests](badges/tests.svg) ![coverage](badges/coverage.svg)
 
 Use task.bash to create a custom work environment configuration that follows you everywhere
 and stays maintained because it is integrated into your daily workflow.

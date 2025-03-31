@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-Prog=$(basename "$0")   # use the invoked filename as the program name
+Prog=$(basename "$0")   # match what the user called
 Version=0.1
 
 read -rd '' Usage <<END
@@ -32,6 +32,7 @@ cmd.badges() {
   setField tests_passed \"$result\" report.json
 
   mkdir -p badges
+  makeSVG "version"       $(<VERSION)                                       "#007ec6" badges/version.svg
   makeSVG "coverage"      "$(jq -r .code_coverage report.json)%"            "#4c1"    badges/coverage.svg
   makeSVG "source lines"  $(addCommas $(jq -r .code_lines report.json))     "#007ec6" badges/lines.svg
   makeSVG "tests"         $(addCommas $(jq -r .tests_passed report.json))   "#4c1"    badges/tests.svg
