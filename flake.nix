@@ -16,6 +16,10 @@
       in {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            asciinema
+            asciinema-agg
+            bashInteractive
+            ffmpeg
             git
             jq
             kcov
