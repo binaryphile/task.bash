@@ -18,8 +18,7 @@
           buildInputs = with pkgs; [
             asciinema
             asciinema-agg
-            bashInteractive
-            ffmpeg
+            bash
             git
             jq
             kcov

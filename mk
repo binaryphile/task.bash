@@ -25,19 +25,27 @@ END
 
 ## commands
 
+# cmd.badges renders badges for program version, source lines, tests passed and coverage.
+# It updates the latter three statistics beforehand.
 cmd.badges() {
   cmd.cover
   cmd.lines
   local result=$(tesht | tail -n 1)
+  [[ -e report.json ]] || echo '{}' >$report.json
   setField tests_passed \"$result\" report.json
 
-  mkdir -p badges
-  makeSVG "version"       $(<VERSION)                                       "#007ec6" badges/version.svg
-  makeSVG "coverage"      "$(jq -r .code_coverage report.json)%"            "#4c1"    badges/coverage.svg
-  makeSVG "source lines"  $(addCommas $(jq -r .code_lines report.json))     "#007ec6" badges/lines.svg
-  makeSVG "tests"         $(addCommas $(jq -r .tests_passed report.json))   "#4c1"    badges/tests.svg
+  mkdir -p assets
+  mk.Each makeBadge <<'  END'
+    "version"       $(<VERSION)                                         "#007ec6" assets/version.svg
+    "coverage"      "$(getField code_coverage report.json)%"            "#4c1"    assets/coverage.svg
+    "source lines"  $(addCommas $(getField code_lines report.json))     "#007ec6" assets/lines.svg
+    "tests"         $(addCommas $(getField tests_passed report.json))   "#4c1"    assets/tests.svg
+  END
 }
 
+# cmd.cover runs coverage testing and saves the result to report.json.
+# It parses the result from kcov's output directory.
+# The badges appear in README.md.
 cmd.cover() {
   kcov --include-path task.bash kcov tesht &>/dev/null
   local filenames=( $(mk.Glob kcov/tesht.*/coverage.json) )
@@ -47,11 +55,20 @@ cmd.cover() {
   setField code_coverage ${percent%%.*} report.json
 }
 
+# cmd.gif creates a gif showing a sample run of update-env for README.md.
+cmd.gif() {
+  asciinema rec -c '/usr/bin/bash -c update-env' update-env.cast
+  agg --speed 0.5 update-env.cast assets/update-env.gif
+  rm update-env.cast
+}
+
+# cmd.lines determines the number of lines of source and saves it to report.json.
 cmd.lines() {
   local lines=$(scc -f csv task.bash | tail -n 1 | { IFS=, read -r language rawLines lines rest; echo $lines; })
   setField code_lines $lines report.json
 }
 
+# cmd.test runs tesht and saves the summary of passing tests to report.json.
 cmd.test() {
   local result=$(tesht | tee /dev/tty | tail -n 1)
   setField tests_passed \"$result\" report.json
@@ -59,7 +76,8 @@ cmd.test() {
 
 ## helpers
 
-addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
+# addCommas adds commas to a number at every 10^3 place.
+#
 # Breakdown
 #
 # :a
@@ -94,8 +112,10 @@ addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
 # If so, it jumps to the label a
 #
 # This repeats the substitution until no more changes are made, i.e., all commas are inserted.
+addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
 
-makeSVG() {
+# makeBadge makes an svg badge showing label and value, rendered in color and saved to filename.
+makeBadge() {
   local label=$1 value=$2 color=$3 filename=$4
 
   cat >$filename <<END
@@ -108,11 +128,19 @@ makeSVG() {
 END
 }
 
+# accessors
+
+# getField gets fieldname's value from filename.
+getField() {
+  local fieldname=$1 filename=$2
+  jq -r .$fieldname $filename
+}
+
+# setField sets fieldname to value in a simple json object in filename.
 setField() {
   local fieldname=$1 value=$2 filename=$3
 
-  [[ -e $filename ]] || echo {} >$filename
-  tmpname=$(mktemp tmp.XXXXXX)
+  tmpname=$(mktemp)
   jq ".$fieldname = $value" $filename >$tmpname && mv $tmpname $filename
 }
 
