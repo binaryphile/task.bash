@@ -1,18 +1,18 @@
-# task.bash -- harmonize your Unix work environments
+# task.bash -- harmonize your Unix work environments with idempotent tasks
 
 ![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg) ![coverage](assets/coverage.svg)
 
 Create your work environment that follows you everywhere. Keep up to date via integration
-with your workflow.
+with your workflow.  Idempotency allows one script to keep multiple machines in sync.
 
 **Requires Bash 5**
 
 ![update-env](assets/update-env.gif)
 
-With task.bash, you capture your configuration in a shell script.  Writing a script that
-installs some software is easy.  Writing one that both configures a fresh system, then
-updates it later is more difficult.  Once accomplished though, you have a single environment
-that follows you everywhere, to any machine.
+With task.bash, you capture your configuration in a shell script.  We all know that writing
+a script to install some software packages is easy.  Writing one that both configures a
+fresh system, then updates it later is more difficult.  Once accomplished though, you have a
+single environment that follows you everywhere, to any machine.
 
 Task.bash assists by making it easy to:
 
@@ -32,6 +32,14 @@ curl-piping it from GitHub.  The repo is then cloned to the machine and gets upd
 git.  *You* are the synchronization mechanism, in tandem with git.  Your system changes when
 you tell it to, much like when you run package upgrades.  Run your script when you would
 have upgraded via the package manager in the past, or more often.
+
+Use it to:
+
+- install software
+- clone git repositories
+- make symlinks
+- change directory ownership
+- any of Bash's other greatest hits
 
 Other features:
 
@@ -54,8 +62,9 @@ Task.bash relies on the concept of tasks, where a task is a Bash function that i
 idempotent.
 
 Idempotence simply means that the task results in the same outcome if it is run once or a
-hundred times.  Bash commands aren't necessarily idempotent by default, so task.bash helps
-you make them so.
+hundred times.  In this case, it means that no matter the state of your system, it will be
+brought to the same, current specification when the script is run.  Bash commands aren't
+necessarily idempotent by default, so task.bash helps you make them so.
 
 ## Anatomy of a task
 
@@ -114,10 +123,14 @@ By convention, task.bash uses function names like `task.SetShortRun`, where the 
 name is PascalCased.  The name is also prefixed with `task` so task.bash's functions won't
 conflict with your function names.
 
-There are a handful of functions in addition to the task keywords we've seen already:
+There are a couple of functions in addition to the task keywords we've seen already:
 
+- `task.Platform` - returns `macos` on mac, otherwise `linux`
 - `task.Summarize` - summarize the results of the run
 - `task.SetShortRun on|off` - skip long tasks (tasks with `prog` or `unchg`)
+
+`task.Platform` is intended to be used to conditionally perform tasks based on the current
+platform.
 
 `task.Summarize` should be part of any script, run after all of the tasks to report what
 happened.
@@ -130,7 +143,7 @@ automatically.
 
 A configuration script has two parts: one that defines tasks and the other that runs them.
 
-We call this script `update-env`:
+We'll call this script `update-env`:
 
 ```bash
 #!/usr/bin/env bash
@@ -143,9 +156,7 @@ main() {    # <== using main lets us put it here up top, where it belongs
   task.Summarize
 }
 
-cloneDotfilesTask() {
-  ...
-}
+cloneDotfilesTask() { ... }
 
 # boilerplate
 source /path/to/task.bash
@@ -154,11 +165,59 @@ main
 
 `chmod +x update-env` the file so we can run it in a bit.
 
+## Running Tasks
+
+Before we run the script, however, we need to add one more thing, to enable Bash strict
+mode.  Bash strict mode allows the script to stop when errors occur and to flag unset
+variable references, both of which are suited to scripting.  By convention, we set it at the
+beginning of `main`:
+
+```bash
+main() {
+  set -euo pipefail
+  cloneDotFilesTask
+  task.Summarize
+}
+```
+
+We strongly advise you to employ strict mode.  Otherwise error conditions may allow
+execution of unintended codepaths or further errors to occur.  When dealing with
+system-level configuration, that's risky.
+
+Now, here's the output from running the script:
+
+```bash
+[changed]       clone dotfiles from github
+
+[summary]
+ok:      0
+changed: 1
+```
+
+The responses are actually color-coded, green for `[ok]` and `[changed]` and red for
+`[failed]`.
+
+Notice first that the output of the command is suppressed.  This is so you can account for
+many tasks easily without clutter in the output, since it consists of one line per task with
+a status and human-friendly message.
+
+However, sometimes a command may take a visible moment or two, or perhaps more than you
+thought at first.  For this reason, before the command is run, there is a line of output
+showing the `[begin]` status for the task, but that line is overwritten by the result once
+it is available.  The `[begin]` status line does not show up in the output above.
+
+If you run the script when the directory exists already, the output will report the `[ok]`
+status instead of `[changed]` and nothing will be run.
+
+When a command fails, execution stops and it is reported.  You are shown stdout and stderr
+combined for debugging purposes.  If the command reports success, but the
+`ok` condition fails anyway, the task is reported as failed.
+
 ## Defining Tasks
 
-The goal of most tasks is to make a command idempotent.  However, what that means can vary
-from command to command.  We'll take a look at how you might want to approach different
-kinds of commands.
+The goal of most tasks is to make a command idempotent.  What that means can vary from
+command to command.  We'll take a look at how you might want to approach different kinds of
+tasks.
 
 ### Speculative commands
 
@@ -204,17 +263,17 @@ with `[progress]`.
 `apt` conveniently reports whether packages were installed or updated. `unchg` looks for
 that message and marks the task `[ok]` if we see it, otherwise `[changed]`.
 
-### Tasks with complex commands
+### Complex commands
 
 ```bash
 curlTask() {
   desc   'download coolscript from github'
   exist  ~/.local/bin/coolscript
 
-  cmd    "
+  cmd    '
     mkdir -p ~/.local/bin
     curl -fsSL git@github.com:user/coolscript >~/.local/bin/coolscript
-  "
+  '
 }
 ```
 
@@ -232,115 +291,70 @@ We also see here the `exist` keyword:
 or `exist`.  It is a frequently-useful test, so task definitions benefit from the more
 readable `exist`.
 
-### Tasks with complex satisfaction criteria
+### Parameterized tasks
 
-...
+So far, no task has taken parameters, which makes them hard-coded to things like filenames.
+Many tasks are generic enough to be reusable, if they only could take parameters.  Parameter
+handling with tasks is a bit tricky though, since controlling the timing of evaluation is
+important.
 
-### Nearly-idempotent commands and generalized tasks
+Task.bash comes with a handful of parameterized tasks, such as `task.GitClone` and
+`task.Ln`.
 
-Some commands are already known for idempotence, like `touch` to create a file or `mkdir -p`
-to make directories.  You may still want to make a task of one for task.bash's reporting
-feature.  Here's a generalized task for making directories:
+Here's a simple example of how to write one:
 
 ```bash
 mkdirTask() {
   local dir=$1
-
   desc  "make directory $dir"
-  cmd   "mkdir -p '$dir'"
+  cmd   "mkdir -p $dir"
 }
 ```
 
-Notice the quotes have been changed to allow variable expansion.
+First, notice that we're taking the first argument as `dir` and using it in the task
+definition.  In order to expand it, we've used double-quotes instead of single.
 
-This task will show up in the output like other tasks.  Since there's no `ok`, it will run
-and always report as changed, but that's usually fine.  If you were to add and `exist` line
-for the directory, it would then be idempotent on its own and you could drop `-p`.
+This works for simple cases but becomes difficult with complexity and edge cases.  For
+example, this will not handle directories with spaces as it stands, since expansion will
+happen here, and then evaluation by `cmd` will not have the command properly quoted.
 
-`touch`, on the other hand, may be idempotent for creating a file, but it's not completely
-idempotent.  It updates the modified time of the file, which is a different outcome each
-time it's run. The `exist` keyword can make it completely idempotent, since `touch` won't
-run if the file exists:
+We could try to fix it by single-quoting `dir` within the double-quotes, but then it becomes
+sensitive to single-quotes in `dir`'s value.  `printf %q` is another option to make the
+value eval-safe, but rather than try to quote our way out of it, there's a more readable
+option. Let's define a new function within the task and call that.
 
 ```bash
-touchTask() {
-  local file=$1
+mkdirTask() {
+  local dir=$1
+  desc "make directory $dir"
 
-  desc  "create file $file"
-  exist "'$file'"
-  cmd   "touch '$file'"
+  mkdirP() { mkdir -p "$dir"; }
+  cmd mkdirP
 }
 ```
 
-Task.bash comes with a handful of generalized tasks, such as `task.GitClone`.
+This is an interesting construction.  It closely resembles a *closure function*, that is, a
+function which is aware of the variables in its enclosing scope.
 
-## Running Tasks
+That's not what's going on here, although it does in fact behave like a closure because of
+our limited use case.  So long as the call to `mkdirP` is made from within `mkdirTask`, as
+it is here, Bash's dynamic scoping will allow `mkdirP` will see the `dir` belonging to
+`mkdirTask`.  `mkdirP` could even be defined elsewhere, but it is usually more readable to
+define it where it is consumed like this.
 
-Before we run the script, however, we need to add one more thing, to enable Bash strict
-mode.  Bash strict mode allows the script to stop when errors occur and to flag unset
-variable references, both of which are suited to scripting.  By convention, we set it at the
-beginning of `main`:
+The concern this resolves is that, within `mkdirP`, quoting is handled normally.  We aren't
+embedding a command in a string, so it's only evaluated once as you'd expect.
 
-```bash
-main() {
-  set -euo pipefail
-  cloneDotFilesTask
-  task.Summarize
-}
-```
+This is generally the best pattern for parameterized tasks and handles additional complexity
+nicely, since function syntax is friendlier than evaluated string syntax.  For example,
+syntax highlighting editors don't generally highlight within strings.
 
-We strongly advise you to employ strict mode.  Otherwise error conditions may cause further
-errors, and when dealing with system-level configuration, that's especially bad.  task.bash
-was written on the assumption that strict mode is enabled, and is not tested without it.
+## Example
 
-Now, here's the output from running the script:
+See `update-env` as an example of what can be accopmlished with a configuration script.  It
+is the script I use on my own machines.  Relying on nix and home-manager allows it to
+specify packages in a dotfiles repository, which saves from having to track them in the
+script.
 
-```bash
-[changed]       clone dotfiles from github
-
-[summary]
-ok:      0
-changed: 1
-```
-
-The responses are actually color-coded, green for `[ok]` and `[changed]` and red for
-`[failed]`.
-
-Notice first that the output of the command is suppressed.  This is so you can account for
-many tasks easily without clutter in the output, since it consists of one line per task with
-a status and human-friendly message.
-
-However, sometimes a command may take a visible moment or two, or perhaps more than you
-thought at first.  For this reason, before the command is run, there is a line of output
-showing the `[begin]` status for the task, but that line is overwritten by the result once
-it is available.  The `[begin]` status line does not show up in the output above.
-
-If you run the script when the directory exists already, the output will report the `[ok]`
-status instead of `[changed]` and nothing will be run.
-
-When a command fails, execution stops and it is reported.  You are shown stdout and stderr
-combined for debugging purposes.  If the command reports success, but the
-`ok` condition fails anyway, the task is reported as failed.
-
-### Task Types and Other Keywords
-
-There are tasks that require running as another user.  Anything you would use `sudo` for.
-For these, there is `runas`:
-
-- `runas` -- run as the named user, typically `root`
-
-Some tasks may take quite a bit of time.  As you wait for the command, task.bash's output
-suppression can make things appear to be frozen.  For long-running commands that give
-progressive output, such as a package manager upgrade, it is useful to have output display
-on screen.  This is the `prog` keyword:
-
-- `prog` -- show progress in the form of command output
-
-Some tasks cannot be made idempotent because they are not idempotent by nature.  System
-Updates are one such type of task; it can't be determined beforehand whether or not there is
-an update, because the process of checking whether it is needed is part of the operation
-itself.
-
-In such cases, you can't tell whether anything was changed in the update process until after
-the task has run.  If you're lucky, the update process will indicate whether anything was
-changed either by a) a message in the output or b) the absence of a message in the output.
+In particular, see the boilerplate at the end for an example of how to make it curl-pipeable
+from GitHub.

@@ -114,6 +114,11 @@ task.initTaskEnv() {
 task.initTaskEnv
 ShortRunX=0
 
+task.Platform() {
+  [[ $OSTYPE != darwin* ]] || { echo macos; return; }
+  echo linux
+}
+
 # task.SetShortRun says not to run tasks with progress.
 task.SetShortRun() {
   case $1 in

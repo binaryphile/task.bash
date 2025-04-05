@@ -285,13 +285,9 @@ isDir() { [[ -d "$1" ]]; }
 isFile() { [[ -f "$1" ]]; }
 
 loosely() {
-  shopt -u nullglob
   set +euo pipefail
-
   "$@"
-
   set -euo pipefail
-  shopt -s nullglob
 }
 
 ownerAndGroup() {
