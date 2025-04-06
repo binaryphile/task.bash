@@ -1,0 +1,377 @@
+#!/usr/bin/env bash
+
+# update-env -- create and maintain my work environment
+
+# Naming Policy:
+#
+# All function and variable names are camelCased.
+#
+# Local variable names begin with lowercase letters, e.g. localVariable.
+# Global variable names begin with uppercase letters, e.g. GlobalVariable.
+#
+# Variable declarations that are name references borrow the environment namespace, e.g.
+# "local -n ARRAY=$1".
+#
+# Locally-defined task functions are suffixed with "Task".
+
+# the persistent crostini directory
+# it does not have spaces and is exempt from quoting
+CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
+
+main() {
+  set -euo pipefail   # enable strict mode
+
+  platform=$(platform)
+  if [[ $platform == crostini ]]; then
+    section system
+    aptUpgradeTask
+  fi
+
+  # copy non-passphrased key if it exists and there isn't already a key
+  if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
+    section credential
+    task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+  # copy unique key if it exists and there isn't already a key
+  elif [[ -e $CrostiniDir/id_ed25519.pub ]]; then
+    section credential
+    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+  fi
+
+  section dotfiles
+  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
+  case $platform in
+    crostini  ) task.Ln contexts/crostini ~/dotfiles/context;;
+    macos     ) task.Ln contexts/macos ~/dotfiles/context;;
+  esac
+
+  section nix
+  curlPipeLixInstallerTask
+  chownRTask /nix $(id -u) $(id -g)
+  loosely source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+  task.Ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
+
+  section home-manager
+  nixChannelAddHomeManagerTask
+  nixChannelUpdateTask
+  nixShellHomeManagerInstallTask
+  loosely source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
+  task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
+  homeManagerSwitchTask
+
+  if [[ $platform == crostini ]]; then
+    section crostini
+    task.Ln $CrostiniDir ~/crostini
+
+    # link to permanent project directories from home dir
+    glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
+      keepIf isDir |
+      map target '"$target" ~/"${target#$CrostiniDir/}"' |
+      each task.Ln
+    unset -v dirs
+  fi
+
+  section mk.bash
+  task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash develop
+  task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
+  task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
+
+  section neovim
+  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim master
+  curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
+  nvimHeadlessPlugInstallTask
+  task.Ln ~/.config/nvim ~/nvim
+
+  section tesht
+  task.GitClone git@github.com:binaryphile/tesht ~/projects/tesht develop
+  task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
+
+  section apps
+  task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
+  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
+  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
+  glob '~/dotfiles/ranger/*' |
+    keepIf isFile |
+    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
+    each task.Ln
+
+  each task.Ln <<'  END'
+    .config                                       ~/config
+    .local                                        ~/local
+    .ssh                                          ~/ssh
+    ~/dotfiles/bash/init.bash                     ~/.bash_profile
+    ~/dotfiles/bash/init.bash                     ~/.bashrc
+    ~/dotfiles/bash/init.bash                     ~/.profile
+    ~/dotfiles/gitconfig                          ~/.gitconfig
+    ~/dotfiles/gitignore_global                   ~/.gitignore_global
+    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
+    ~/dotfiles/ssh/config                         ~/.ssh/config
+    ~/dotfiles/tmux.conf                          ~/.tmux.conf
+    ~/projects/task.bash/update-env               ~/.local/bin/update-env
+  END
+
+  if [[ $platform == crostini ]]; then
+    section unique_credential
+    if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
+      removeMatchingFileTask ~/.ssh/id_ed25519.pub $CrostiniDir/np_id_ed25519.pub
+      removeMatchingFileTask ~/.ssh/id_ed25519 $CrostiniDir/np_id_ed25519
+      rm $CrostiniDir/np_id_ed25519{,.pub}
+    fi
+    sshKeygenTask $CrostiniDir/id_ed25519
+    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+  fi
+
+  task.Summarize
+  echo
+
+  # update all project git repositories
+  # not a task, so not part of the summary
+  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{GolandProjects,obsidian,projects}/*
+}
+
+## task definitions
+
+# system
+
+# aptUpgradeTask upgrades all apt packages to latest.
+# It first does an apt update.
+aptUpgradeTask() {
+  desc   'apt upgrade'
+  prog   on
+  runas  root
+  unchg  '0 upgraded, 0 newly installed'
+
+  cmd    'apt update -qq && apt upgrade -y'
+}
+
+# nix
+
+curlPipeLixInstallerTask() {
+  desc   'install single-user nix'
+  prog   on
+  exist  /nix/var/nix/profiles/default/bin/nix-env
+
+  cmd    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install linux --no-confirm --init none'
+}
+
+# chownRTask recursively chowns $path with $user:$group.
+# $user and $group are the numbered versions, e.g. 1000:1000, not username:groupname.
+chownRTask() {
+  local path=$1 user=$2 group=$3
+  printf -v path %q $path
+
+  desc    "recursively change ownership of $path to $user:$group"
+  runas   root
+  ok      "[[ \$(ownerAndGroup $path) == $user:$group ]]"
+
+  cmd     "chown -R -- $user:$group $path"
+}
+
+# home manager
+
+nixChannelAddHomeManagerTask() {
+  desc   'add home manager channel'
+  exist  ~/.nix-channels
+
+  cmd    'nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager'
+}
+
+nixChannelUpdateTask() {
+  desc   'update nix channels'
+  prog   on
+  exist  ~/.nix-defexpr/channels/home-manager
+
+  cmd    'nix-channel --update'
+}
+
+nixShellHomeManagerInstallTask() {
+  desc   'install home manager'
+  prog   on
+  exist  ~/.config/home-manager
+
+  cmd    "nix-shell '<home-manager>' -A install"
+}
+
+homeManagerSwitchTask() {
+  desc  'apply home manager configuration'
+  prog  on
+  unchg 'No change so reusing latest profile generation'
+
+  cmd   'home-manager switch'
+}
+
+# neovim
+
+curlTask() {
+  local url=$1 filename=$2
+  desc   "download ${url##*/} from ${url%/*} as $(basename $filename)"
+  exist  $filename
+
+  cmd    "mkdir -p -- $(dirname $filename); curl -fsSL -- $url >$filename"
+}
+
+nvimHeadlessPlugInstallTask() {
+  desc  'install neovim plugins'
+  exist ~/.local/share/nvim/plugged
+
+  cmd   'nvim --headless +PlugInstall +qall'
+}
+
+# credential
+
+removeMatchingFileTask() {
+  local targetFilename=$1 matchFilename=$2
+  desc  "remove file $targetFilename if it matches $matchFilename"
+  ok    "[[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ \$(<$targetFilename) != \$(<$matchFilename) ]]"
+
+  cmd   "
+    if [[
+      -e $matchFilename && -e $targetFilename &&
+      \$(<$targetFilename) == \$(<$matchFilename)
+    ]]; then
+      rm $targetFilename
+    fi
+  "
+}
+
+sshKeygenTask() {
+  local keyFilename=$1
+  desc  'generate an ssh key'
+  exist $keyFilename
+  prog  on
+
+  cmd   "
+    read -sp 'generating ssh key.  passphrase: ' passphrase
+    read -sp $'\nagain: ' passphrase2
+    [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
+    echo
+    ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C \$USER@\$(host)
+    cat $keyFilename.pub
+  "
+}
+
+## helpers
+
+fatal() {
+  local msg=$1 rc=${2:-$?}
+  echo "fatal: $msg"
+  exit $rc
+}
+
+glob() {
+  local nullglobWasOn=0 noglobWasOn=1 results
+  [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
+  [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
+
+  results=( $1 )
+
+  # reset to old settings
+  (( noglobWasOn )) && set -o noglob
+  (( nullglobWasOn )) || shopt -u nullglob
+
+  stream "${results[@]}"
+}
+
+host() {
+  [[ $HOSTNAME == penguin && -e $CrostiniDir/hostname ]] && cat $CrostiniDir/hostname
+  echo $HOSTNAME
+}
+
+isDir() { [[ -d "$1" ]]; }
+
+isFile() { [[ -f "$1" ]]; }
+
+loosely() {
+  set +euo pipefail
+  "$@"
+  set -euo pipefail
+}
+
+ownerAndGroup() {
+  local path=$1
+  [[ $OSTYPE == darwin* && $(type -p stat) == /usr/bin/stat ]] && local flag=f || local flag=c
+  echo $(stat -$flag %u $path):$(stat -$flag %g $path)
+}
+
+platform() {
+  [[ $OSTYPE != darwin* ]] || { echo macos; return; }
+  [[ $HOSTNAME != penguin ]] || { echo crostini; return; }
+  echo linux
+}
+
+section() { echo -e "\n[section $1]"; }
+
+## fp
+
+# each applies its arguments as a command to each argument from stdin.
+each() {
+  local command=$1 arg
+  while IFS='' read -r arg; do
+    eval "$command $arg"
+  done
+}
+
+# keepIf filters lines from stdin using command.
+keepIf() {
+  local command=$1 arg
+  while IFS='' read -r arg; do
+    eval "$command $arg" && echo "$arg"
+  done
+}
+
+# map returns $EXPRESSION evaluated with the value of stdin as $VARNAME.
+# $EXPRESSION must respect double-quoting rules and so can't contain naked quotes.
+# $VARNAME may not be "VARNAME" or "EXPRESSION".
+map() {
+  local VARNAME=$1 EXPRESSION=$2
+  case $VARNAME in VARNAME|EXPRESSION ) fatal "map: VARNAME may not be 'VARNAME' or 'EXPRESSION'";; esac
+  local "$VARNAME"
+  while IFS='' read -r "$VARNAME"; do
+    eval "echo \"$EXPRESSION\""
+  done
+}
+
+# stream echoes arguments escaped and separated by the first character of IFS.
+stream() {
+  local arg
+  for arg in "$@"; do
+    printf "%q${IFS:0:1}" "$arg"
+  done
+}
+
+## boilerplate
+
+here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
+if [[ -e "$here"/task.bash ]]; then
+  source "$here"/task.bash
+else
+  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
+  eval "$lib"
+fi
+unset -v here lib
+
+return 2>/dev/null  # stop here if sourced, for interactive debugging
+
+IsShortRun=0
+
+# parse options
+while [[ ${1:-} == -?* ]]; do
+  case $1 in
+    -h|--help )   [[ -v Usage ]] && echo "$Usage"; exit;;
+
+    -x|--trace )  set -x;;
+
+    -s|--short )
+      task.SetShortRun on
+      IsShortRun=1
+      ;;
+
+    -- ) shift; break;;
+  esac
+  shift
+done
+
+main

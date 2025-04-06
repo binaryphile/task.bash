@@ -1,180 +1,69 @@
-IFS=$'\n' # disable word splitting for most whitespace - this is required
-set -uf   # error on unset variable references and turn off globbing - globbing off is required
+# task.bash -- harmonize your Unix work environments
 
-# become tells the task to run under sudo as user $1
-become() { BecomeUser=$1; }
+# Naming Policy:
+#
+# All function and variable names are camelCased.
+#
+# Private function names begin with lowercase letters.
+# Public function names begin with uppercase letters.
+# Function names are prefixed with "task." (always lowercase) so they are namespaced.
+#
+# Keyword function names are the exception.
+# They are all lowercase letters and should be five letters or shorter.
+#
+# Local variable names begin with lowercase letters, e.g. localVariable.
+#
+# Global variable names begin with uppercase letters, e.g. GlobalVariable.
+# Since this is a library, global variable names are also namespaced by suffixing them with
+# the randomly-generated letter X, e.g. GlobalVariableX.
+# Global variables are not public.  Library consumers should not be aware of them.
+# If users need to interact with them, create accessor functions for the purpose.
+#
+# Variable declarations that are name references borrow the environment namespace, e.g.
+# "local -n ARRAY=$1".
 
-# Def is the default implementation of def. The user calls the default implementation
-# when they define the task using def. The default implementation accepts a command as
-# arguments and redefines def to run that command then runs it by calling run,
-# which is hardcoded to call def.
-Def() {
-  eval "def() {
-    $1
-  }"
-  run
-}
+## task definition keywords
 
-Iterating=0
+# cmd runs $cmd after checking that it is not already satisfied and records the result.
+cmd() {
+  local cmd=$1
 
-# endhost resets the scope of the following tasks.
-endhost() { YesHosts=(); NotHosts=(); }
-
-# endsystem resets the scope of the following tasks.
-endsystem() { YesSystems=(); NotSystems=(); }
-
-# exist is a shortcut for ok that tests for existence.
-exist() { ok "[[ -e $1 ]]"; }
-
-# ForMe returns whether this system meets the filters.
-ForMe() {
-  local hostname=$($HostnameFunc)
-  ! In NotHosts $hostname || return
-  (( ${#YesHosts[*]} == 0 )) || In YesHosts $hostname || return
-
-  local systems=( $($SystemTypeFunc) ) system
-  for system in ${systems[*]}; do
-    ! In NotSystems $system || return
-  done
-
-  (( ${#YesSystems[*]} == 0 )) && return
-
-  for system in ${systems[*]}; do
-    In YesSystems $system && return
-  done
-
-  return 1
-}
-
-# glob expands $1 with globbing on.
-glob() {
-  Globbing on
-  set -- $1
-  local out
-  printf -v out '%q\n' $*
-  [[ $out != $'\'\'\n' ]] && echo "${out%$'\n'}"
-  Globbing off
-}
-
-# Globbing toggles globbing.
-Globbing() {
-  case $1 in
-    off ) shopt -u nullglob; set -o noglob;;
-    on  ) shopt -s nullglob; set +o noglob;;
-  esac
-}
-
-YesHosts=()
-
-# host limits the scope of following commands to a set of hosts.
-host() { YesHosts=( ${*,,} ); }
-
-# Hostname is the default implementation of the function that identifies the host.
-Hostname() { echo ${HOSTNAME,,}; }
-
-# In returns whether item is in the named array.
-In() {
-  local -n array=$1
-  [[ "$IFS${array[*]}$IFS" == *"$IFS$2$IFS"* ]]
-}
-
-# InitTaskEnv initializes all relevant settings for a new task.
-InitTaskEnv() {
-  # reset strict, shared variables and the def function
-  strict on
-
-  BecomeUser=''             # the user to sudo with
-  Condition=''              # an expression to tell when the task is already satisfied
-  Output=''                 # output from the task, including stderr
-  ShowProgress=0            # flag for showing output as the task runs
-  UnchangedText=''          # text to test for in the output to see task didn't change anything (i.e. is ok)
-
-  def() { Def "$@"; }
-}
-
-NotHosts=()
-
-# nothost limits the scope of following tasks to not include the given hosts.
-nothost() { NotHosts=( ${*,,} ); }
-
-NotSystems=()
-
-# notsystem limits the scope of following tasks to not include the given operating systems.
-notsystem() { NotSystems=( ${*,,} ); }
-
-# ok sets the ok condition for the current task.
-ok() { Condition=$1; }
-
-# prog tells the task to show output as it goes.
-# We want to see task progression on long-running tasks.
-prog() { [[ $1 == on ]] && ShowProgress=1 || ShowProgress=0; }
-
-HostnameFunc=Hostname       # the name of the function that determines hostname
-SystemTypeFunc=SystemType   # the name of the function that determines system type
-
-# register registers either hostname or system functions.
-register() {
-  local functionType=$1 implementation=$2
-
-  case $functionType in
-    hostnameFunc    ) HostnameFunc=$implementation;;
-    systemTypeFunc  ) SystemTypeFunc=$implementation;;
-  esac
-}
-
-declare -A OKs=()           # tasks that were already satisfied
-declare -A Changeds=()      # tasks that succeeded
-
-# run runs def after checking that it is not already satisfied and records the result.
-# Task must be set externally already.
-run() {
-  ! ForMe && return
-
-  [[ $Condition != '' ]] && ( eval $Condition &>/dev/null ) && {
-    OKs[$Task]=1
-    echo -e "[$(T ok)]\t\t$Task"
+  [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && {
+    OksX[$DescriptionX]=1
+    echo -e "[$(task.t ok)]\t\t$DescriptionX"
 
     return
   }
 
-  ! (( ShortRun )) && ! (( ShowProgress )) && ! (( Iterating )) && echo -ne "[$(T begin)]\t\t$Task"
+  ! (( ShortRunX || ShowProgressX )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
 
-  local command
-  if [[ $BecomeUser == '' ]]; then
-    command=( def )
-  else
-    remoteCommandString="
-      $(declare -f def)
-      def
-    "
-    command=( sudo -u $BecomeUser bash -c "$remoteCommandString" )
-  fi
+  [[ $RunAsUserX != '' ]] && cmd="sudo -u ${RunAsUserX@Q} bash -c ${cmd@Q}"
 
-  (( ShortRun )) && {
-    (( ShowProgress )) || [[ $UnchangedText != '' ]] && {
-      echo -e "[skipping]\t$Task"
+  (( ShortRunX )) && {
+    (( ShowProgressX )) || [[ $UnchangedTextX != '' ]] && {
+      echo -e "\r[$(task.t skipping)]\t$DescriptionX"
 
       return
     }
   }
 
   local rc=0
-  if (( ShowProgress )); then
-    echo -e "[$(T progress)]\t$Task"
-    Output=$("${command[@]}" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
+  if (( ShowProgressX )); then
+    echo -e "[$(task.t progress)]\t$DescriptionX"
+    OutputX=$(eval "$cmd" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
   else
-    Output=$("${command[@]}" 2>&1) && rc=$? || rc=$?
+    OutputX=$(eval "$cmd" 2>&1) && rc=$? || rc=$?
   fi
 
-  if [[ $UnchangedText != '' && $Output == *"$UnchangedText"* ]]; then
-    OKs[$Task]=1
-    echo -e "\r[$(T ok)]\t\t$Task"
-  elif (( rc == 0 )) && ( eval $Condition &>/dev/null ); then
-    Changeds[$Task]=1
-    echo -e "\r[$(T changed)]\t$Task"
+  if [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]]; then
+    OksX[$DescriptionX]=1
+    echo -e "\r[$(task.t ok)]\t\t$DescriptionX"
+  elif (( rc == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
+    ChangedsX[$DescriptionX]=1
+    echo -e "\r[$(task.t changed)]\t$DescriptionX"
   else
-    echo -e "\r[$(T failed)]\t$Task"
-    ! (( ShowProgress )) && echo -e "[output]\t$Task\n$Output\n"
+    echo -e "\r[$(task.t failed)]\t$DescriptionX"
+    ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
     echo 'stopped due to failure'
     (( rc == 0 )) && echo 'task reported success but condition not met'
   fi
@@ -182,174 +71,128 @@ run() {
   return $rc
 }
 
-# section announces the section name
-section() {
-  ! ForMe && return
-  local IFS=' '
-  echo -e "\n[section $*]"
+# desc sets DescriptionX, the task description.
+# Beginning a new task this way also demands reinitialization of the task environment.
+desc() {
+  task.initTaskEnv
+  DescriptionX=${1:-}
 }
 
-ShortRun=0
+# exist is a shortcut for ok that tests for existence.
+exist() { ok "[[ -e $1 ]]"; }
 
-# shortRun says not to run tasks with progress.
-setShortRun() { ShortRun=1; }
+# ok sets the ok ConditionX for the current task.
+ok() { ConditionX=$1; }
 
-# strict toggles strict mode for word splitting, globbing, unset variables and error on exit.
-# It is used to set expectations properly for third-party code you may need to source.
-# "off" turns it off, anything else turns it on.
-# It should not be used in the global scope, only when in a function like main or a section.
-# We reset this on every task.
-# While the script starts by setting strict mode, it leaves out exit on error,
-# which *is* covered here.
-strict() {
+# prog tells the task to show output as it goes.
+# We want to see task progression on long-running tasks.
+prog() { [[ $1 == on ]] && ShowProgressX=1 || ShowProgressX=0; }
+
+declare -A OksX=()        # tasks that were already satisfied
+declare -A ChangedsX=()   # tasks that succeeded
+
+# runas tells the task to run under sudo as user $1
+runas() { RunAsUserX=$1; }
+
+# unchg defines the text to look for in command OutputX to see that nothing changed.
+# Such tasks get marked ok.
+unchg() { UnchangedTextX=$1; }
+
+## library functions
+
+# task.initTaskEnv initializes all relevant settings for a new task.
+task.initTaskEnv() {
+  ConditionX=''              # an expression to tell when the task is already satisfied
+  DescriptionX=''
+  OutputX=''                 # OutputX from the task, including stderr
+  RunAsUserX=''              # the user to sudo with
+  ShowProgressX=0            # flag for showing OutputX as the task runs
+  UnchangedTextX=''          # text to test for in the OutputX to see task didn't change anything (i.e. is ok)
+}
+
+# initialize environment
+task.initTaskEnv
+ShortRunX=0
+
+task.Platform() {
+  [[ $OSTYPE != darwin* ]] || { echo macos; return; }
+  echo linux
+}
+
+# task.SetShortRun says not to run tasks with progress.
+task.SetShortRun() {
   case $1 in
-    off ) IFS=$' \t\n'; set +euf;;
-    on  ) IFS=$'\n'; set -euf;;
-    *   ) false;;
+    on  ) ShortRunX=1;;
+    *   ) ShortRunX=0;;
   esac
 }
 
-# summarize is run by the user at the end to report the results.
-summarize() {
-cat <<END
+# task.Summarize is run by the user at the end to report the results.
+task.Summarize() {
+  cat <<END
 
 [summary]
-ok:      ${#OKs[*]}
-changed: ${#Changeds[*]}
+ok:      ${#OksX[*]}
+changed: ${#ChangedsX[*]}
 END
-
-(( ${#Changeds[*]} == 0 )) && return
-
-local Task
-for Task in ${!Changeds[*]}; do
-  echo -e "\t$Task"
-done
 }
 
-YesSystems=()
+GreenX=$'\033[38;5;82m'
+OrangeX=$'\033[38;5;208m'
+RedX=$'\033[38;5;196m'
+YellowX=$'\033[38;5;220m'
 
-# system limits the scope of the following tasks to the given operating system(s).
-system() { YesSystems=( ${*,,} ); }
-
-# SystemType is the default function for determining the system type.
-SystemType() { [[ $OSTYPE == darwin* ]] && echo macos || echo linux; }
-
-Green='\033[38;5;82m'
-Red='\033[38;5;196m'
-Yellow='\033[38;5;220m'
-
-Reset='\033[0m'
+ResetX=$'\033[0m'
 
 declare -A Translations=(
-  [begin]=$Yellow
-  [changed]=$Green
-  [failed]=$Red
-  [ok]=$Green
-  [progress]=$Yellow
+  [begin]=$YellowX
+  [changed]=$GreenX
+  [failed]=$RedX
+  [ok]=$GreenX
+  [progress]=$YellowX
+  [skipping]=$OrangeX
 )
 
-# T translates text for presentation.
-T() {
-  echo ${Translations[$1]}$1$Reset
-}
-
-# task defines the current task and, if given other arguments, creates a task and runs it.
-# Tasks can loop if they include a '$1' argument and get fed items via stdin.
-# It resets def if it isn't given a command in arguments.
-task() {
-  Task=${1:-}
-  InitTaskEnv
-}
-
-# unchg defines the text to look for in command output to see that nothing changed.
-# Such tasks get marked ok.
-unchg() { UnchangedText=$1; }
-
-# unstrictly disables strict mode while running a command.
-unstrictly() {
-  strict off
-  "$@"
-  strict on
-}
-
-## fp
-
-# each applies command to each argument from stdin.
-# Works with commands containing newlines.
-each() {
-  local command=$1 arg
-
-  Iterating=1
-  while IFS=$'' read -r arg; do
-    eval "$command $arg"
-  done
-  Iterating=0
-  return 0  # so we don't accidentally return false
-}
-
-# keepIf filters lines from stdin using command.
-# Works with commands containing newlines.
-keepIf() {
-  local command=$1 arg
-  while IFS='' read -r arg; do
-    eval "$command $arg" && echo $arg
-  done
-  return 0  # so we don't accidentally return false
-}
-
-
-# map returns expression evaluated with the value of stdin as $varname.
-map() {
-  local varname=$1 expression=$2
-  local $varname
-  while IFS=$'' read -r $varname; do
-    eval "echo \"$expression\""
-  done
+# task.t translates text for presentation.
+task.t() {
+  local text=$1
+  echo "${Translations[$text]}$text$ResetX"
 }
 
 ## helper tasks
 
-task.curl() {
-  local url=$1 filename=$2
-  task   "download ${url##*/} from ${url%/*} as $(basename $filename)"
-  exist  $filename
-  def    "mkdir -p $(dirname $filename); curl -fsSL $url >$filename"
+task.GitClone() {
+  local repo=$1 dir=$2 branch=$3
+  desc   "clone repo ${1#git@} to $(basename $dir)"
+  exist  "$dir"
+  cmd    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch $branch $repo $dir"
 }
 
-task.git_checkout() {
-  local branch=$1 dir=$2
-  task  "checkout branch $branch in repo $(basename $dir)"
-  ok    "[[ \$(cd $dir; git rev-parse --abbrev-ref HEAD) == $branch ]]"
-  def   "cd $dir; git checkout $branch"
+task.Install() {
+  local mode=$1 src=$2 dst=$3
+
+  # make strings eval-ready
+  printf -v src %q "$src"
+  printf -v dst %q "$dst"
+
+  desc  "copy $src to $dst with mode $mode"
+  exist "$dst"
+  [[ $mode == 600 ]] && local dirMode=700
+  cmd   "mkdir -p${dirMode:+m $dirMode} -- $(dirname $dst); install -m $mode -- $src $dst"
 }
 
-task.git_clone() {
-  local repo=$1 dir=$2
-  task   "clone repo ${1#git@} to $(basename $dir)"
-  exist  $dir
-  def    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone $repo $dir"
-}
-
-task.ln() {
+task.Ln() {
   local targetname=$1 linkname=$2
-  printf -v targetname %q $targetname
-  printf -v linkname %q $linkname
 
-  task  "symlink $linkname to $targetname"
+  # make strings eval-ready
+  printf -v targetname %q "$targetname"
+  printf -v linkname %q "$linkname"
+
+  desc  "symlink $linkname to $targetname"
   ok    "[[ -L $linkname ]]"
-  eval  "
-    def() {
-      mkdir -p $(dirname $linkname)
-      [[ -L $linkname ]] && rm $linkname
-      ln -sf $targetname $linkname
-    }
+  cmd "
+    mkdir -p $(dirname $linkname)
+    [[ -L $linkname ]] && rm $linkname
+    ln -sf $targetname $linkname
   "
-  run
-}
-
-task.mkdir() {
-  local dir=$(printf %q $1)
-  task "make directory $(basename $dir)"
-  ok "[[ -d $dir ]]"
-  def "mkdir -p $dir"
 }

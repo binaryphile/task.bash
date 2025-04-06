@@ -1,543 +1,360 @@
-# task.bash - the ultimate shell-based DSL for local configuration management
+# task.bash -- harmonize your Unix work environments with idempotent tasks
 
-task.bash transforms bash into a Domain-Specific Language for configuration management of
-your local machine. Taking inspiration from Ansible, task.bash lets you define and
-orchestrate complex system administration tasks for your local machine, and does it with
-style, power and flexibility.
+![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg) ![coverage](assets/coverage.svg)
+
+Create your work environment that follows you everywhere. Keep up to date via integration
+with your workflow.  Idempotency allows one script to keep multiple machines in sync.
+
+**Requires Bash 5**
+
+![update-env](assets/update-env.gif)
+
+With task.bash, you capture your configuration in a shell script.  We all know that writing
+a script to install some software packages is easy.  Writing one that both configures a
+fresh system, then updates it later is more difficult.  Once accomplished though, you have a
+single environment that follows you everywhere, to any machine.
+
+Task.bash assists by making it easy to:
+
+- transform shell commands into idempotent tasks
+
+- drive configuration changes through your script, maintaining it as the source of truth
+
+- work with components that require shell setup, such as needing to source a provided
+    script or modify PATH
+
+- work with components that are too new or difficult for less flexible configuration
+    solutions
+
+That means you can easily synchronize your environments across machines. Create a
+configuration script that lives in a git repository.  New machines run the script by
+curl-piping it from GitHub.  The repo is then cloned to the machine and gets updates from
+git.  *You* are the synchronization mechanism, in tandem with git.  Your system changes when
+you tell it to, much like when you run package upgrades.  Run your script when you would
+have upgraded via the package manager in the past, or more often.
 
 Use it to:
 
-- easily define [idempotent](https://www.bmc.com/blogs/idempotence/) tasks from basic Bash
-- upgrade system packages to latest
-- install required software
-- set up software configurations, dot files and plugins
-- bootstrap an environment that runs further automation like Ansible
-- manage multiple machines and platforms (e.g. MacOS and flavors of Linux)
+- install software
+- clone git repositories
+- make symlinks
+- change directory ownership
+- any of Bash's other greatest hits
 
-## Features
+Other features:
 
-Not only does task.bash provide these features, it makes using them *easy*:
+- command output suppression
+- human-friendly ongoing status reporting
+- post-run summarization
+- user interaction, e.g. the ability to prompt for a password
+- ad-hoc scripting
 
-- Superlative readability - for experienced bash devs, definitely, but for others too
-- Idempotent tasks - define task satisfaction criteria so tasks only run when needed
-- Iterable tasks - run the same task multiple times with different inputs
-- Advanced Bash - supports Bash features like redirection and pipelines
-- Scripting - manipulate state over multiple steps, such as changing directory or setting
-  variables
-- Privilege escalation - run tasks as another user via sudo authorization
-- Progress and change reporting - sensible ongoing task reporting and summarization
-- Error handling - stop when an error is encountered and show relevant output
-- No jail, no abstraction - “It’s just Bash”(TM). It’s your world. Go nuts.
+## Installation
 
-## Tutorial
+Clone or copy `task.bash` where it can be sourced by your script.
 
-task.bash employs a hybrid declarative/imperative model.  The recommended usage is to
-separate your runner script into two sections.  The first section is the imperative script
-itself, which runs the tasks in order.  The second section is the declarative task
-definitions, which informs task.bash on how to run each task
+Alternatively, vendor it into your configuration script by pasting it in place of the
+`source` command.
 
-### Hello, World!
+## Getting Started
 
-Let’s look at a simple example of a runner script:
+Task.bash relies on the concept of tasks, where a task is a Bash function that is
+idempotent.
 
-``` bash
-#!/usr/bin/env bash
+Idempotence simply means that the task results in the same outcome if it is run once or a
+hundred times.  In this case, it means that no matter the state of your system, it will be
+brought to the same, current specification when the script is run.  Bash commands aren't
+necessarily idempotent by default, so task.bash helps you make them so.
 
-main() {
-  # run the defined tasks
-  task.echo_Hello_World
+## Anatomy of a task
+
+```bash
+cloneDotfilesTask() {           # <== task name, ends with Task by convention
+  desc  'clone my dotfiles'     # <== what shows up in the output for this task
+  ok    '[[ -e ~/dotfiles ]]'   # <== don't run the command if "ok" evals true -- idempotency!
+
+  cmd   'git clone git@github.com:user/dotfiles ~/dotfiles'
 }
-
-# define the tasks
-
-task.echo_Hello_World() {
-  task 'say hello'
-  def  'echo "Hello, World!"'
-}
-
-source ./task.bash
-
-main
-summarize
 ```
 
-Taking each line in turn, the line `#!/usr/bin/env bash` tells us that this is a bash
-script, so everything in it will have to be valid bash.
+When this task is run, it clones user's dotfiles from GitHub into `~/dotfiles` and reports
+the task as `[changed]`.  If `~/dotfiles` already exists, however, it is reported as `[ok]`
+and is not run.
 
-Next comes the line that makes task.bash’s functions available, `source ./task.bash`. This
-requires task.bash to reside in script's directory.
+Each keyword (`desc`, `ok`, `cmd`) is a function that configures the task.  `cmd` does
+double-duty, defining the task's command as well as running it. Because it needs the rest of
+the task definition, `cmd` *must* be the last line of the definition.
 
-Third is the definition of a `main` function.  `main` runs the tasks.  By defining `main`,
-we can move the rest of the boilerplate later in the script, keeping the focus what the
-script is doing to the system.  Our `main` here simply runs our Hello World task.
+By convention, `desc` is the first line, serving as a comment to describe the task.  All
+other task.bash keywords can come between `desc` and `cmd` in any order.
 
-By convention, functions that are task definitions have names prefixed with `task.` to
-distinguish them from regular commands.  You can mix tasks and arbitrary code in main, so
-being able to easily identify tasks versus garden-variety commands is useful.
+The `ok` keyword tells task.bash how to tell if the command is satisfied.  `ok` can take a
+simple `test` expression, or arbitrary code.  It is evaluated before the command.  If the
+code evaluates to true (return code 0), the task is already satisfied and does not continue.
+Otherwise, the command is run.  If it is run, the condition is checked afterward and this
+time, if it does not pass, the task is marked `[failed]` and the script stops.
 
-Also notice that in this case, our task function is named for the command it is running,
-including the argument, but simplified.  `_` is used for space, leading to a function name
-that closely resembles having written the actual command.  For simple tasks, this provides
-a semblance of what you would write if they were commands, not tasks, which makes
-a familiar-looking script.
+Notice that each keyword takes one argument.  `ok` and `cmd` both contain code, and
+task.bash `eval`s that code, so expansions like `~/dotfiles` are taken care of.  *For
+security, do not populate user input into these fields.*
 
-Next, the task itself. We’ll break down the parts. First is `task`. `task` is a command
-that sets the description message you’ll see when it runs. The description needs to be a
-single argument, so the quotes are necessary. Our habit is to default to single quotes for
-safety, but double quotes could have been used.
+## Additional Task Keywords
 
-On the next line is `def`, the command definition, `echo 'Hello, World!'`. This must also be
-a single argument, i.e. quoted.
+The rest of task.bash's features lie in the remaining keywords.  Each of these can appear in
+a task definition:
 
-The task is executed with `def` is executed, which is when the task function is called. So
-at this point in `main`, we’d start seeing output that will end up like this:
+- `exist PATH` -- ok if PATH exists, alternative to `ok`
+- `prog on|off` -- show command output as it runs
+- `runas USER` -- run the command as the user USER, using sudo
+- `unchg TEXT` -- look for TEXT in command output and if present, mark the task `[ok]`
 
-``` bash
-[begin]         say hello
-[changed]       say hello
+We'll revisit these as we define examples.
+
+## Task.bash Functions
+
+While the keywords already described are technically functions, we call them keywords to
+distinguish them from the naming used for other task.bash functions.
+
+Most Bash code you will see uses snake_case for functions and variables.  That's fine, but
+when using libraries, namespacing matters.  A naming scheme like Go's integrates better with
+a namespace already inhabited by environment variables and third-party code.
+
+By convention, task.bash uses function names like `task.SetShortRun`, where the function
+name is PascalCased.  The name is also prefixed with `task` so task.bash's functions won't
+conflict with your function names.
+
+There are a couple of functions in addition to the task keywords we've seen already:
+
+- `task.Platform` - returns `macos` on mac, otherwise `linux`
+- `task.Summarize` - summarize the results of the run
+- `task.SetShortRun on|off` - skip long tasks (tasks with `prog` or `unchg`)
+
+`task.Platform` is intended to be used to conditionally perform tasks based on the current
+platform.
+
+`task.Summarize` should be part of any script, run after all of the tasks to report what
+happened.
+
+`task.SetShortRun` allows your script to take an option that tells task.bash to skip
+long-running tasks.  Any task marked with `prog` or `unchg` is considered long-running
+automatically.
+
+### Configuration Script Outline
+
+A configuration script has two parts: one that defines tasks and the other that runs them.
+
+We'll call this script `update-env`:
+
+```bash
+#!/usr/bin/env bash
+
+main() {    # <== using main lets us put it here up top, where it belongs
+  # do tasks
+  cloneDotfilesTask
+
+  # summarize the results in output
+  task.Summarize
+}
+
+cloneDotfilesTask() { ... }
+
+# boilerplate
+source /path/to/task.bash
+main
+```
+
+`chmod +x update-env` the file so we can run it in a bit.
+
+## Running Tasks
+
+Before we run the script, however, we need to add one more thing, to enable Bash strict
+mode.  Bash strict mode allows the script to stop when errors occur and to flag unset
+variable references, both of which are suited to scripting.  By convention, we set it at the
+beginning of `main`:
+
+```bash
+main() {
+  set -euo pipefail
+  cloneDotFilesTask
+  task.Summarize
+}
+```
+
+We strongly advise you to employ strict mode.  Otherwise error conditions may allow
+execution of unintended codepaths or further errors to occur.  When dealing with
+system-level configuration, that's risky.
+
+Now, here's the output from running the script:
+
+```bash
+[changed]       clone dotfiles from github
 
 [summary]
 ok:      0
 changed: 1
 ```
 
-The first two lines are task output. Each output from task.bash shows up in brackets,
-followed by the task name, `say hello` in our case. We can see when the task starts with
-`begin`, and how it end in the `changed` status. `changed` generally means that the task did
-something to the system, but it is also the default status for when task.bash cannot tell
-what the effect on the system was supposed to be. We’ll cover that when we talk about
-idempotence.
+The responses are actually color-coded, green for `[ok]` and `[changed]` and red for
+`[failed]`.
 
-Notice that we did not see `Hello, World!`. Like Ansible, task.bash assumes that things
-going well are less interesting than things not going well, and suppresses the output of
-successful commands, unless you ask for output with `prog`.
+Notice first that the output of the command is suppressed.  This is so you can account for
+many tasks easily without clutter in the output, since it consists of one line per task with
+a status and human-friendly message.
 
-Finally, the summary appears because we called `summarize`. This is a manual step, needing
-you to explicitly call it, but if you’re not interested in stats you don’t have to use it.
-Here we see that one task ended in `changed` status and none in `ok` status.
+However, sometimes a command may take a visible moment or two, or perhaps more than you
+thought at first.  For this reason, before the command is run, there is a line of output
+showing the `[begin]` status for the task, but that line is overwritten by the result once
+it is available.  The `[begin]` status line does not show up in the output above.
 
-### Task Failure
+If you run the script when the directory exists already, the output will report the `[ok]`
+status instead of `[changed]` and nothing will be run.
 
-This task fails:
+When a command fails, execution stops and it is reported.  You are shown stdout and stderr
+combined for debugging purposes.  If the command reports success, but the
+`ok` condition fails anyway, the task is reported as failed.
 
-``` bash
-task 'this fails'
-def  'false'
-```
+## Defining Tasks
 
-Running it gives:
+The goal of most tasks is to make a command idempotent.  What that means can vary from
+command to command.  We'll take a look at how you might want to approach different kinds of
+tasks.
 
-``` bash
-[begin]         this fails
-[failed]        this fails
-[output]        this fails
+### Speculative commands
 
+Some commands are designed to update the system based on external input, such as the package
+manager.  If a package has a new version, the package manager installs it, otherwise it does
+nothing.
 
-[stopped due to failure]
-```
+Commands such as this are speculative; they have to check elsewhere before determining what
+to do, if anything.  When running the upgrade, we don't know if we should be expecting a new
+package version or not...the package manager has to tell us. That means:
 
-Whenever task.bash encounters a failed task, it stops. It doesn’t make assumptions about the
-independence of future tasks and so doesn’t try to performs tasks whose prerequisites may
-not have been met.
+- there is no way to specify an `ok` expression for them a priori
+- task.bash must look at the command output to tell what status to report, `ok` or `changed`
 
-task.bash shows the stdout and stderr output of the failed task (after `[output]`), but in
-this case, the command had none.
-
-### Iteration
-
-Many tasks involve repetition. task.bash makes it easy to iterate through a list of
-arguments.
-
-Creating directories is a common task. Let’s make a set of them:
-
-``` bash
-task 'create directories'
-def  'mkdir -p $1' <<'END'
-  ~/tmp
-  ~/scratch
-END
-```
-
-Here we are making two temporary directories in our home directory. The form of the task
-definition is the same as before with some differences:
-
-- an argument list is supplied as a [here
-  document](https://www.gnu.org/software/bash/manual/bash.html#Here-Documents), a string
-  that can span multiple lines. Each line is given to the task in a separate invocation.
-- the command definition contains a positional argument, `$1`. task.bash will substitute
-  this token with the value of the current line of input from the heredoc. the shell from
-  evaluating `$1` immediately.
-
-Here’s the output (minus summary):
-
-``` bash
-[changed]       create directories - ~/tmp
-[changed]       create directories - ~/scratch
-```
-
-That looks good.
-
-Notice that we’ve used the `-p` argument to `mkdir`, which skips making the directory if the
-directory already exists. That makes the `mkdir` command idempotent, so when the directory
-exists, it doesn’t fail and the end result is the same as if it had run.
-
-However, if you run this task again, task.bash will run `mkdir` even though the directory
-exists. That’s because we haven’t told it when a task is already satisfied. `-p` is a
-workaround for `mkdir` in this case, but even with that, we will still be told that the task
-is `changed` when it wasn’t really.
-
-task.bash can make any task idempotent if you tell it how to evaluate task satisfaction.
-With it, we don’t have to use the `-p` workaround since task.bash won’t run the command in
-the first place. Let’s see how that works.
-
-### Idempotence
-
-A number of task.bash features, beginning here with idempotence, require additional task
-configuration.
-
-In that case, we don’t define the command in the `task` line. Instead, we call `task` with
-just the task name and provide details in additional lines. The command is defined instead
-with `def`.
-
-For idempotence, we provide `ok`, which takes an expression that bash can evaluate as true
-or false. If the condition evaluates true when the task is about to be run, the task is
-marked `ok` and not run.
-
-``` bash
-task 'make a directory'
-ok   '[[ -e ~/tmp ]]'
-def  'mkdir ~/tmp'
-```
-
-- there can only be one argument to `task`, the task name as a string
-- `def` takes over command definition, and runs the task as well
-- `ok` specifies a valid bash expression that will be true when the task is satisfied
-
-Because `def` runs the task now, it is always the last line in the task definition.
-
-The first time this is run, it will create the directory as expected.
-
-``` bash
-[begin]         make a directory
-[changed]       make a directory
-```
-
-The second time, with the directory already in existence, it will give this output:
-
-``` bash
-[ok]            make a directory
-```
-
-Since the directory already existed, the expression was true and the command was not run.
-The task is reported as `ok`. We can see that the command was not run because there is no
-`[begin]` message for it.
-
-Now we have a way to see when the commands are *actually* changing the system!
-
-It’s not always obvious what expression to use with `ok`. If the command has an idempotent
-switch like `mkdir -p` and doesn’t take long to run, it’s usually just as easy to skip
-idempotence and not define `ok`. In that case, you can just remember that the task will
-report `changed` even when it didn’t really do anything and you can simply go on with your
-life.
-
-**But for long-running commands that do have a simple satisfaction criterion, like directory
-existence, this feature is important**. It’s very useful to not have to wait to download a
-package installer, for example, before knowing whether you needed it or not. `ok` is the
-answer to that.
-
-## Exist
-
-In practice, many if not most system tasks create a new file or directory that can be used
-to tell if the command has been run.  Since this is such a common case, there is a shortcut
-for `ok` that tests for file/directory existence, called `exist`.
-
-We can redefine our last task using `exist`:
+Here is a task for `apt upgrade`:
 
 ```bash
-task    'make a directory'
-exist   ~/tmp
-def     'mkdir ~/tmp'
-```
+aptUpgradeTask() {
+  desc  'upgrade system packages'
+  prog  on
+  runas root
+  unchg '0 upgraded, 0 newly installed'
 
-`exist` simply calls `ok` after putting the argument into a bash `[[ -e ]]` test.
-
-Don't forget that you have the full power of an expression with `ok` if you need it.
-
-### Idempotent Iteration
-
-When you use iteration and idempotency together, usually the `ok` condition depends on the
-iteration input. Never fear, task.bash has you covered there as well. Here is the idempotent
-version of the last iteration example:
-
-``` bash
-task    'create directories'
-exist   '$1'
-def     'mkdir -m 755 $1' <<'END'
-  $HOME/tmp
-  $HOME/scratch
-END
-```
-
-task.bash makes sure that the input line is available to the `ok` expression as `$1` (remember
-`exist` is the `ok` expression).
-
-### Advanced Bash
-
-Features like with pipes and redirection work in command definitions. Here we download an
-installer script with `curl`:
-
-``` bash
-task  'download lix installer'
-def   'curl -fsSL https://install.lix.systems/lix >lix_installer'
-```
-
-Semicolon is another such special character, meaning you can do simple scripting (we don’t
-need `&&` because task.bash always employs exit on error, see strict mode below):
-
-``` bash
-task  'download and install lix'
-def    'curl -fsSL https://install.lix.systems/lix >lix_installer; chmod +x lix_installer; ./lix_installer install --no-confirm'
-```
-
-These can get verbose quickly, so task.bash has full scripting for longer commands,
-discussed below.
-
-### Showing progress
-
-Some commands can take a lot of time and give the impression that the script may have hung.
-Running an installer as we just showed is a good example. For these cases, it’s better to
-have ongoing confirmation that things are still happening, in which case you can direct the
-task to show progress with `prog on`, which allows command output to the terminal:
-
-``` bash
-task  'install lix'
-exist /nix/var/nix/profiles/default/bin
-prog  on
-def   './lix_installer install --no-confirm'
-```
-
-`prog on` works best with idempotent tasks (i.e. using `ok`) so you don’t have to see
-progress when the task doesn’t need to run.
-
-### Privilege escalation
-
-This familiar-looking task runs as root:
-
-``` bash
-task   'upgrade system'
-become root
-def    'apt upgrade -y'
-```
-
-`become` enables sudo for the task. Usually you will supply the user `root`, but any other
-user for whom you have authorization will work.
-
-### Examining command output for ok status
-
-Some commands are not easily made idempotent (no simple `ok` condition), such as
-`apt upgrade`. With commands like that, you generally either have to dig deep in
-documentation for a good `ok` condition or, more likely, run the command and see whether it
-makes any changes. apt tells you whether it changed the system after it runs. If it ran and
-didn’t install anything (thankfully, this doesn’t take long), we’d like the task output to
-say `[ok]`, not `[changed]`.
-
-Use `unchg` to specify some output text indicating no change was made:
-
-``` bash
-task    'upgrade system'
-become  root
-unchg   '0 upgraded, 0 newly installed'
-def     'apt upgrade -y'
-```
-
-### Scripting
-
-Task lists and raw bash commands have their place, but sometimes you need the full power of
-scripting. In particular, if you need to change directories or make conditional logic with
-variables, you have to maintain state from line to line. Commands in strings are also opaque
-to the editor, whereas working with actual scripts allows syntax highlighting.
-
-For example, I clone my dotfiles from github during system configuration. However, I do this
-before I’ve been able to set up SSH credentials, since that’s an interactive process. I can
-still clone a public repository without credentials, but I also change the origin remote’s
-URL so it will take advantage of SSH credentials as soon as I use git. In order to do this,
-I change directory to the working copy and issue a `git remote` command:
-
-``` bash
-task  'clone dotfiles'
-exist $HOME/dotfiles
-def() {
-  git clone https://github.com/binaryphile/dotfiles $HOME/dotfiles
-  cd $HOME/dotfiles
-  git remote set-url origin git@github.com:binaryphile/dotfiles
+  cmd   'apt update -qq && apt upgrade -y'
 }
-run
 ```
 
-What is that? That’s a function definition for `def`. Yes, we are replacing the `def`
-command, but only temporarily, it resets to its original implementation when this task is
-done.
+We're seeing new keywords here, `prog`, `runas` and `unchg`:
 
-This is a standard function with all the scripting functionality of Bash, and it will be run
-as the task. Since the original `def` was responsible for running the task and we are no
-longer calling it, we now have to do that ourselves by calling `run` after the task
-definition.
+#### `prog on` enables command output
 
-You may also use looping input with a script. To do that, call `loop` instead of `run` and
-give it a heredoc with inputs. The input lines will show up to the script as `$1`.
+`apt` can take some time.  If there is no output, your script can seem frozen. `prog on`
+enables command output to tell you when the command is making progress.  Such output starts
+with `[progress]`.
 
-## A curl-pipe-friendly runner script template with tracing and repl
+#### `runas USER` runs the command as USER
 
-Here’s a template that allows you to curl-pipe from github to run it:
+`apt` needs root permissions to modify the system.  `runas root` tells task.bash to use
+`sudo` to run the command as root user.
 
-``` bash
-#!/usr/bin/env bash
+#### `unchg TEXT` tells task.bash whether the command made changes
 
-main() {
-  # task definitions go here
+`apt` conveniently reports whether packages were installed or updated. `unchg` looks for
+that message and marks the task `[ok]` if we see it, otherwise `[changed]`.
+
+### Complex commands
+
+```bash
+curlTask() {
+  desc   'download coolscript from github'
+  exist  ~/.local/bin/coolscript
+
+  cmd    '
+    mkdir -p ~/.local/bin
+    curl -fsSL git@github.com:user/coolscript >~/.local/bin/coolscript
+  '
 }
-
-# source task.bash, or download it
-if [[ -e task.bash ]]; then
-  source ./task.bash
-else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/task.bash) || exit
-  eval "$lib"
-  unset -v lib
-fi
-
-# stop here if sourcing for repl access
-return 2>/dev/null
-set -e # otherwise turn on exit on error
-
-# enable tracing if given a -x argument
-[[ ${1:-} == -x ]] && { shift; set -x; }
-
-main
-summarize
 ```
 
-To run it with curl:
+We saw that `cmd` can take commands like `apt update -qq && apt upgrade -y` but you can use
+`cmd` with arbitrary Bash, including multi-line scripts, pipelines, you name it.
 
-``` bash
-curl -fsSL https://raw.githubusercontent.com/username/reponame/branchname/runner | bash
+Multiline quotes are convenient in this case, but should the code be more than a few lines,
+you'll probably want to put it in its own function and call that with `cmd` instead.
+
+We also see here the `exist` keyword:
+
+#### `exist PATH` sets ok with the Bash -e path existence test
+
+`exist` sets `ok` with a path existence test, meaning you only need to specify one of `ok`
+or `exist`.  It is a frequently-useful test, so task definitions benefit from the more
+readable `exist`.
+
+### Parameterized tasks
+
+So far, no task has taken parameters, which makes them hard-coded to things like filenames.
+Many tasks are generic enough to be reusable, if they only could take parameters.  Parameter
+handling with tasks is a bit tricky though, since controlling the timing of evaluation is
+important.
+
+Task.bash comes with a handful of parameterized tasks, such as `task.GitClone` and
+`task.Ln`.
+
+Here's a simple example of how to write one:
+
+```bash
+mkdirTask() {
+  local dir=$1
+  desc  "make directory $dir"
+  cmd   "mkdir -p $dir"
+}
 ```
 
-If instead you download the runner and invoke it with `-x`, you’ll see execution with bash
-tracing turned on, for debugging purposes.
+First, notice that we're taking the first argument as `dir` and using it in the task
+definition.  In order to expand it, we've used double-quotes instead of single.
 
-Also, you can get an interactive repl (i.e. the usual bash terminal with task.bash and your
-runner functions loaded) to play with or debug tasks. It is recommended to do this by
-starting a new bash session with `bash --norc` first.
+This works for simple cases but becomes difficult with complexity and edge cases.  For
+example, this will not handle directories with spaces as it stands, since expansion will
+happen here, and then evaluation by `cmd` will not have the command properly quoted.
 
-``` bash
-$ source runner
-$ task.mine     # runs just this task which you defined
+We could try to fix it by single-quoting `dir` within the double-quotes, but then it becomes
+sensitive to single-quotes in `dir`'s value.  `printf %q` is another option to make the
+value eval-safe, but rather than try to quote our way out of it, there's a more readable
+option. Let's define a new function within the task and call that.
+
+```bash
+mkdirTask() {
+  local dir=$1
+  desc "make directory $dir"
+
+  mkdirP() { mkdir -p "$dir"; }
+  cmd mkdirP
+}
 ```
 
-You can define a task in a function other than `main` if you want to run it by itself in
-repl mode.
+This is an interesting construction.  It closely resembles a *closure function*, that is, a
+function which is aware of the variables in its enclosing scope.
 
-## Other considerations
+That's not what's going on here, although it does in fact behave like a closure because of
+our limited use case.  So long as the call to `mkdirP` is made from within `mkdirTask`, as
+it is here, Bash's dynamic scoping will allow `mkdirP` will see the `dir` belonging to
+`mkdirTask`.  `mkdirP` could even be defined elsewhere, but it is usually more readable to
+define it where it is consumed like this.
 
-### Strict mode and quoting
+The concern this resolves is that, within `mkdirP`, quoting is handled normally.  We aren't
+embedding a command in a string, so it's only evaluated once as you'd expect.
 
-You may be familiar with the Bash community’s mantra, “quote everything for safety” and
-maybe even rolling some eyeballs at the naivete of not quoting anything, like I haven’t been
-doing in commands. That’s how you get word-splitting issues with spaces. Do you want
-word-splitting issues with spaces?
+This is generally the best pattern for parameterized tasks and handles additional complexity
+nicely, since function syntax is friendlier than evaluated string syntax.  For example,
+syntax highlighting editors don't generally highlight within strings.
 
-Of course not. That’s why we turn off word-splitting on spaces and tabs. What exactly is
-word-splitting? It’s the part of command execution where bash examines expanded variables,
-looking for the characters in IFS and separating the string into separate words when it
-finds one. For example, if you call `cd $HOME` and your home directory path has a space like
-`/home dirs/user`, then without quoting `"$HOME"`, the variable will be split on space and
-you will run `cd /home dirs/user` (no quotes), which is really just `cd /home`.
+## Example
 
-The other troublesome feature that encourages excess quoting is file globbing. Any variable
-expansion gets checked for glob characters such as `*`, in which case they are automatically
-substituted with the result of the local directory, for example. This is usually bad for our
-purposes.
+See `update-env` as an example of what can be accopmlished with a configuration script.  It
+is the script I use on my own machines.  Relying on nix and home-manager allows it to
+specify packages in a dotfiles repository, which saves from having to track them in the
+script.
 
-task.bash requires a form of [unofficial strict
-mode](http://redsymbol.net/articles/unofficial-bash-strict-mode/), and sets it for you. Our
-strict mode:
-
-- disables splitting on spaces and tabs, keeping it only for newlines (`IFS=$'\n'`)
-- disables file globbing (`set -f`)
-- forces the script to stop whenever an error is encountered (`set -e`)
-- disallows references to unset variables (`set -u`)
-
-Within your runner script, your code will be held to strict mode. This is usually the
-right thing. Failing tasks should stop execution. Unset variable errors usually mean typos
-in variable names. Specifying bash commands as strings is already fraught with quotation and
-requiring more quotes significantly impairs readability. You may get a curveball or two from
-strict mode, but the alternative is worse.
-
-In general, you are free of quoting variable expansions however, and that is worth it.
-
-Occasionally, you will want to source a third-party script, such as when you need some
-environment variable initialization for a package. These aren’t made for strict mode and
-won’t work with it, but you still need them. For such occasions, `strict on|off` is a
-command to disable or enable strict mode, letting the third-party code run:
-
-``` bash
-strict off  # next task re-enables strict
-source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh # required env vars
-strict on   # be a good citizen
-```
-
-You can use this in a `def` command definition or in-between task definitions. When a new
-task is begun with `task`, `task` re-enables strict mode automatically.
-
-### Pre-defined tasks
-
-task.bash offers a handful of pre-defined tasks.  Each is an idempotent version of a regular
-command:
-
-- `task.ln` - symlink with `ln -sf`.  Replaces an existing target file/link.
-- `task.curl` - download a file with for `curl -fsSL`
-- `task.git_clone` - clone a repository with `git clone`
-
-See `task.bash` for documentation.  In general, these are non-interactive versions of the
-commands.
-
-### Providing organization with section
-
-task.bash provides friendly output with the `section` command, which separates output with a
-section heading before calling the named function. This is good for breaking main into
-related parts.
-
-Here we have used section commands, along with moving task definitions into their own
-functions. As a convention, we preface the function names with `task.` to denote they are
-not just any kind of function:
-
-    main() {
-      section system
-      task.apt_upgrade
-
-      section neovim
-      task.curlpipe_vim-plug
-    }
-
-    task.apt_upgrade() {
-      task 'apt upgrade'
-      prog on
-      def  'apt upgrade -y'
-    }
-
-    task.curlpipe_vim-plug() {
-      task  'install junegunn/vim-plug'
-      exist ~/.local/share/nvim/site/autoload/plug.vim
-      def   'curl -fsSL https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim >~/.local/share/nvim/site/autoload/plug.vim'
-    }
-
-Output:
-
-``` bash
-[section system]
-<system task output shows here>
-
-[section vim]
-<vim task output shows here>
-```
+In particular, see the boilerplate at the end for an example of how to make it curl-pipeable
+from GitHub.
