@@ -165,10 +165,11 @@ chownRTask() {
   desc    "recursively change ownership of $path to $user:$group"
   runas   root
 
-  ifIsOwnerAndGroup() { [[ $(ownerAndGroup $path) == $user:$group ]]; }
+  ifIsOwnerAndGroup() { [[ $(ownerAndGroup $path) == "$user:$group" ]]; }
   ok ifIsOwnerAndGroup
 
-  cmd     "chown -R -- $user:$group $path"
+  chownR() { chown -R -- "$user:$group" "$path"; }
+  cmd chownR
 }
 
 # home manager
@@ -211,7 +212,11 @@ curlTask() {
   desc   "download ${url##*/} from ${url%/*} as $(basename $filename)"
   exist  $filename
 
-  cmd    "mkdir -p -- $(dirname $filename); curl -fsSL -- $url >$filename"
+  curlfsSL() {
+    mkdir -p -- "$(dirname "$filename")"
+    curl -fsSL -- "$url" >"$filename"
+  }
+  cmd curlfsSL
 }
 
 nvimHeadlessPlugInstallTask() {
@@ -226,16 +231,17 @@ nvimHeadlessPlugInstallTask() {
 removeMatchingFileTask() {
   local targetFilename=$1 matchFilename=$2
   desc  "remove file $targetFilename if it matches $matchFilename"
-  ok    "[[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ \$(<$targetFilename) != \$(<$matchFilename) ]]"
+  ifFilesDontMatch() { [[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ $(<$targetFilename) != $(<$matchFilename) ]]; }
+  ok ifFilesDontMatch
 
-  cmd   "
-    if [[
-      -e $matchFilename && -e $targetFilename &&
-      \$(<$targetFilename) == \$(<$matchFilename)
-    ]]; then
+  rmTargetFileIfMatch() {
+    if [[ -e $matchFilename && -e $targetFilename &&
+      $(<$targetFilename) == $(<$matchFilename) ]];
+    then
       rm $targetFilename
     fi
-  "
+  }
+  cmd rmTargetFileIfMatch
 }
 
 sshKeygenTask() {
@@ -244,14 +250,15 @@ sshKeygenTask() {
   exist $keyFilename
   prog  on
 
-  cmd   "
+  sshKeygen() {
     read -sp 'generating ssh key.  passphrase: ' passphrase
-    read -sp $'\nagain: ' passphrase2
-    [[ \$passphrase == \$passphrase2 ]] || { echo -e '\npassphrase did not match'; exit 1; }
+    read -sp "${NL}again: " passphrase2
+    [[ $passphrase == $passphrase2 ]] || { echo "${NL}passphrase did not match"; exit 1; }
     echo
-    ssh-keygen -t ed25519 -f $keyFilename -N \"\$passphrase\" -C \$USER@\$(host)
-    cat $keyFilename.pub
-  "
+    ssh-keygen -t ed25519 -f "$keyFilename" -N "$passphrase" -C "$USER@$(host)"
+    cat "$keyFilename.pub"
+  }
+  cmd sshKeygen
 }
 
 ## helpers
