@@ -161,11 +161,12 @@ curlPipeLixInstallerTask() {
 # $user and $group are the numbered versions, e.g. 1000:1000, not username:groupname.
 chownRTask() {
   local path=$1 user=$2 group=$3
-  printf -v path %q $path
 
   desc    "recursively change ownership of $path to $user:$group"
   runas   root
-  ok      "[[ \$(ownerAndGroup $path) == $user:$group ]]"
+
+  ifIsOwnerAndGroup() { [[ $(ownerAndGroup $path) == $user:$group ]]; }
+  ok ifIsOwnerAndGroup
 
   cmd     "chown -R -- $user:$group $path"
 }

@@ -88,7 +88,7 @@ the task definition, `cmd` *must* be the last line of the definition.
 By convention, `desc` is the first line, serving as a comment to describe the task.  All
 other task.bash keywords can come between `desc` and `cmd` in any order.
 
-The `ok` keyword tells task.bash how to tell if the command is satisfied.  `ok` can take a
+The `ok` keyword tells task.bash how to tell if the task is satisfied.  `ok` can take a
 simple `test` expression, or arbitrary code.  It is evaluated before the command.  If the
 code evaluates to true (return code 0), the task is already satisfied and does not continue.
 Otherwise, the command is run.  If it is run, the condition is checked afterward and this
@@ -197,14 +197,13 @@ changed: 1
 The responses are actually color-coded, green for `[ok]` and `[changed]` and red for
 `[failed]`.
 
-Notice first that the output of the command is suppressed.  This is so you can account for
-many tasks easily without clutter in the output, since it consists of one line per task with
-a status and human-friendly message.
+Notice first that the output of the command is suppressed.  This is so the task readout is
+concise.
 
-However, sometimes a command may take a visible moment or two, or perhaps more than you
-thought at first.  For this reason, before the command is run, there is a line of output
-showing the `[begin]` status for the task, but that line is overwritten by the result once
-it is available.  The `[begin]` status line does not show up in the output above.
+However, sometimes a command may take time, perhaps more than expected.  For this reason,
+before the command is run, there is a line of output showing the `[begin]` status for the
+task, but that line is overwritten by the result once it is available.  The `[begin]` status
+line does not show up in the output above.
 
 If you run the script when the directory exists already, the output will report the `[ok]`
 status instead of `[changed]` and nothing will be run.
@@ -351,7 +350,7 @@ syntax highlighting editors don't generally highlight within strings.
 
 ## Example
 
-See `update-env` as an example of what can be accopmlished with a configuration script.  It
+See `update-env` as an example of what can be accomplished with a configuration script.  It
 is the script I use on my own machines.  Relying on nix and home-manager allows it to
 specify packages in a dotfiles repository, which saves from having to track them in the
 script.
