@@ -41,14 +41,11 @@ main() {
 
   section dotfiles
   task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
-  case $platform in
-    crostini  ) task.Ln contexts/crostini ~/dotfiles/context;;
-    macos     ) task.Ln contexts/macos ~/dotfiles/context;;
-  esac
+  task.Ln contexts/"$platform" ~/dotfiles/context;;
 
   section nix
   curlPipeLixInstallerTask
-  chownRTask /nix $(id -u) $(id -g)
+  chownRTask /nix "$(id -u)" "$(id -g)"
   loosely source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
   task.Ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
@@ -67,7 +64,7 @@ main() {
     # link to permanent project directories from home dir
     glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
       keepIf isDir |
-      map target '"$target" ~/"${target#$CrostiniDir/}"' |
+      map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrotiniDir
       each task.Ln
     unset -v dirs
   fi
@@ -89,8 +86,9 @@ main() {
 
   section apps
   task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
-  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
+  stream fp.bash task.bash |
+    map package 'git@github.com:binaryphile/"$package" ~/projects/"$package" develop' |
+    each task.GitClone
   glob '~/dotfiles/ranger/*' |
     keepIf isFile |
     map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
