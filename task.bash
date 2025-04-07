@@ -26,7 +26,7 @@
 
 # cmd runs $cmd after checking that it is not already satisfied and records the result.
 cmd() {
-  local cmd=$1
+  local CMD=$1
 
   [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && {
     OksX[$DescriptionX]=1
@@ -37,7 +37,7 @@ cmd() {
 
   ! (( ShortRunX || ShowProgressX )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
 
-  [[ $RunAsUserX != '' ]] && cmd="sudo -u ${RunAsUserX@Q} bash -c ${cmd@Q}"
+  [[ $RunAsUserX != '' ]] && CMD="sudo -u ${RunAsUserX@Q} bash -c ${CMD@Q}"
 
   (( ShortRunX )) && {
     (( ShowProgressX )) || [[ $UnchangedTextX != '' ]] && {
@@ -47,28 +47,28 @@ cmd() {
     }
   }
 
-  local rc=0
+  local RC=0
   if (( ShowProgressX )); then
     echo -e "[$(task.t progress)]\t$DescriptionX"
-    OutputX=$(eval "$cmd" 2>&1 | tee /dev/tty) && rc=$? || rc=$?
+    OutputX=$(eval "$CMD" 2>&1 | tee /dev/tty) && RC=$? || RC=$?
   else
-    OutputX=$(eval "$cmd" 2>&1) && rc=$? || rc=$?
+    OutputX=$(eval "$CMD" 2>&1) && RC=$? || RC=$?
   fi
 
   if [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]]; then
     OksX[$DescriptionX]=1
     echo -e "\r[$(task.t ok)]\t\t$DescriptionX"
-  elif (( rc == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
+  elif (( RC == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
     ChangedsX[$DescriptionX]=1
     echo -e "\r[$(task.t changed)]\t$DescriptionX"
   else
     echo -e "\r[$(task.t failed)]\t$DescriptionX"
     ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
     echo 'stopped due to failure'
-    (( rc == 0 )) && echo 'task reported success but condition not met'
+    (( RC == 0 )) && echo 'task reported success but condition not met'
   fi
 
-  return $rc
+  return $RC
 }
 
 # desc sets DescriptionX, the task description.
@@ -112,7 +112,7 @@ task.initTaskEnv() {
 
 # initialize environment
 task.initTaskEnv
-ShortRunX=0
+ShortRunX=0   # doesn't reset from task to task
 
 task.Platform() {
   [[ $OSTYPE != darwin* ]] || { echo macos; return; }
@@ -120,12 +120,7 @@ task.Platform() {
 }
 
 # task.SetShortRun says not to run tasks with progress.
-task.SetShortRun() {
-  case $1 in
-    on  ) ShortRunX=1;;
-    *   ) ShortRunX=0;;
-  esac
-}
+task.SetShortRun() { [[ $1 == on ]] && ShortRunX=1 || ShortRunX=0; }
 
 # task.Summarize is run by the user at the end to report the results.
 task.Summarize() {
@@ -164,35 +159,37 @@ task.t() {
 task.GitClone() {
   local repo=$1 dir=$2 branch=$3
   desc   "clone repo ${1#git@} to $(basename $dir)"
-  exist  "$dir"
-  cmd    "GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch $branch $repo $dir"
+  exist  "'$dir'"
+
+  task.gitClone() {
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "$repo" "$dir"
+  }
+  cmd task.gitClone
 }
 
 task.Install() {
   local mode=$1 src=$2 dst=$3
-
-  # make strings eval-ready
-  printf -v src %q "$src"
-  printf -v dst %q "$dst"
-
   desc  "copy $src to $dst with mode $mode"
-  exist "$dst"
-  [[ $mode == 600 ]] && local dirMode=700
-  cmd   "mkdir -p${dirMode:+m $dirMode} -- $(dirname $dst); install -m $mode -- $src $dst"
+  exist "'$dst'"
+
+  task.install() {
+    [[ $mode == 600 ]] && local dirMode=700
+    mkdir -p${dirMode:+m $dirMode} -- "$(dirname "$dst")"
+    install -m "$mode" -- "$src" "$dst"
+  }
+  cmd task.install
 }
 
 task.Ln() {
   local targetname=$1 linkname=$2
 
-  # make strings eval-ready
-  printf -v targetname %q "$targetname"
-  printf -v linkname %q "$linkname"
-
   desc  "symlink $linkname to $targetname"
-  ok    "[[ -L $linkname ]]"
-  cmd "
-    mkdir -p $(dirname $linkname)
-    [[ -L $linkname ]] && rm $linkname
-    ln -sf $targetname $linkname
-  "
+  ok    "[[ -L '$linkname' ]]"
+
+  task.ln() {
+    mkdir -p "$(dirname "$linkname")"
+    [[ -L $linkname ]] && rm "$linkname"
+    ln -sf "$targetname" "$linkname"
+  }
+  cmd task.ln
 }

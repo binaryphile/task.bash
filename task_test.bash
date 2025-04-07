@@ -173,7 +173,7 @@ test_task.Ln() {
     [name]='spaces in link and target'
     [targetname]='a target.txt'
     [linkname]='a link.txt'
-    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a\\ link.txt to a\\ target.txt\r[\E[38;5;82mchanged\E[0m]\tsymlink a\\ link.txt to a\\ target.txt'
+    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a link.txt to a target.txt\r[\E[38;5;82mchanged\E[0m]\tsymlink a link.txt to a target.txt'
   )
 
   local -A case2=(
