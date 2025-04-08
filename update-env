@@ -127,7 +127,7 @@ main() {
 
   # update all project git repositories
   # not a task, so not part of the summary
-  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{GolandProjects,obsidian,projects}/*
+  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 }
 
 ## task definitions
