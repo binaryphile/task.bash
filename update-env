@@ -41,7 +41,7 @@ main() {
 
   section dotfiles
   task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
-  task.Ln contexts/"$platform" ~/dotfiles/context;;
+  task.Ln contexts/"$platform" ~/dotfiles/context
 
   section nix
   curlPipeLixInstallerTask
@@ -64,7 +64,7 @@ main() {
     # link to permanent project directories from home dir
     glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
       keepIf isDir |
-      map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrotiniDir
+      map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
     unset -v dirs
   fi
