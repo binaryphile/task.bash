@@ -66,7 +66,7 @@ main() {
     task.Ln $CrostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
+    glob $CrostiniDir/{flakes,GolandProjects,obsidian,projects}/'*' |
       keepIf isDir |
       map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
@@ -271,17 +271,19 @@ fatal() {
 }
 
 glob() {
-  local nullglobWasOn=0 noglobWasOn=1 results
+  local pattern=$1
+
+  local nullglobWasOn=0 noglobWasOn=1
   [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
   [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
 
-  results=( $1 )
+  eval "local results=( $pattern )"
 
   # reset to old settings
   (( noglobWasOn )) && set -o noglob
   (( nullglobWasOn )) || shopt -u nullglob
 
-  stream "${results[@]}"
+  (( ${#results[@]} == 0 )) || echo "${results[@]}"
 }
 
 host() {
