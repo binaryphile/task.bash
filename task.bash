@@ -78,7 +78,7 @@ desc() {
   DescriptionX=${1:-}
 }
 
-# exist is a shortcut for ok that tests for existence.
+# exist is a shortcut for ok that tests for path existence.
 exist() { ok "[[ -e $1 ]]"; }
 
 # ok sets the ok ConditionX for the current task.
@@ -182,9 +182,10 @@ task.Install() {
 
 task.Ln() {
   local targetname=$1 linkname=$2
-
   desc  "symlink $linkname to $targetname"
-  ok    "[[ -L '$linkname' ]]"
+
+  task.linknameIsLink() { [[ -L $linkname ]]; }
+  ok task.linknameIsLink
 
   task.ln() {
     mkdir -p "$(dirname "$linkname")"

@@ -229,17 +229,21 @@ nvimHeadlessPlugInstallTask() {
 removeMatchingFileTask() {
   local targetFilename=$1 matchFilename=$2
   desc  "remove file $targetFilename if it matches $matchFilename"
-  ifFilesDontMatch() { [[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ $(<$targetFilename) != $(<$matchFilename) ]]; }
+
+  ifFilesDontMatch() {
+    [[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] ||
+      [[ $(<$targetFilename) != $(<$matchFilename) ]]
+  }
   ok ifFilesDontMatch
 
-  rmTargetFileIfMatch() {
-    if [[ -e $matchFilename && -e $targetFilename &&
-      $(<$targetFilename) == $(<$matchFilename) ]];
+  rmTargetIfMatches() {
+    if [[ -e $matchFilename && -e $targetFilename ]] &&
+      [[ $(<$targetFilename) == $(<$matchFilename) ]];
     then
       rm $targetFilename
     fi
   }
-  cmd rmTargetFileIfMatch
+  cmd rmTargetIfMatches
 }
 
 sshKeygenTask() {
@@ -248,7 +252,8 @@ sshKeygenTask() {
   exist $keyFilename
   prog  on
 
-  sshKeygen() {
+  generateKey() {
+    local passphrase passphrase2
     read -sp 'generating ssh key.  passphrase: ' passphrase
     read -sp "${NL}again: " passphrase2
     [[ $passphrase == $passphrase2 ]] || { echo "${NL}passphrase did not match"; exit 1; }
@@ -256,7 +261,7 @@ sshKeygenTask() {
     ssh-keygen -t ed25519 -f "$keyFilename" -N "$passphrase" -C "$USER@$(host)"
     cat "$keyFilename.pub"
   }
-  cmd sshKeygen
+  cmd generateKey
 }
 
 ## helpers
@@ -308,7 +313,7 @@ platform() {
   echo linux
 }
 
-section() { echo -e "\n[section $1]"; }
+section() { echo "$NL[section $1]"; }
 
 ## fp
 
@@ -347,6 +352,10 @@ stream() {
     printf "%q${IFS:0:1}" "$arg"
   done
 }
+
+## globals
+
+NL=$'\n'
 
 ## boilerplate
 
