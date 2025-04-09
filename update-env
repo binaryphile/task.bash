@@ -70,7 +70,6 @@ main() {
       keepIf isDir |
       map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
-    unset -v dirs
   fi
 
   section mk.bash
@@ -90,7 +89,7 @@ main() {
 
   section apps
   task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  stream fp.bash task.bash |
+  stream {fp,task}.bash |
     map package 'git@github.com:binaryphile/"$package" ~/projects/"$package" develop' |
     each task.GitClone
   glob '~/dotfiles/ranger/*' |
