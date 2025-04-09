@@ -158,7 +158,7 @@ task.t() {
 
 task.GitClone() {
   local repo=$1 dir=$2 branch=$3
-  desc   "clone repo ${1#git@} to $(basename $dir)"
+  desc   "clone repo ${1#git@} to $dir"
   exist  "'$dir'"
 
   task.gitClone() {
