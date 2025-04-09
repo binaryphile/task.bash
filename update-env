@@ -21,6 +21,10 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 main() {
   set -euo pipefail   # enable strict mode
 
+  # update all project git repositories
+  # not a task, so not part of the summary
+  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+
   platform=$(platform)
   if [[ $platform == crostini ]]; then
     section system
@@ -123,11 +127,6 @@ main() {
   fi
 
   task.Summarize
-  echo
-
-  # update all project git repositories
-  # not a task, so not part of the summary
-  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 }
 
 ## task definitions
@@ -363,7 +362,7 @@ here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURC
 if [[ -e "$here"/task.bash ]]; then
   source "$here"/task.bash
 else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
+  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/develop/task.bash) || exit
   eval "$lib"
 fi
 unset -v here lib
