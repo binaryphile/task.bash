@@ -23,7 +23,12 @@ main() {
 
   # update all project git repositories
   # not a task, so not part of the summary
-  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+  local mkHasRun=0
+  ! (( IsShortRun )) && [[ -e ~/.local/bin/mk ]] && {
+    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+    mkHasRun=1
+  }
+
 
   platform=$(platform)
   if [[ $platform == crostini ]]; then
@@ -92,9 +97,9 @@ main() {
   stream {fp,task}.bash |
     map package 'git@github.com:binaryphile/"$package" ~/projects/"$package" develop' |
     each task.GitClone
-  glob '~/dotfiles/ranger/*' |
+  glob ~/dotfiles/ranger/'*' |
     keepIf isFile |
-    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
+    map path '"$path" ~/.config/ranger/"$(basename "$path")"' "$NL" |
     each task.Ln
 
   each task.Ln <<'  END'
@@ -126,6 +131,9 @@ main() {
   fi
 
   task.Summarize
+
+  echo
+  (( mkHasRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 }
 
 ## task definitions
@@ -164,8 +172,7 @@ chownRTask() {
   ifIsOwnerAndGroup() { [[ $(ownerAndGroup $path) == "$user:$group" ]]; }
   ok ifIsOwnerAndGroup
 
-  chownR() { chown -R -- "$user:$group" "$path"; }
-  cmd chownR
+  cmd "chown -R -- $user:$group $path"
 }
 
 # home manager
@@ -283,7 +290,8 @@ glob() {
   (( noglobWasOn )) && set -o noglob
   (( nullglobWasOn )) || shopt -u nullglob
 
-  (( ${#results[@]} == 0 )) || echo "${results[@]}"
+  local IFS=$NL
+  (( ${#results[*]} == 0 )) || echo "${results[*]}"
 }
 
 host() {
@@ -331,6 +339,7 @@ keepIf() {
   while IFS='' read -r arg; do
     eval "$command $arg" && echo "$arg"
   done
+  return 0
 }
 
 # map returns $EXPRESSION evaluated with the value of stdin as $VARNAME.
@@ -345,12 +354,10 @@ map() {
   done
 }
 
-# stream echoes arguments escaped and separated by the first character of IFS.
+# stream converts its arguments to a newline-separated output stream.
 stream() {
-  local arg
-  for arg in "$@"; do
-    printf "%q${IFS:0:1}" "$arg"
-  done
+  local IFS=$NL
+  (( $# == 0 )) || echo "$*"
 }
 
 ## globals
