@@ -6,11 +6,11 @@ source ./update-env   # defines NL=$'\n'
 # Subtests are run with tesht.Run.
 test_each() {
   local -A case1=(
-    [name]='run a command for each word'
+    [name]='capitalize a list of words'
 
-    [command]="each 'echo item:'"
-    [input]=$'foo\nbar\nbaz'
-    [want]=$'item: foo\nitem: bar\nitem: baz'
+    [command]="each '_() { echo \${1^}; }; _'"
+    [inputs]='(foo bar baz)'
+    [wants]="(Foo Bar Baz)"
   )
 
   # subtest runs each subtest.
@@ -27,7 +27,7 @@ test_each() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(echo "$input" | eval "$command" 2>&1) && rc=$? || rc=$?
+    got=$(stream "${inputs[@]}" | eval "$command" 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -38,6 +38,7 @@ test_each() {
     }
 
     # assert that we got the wanted output
+    local want=$(stream "${wants[@]}")
     [[ $got == "$want" ]] || {
       echo "${NL}each: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
@@ -63,16 +64,16 @@ test_keepIf() {
     [name]='keep only lines that match the pattern'
 
     [command]="keepIf '_() { [[ \$1 == a* ]]; }; _'"
-    [input]=$'apple\nbanana\napricot'
-    [want]=$'apple\napricot'
+    [inputs]='(apple banana apricot)'
+    [wants]='(apple apricot)'
   )
 
   local -A case2=(
     [name]='keep only exact matches'
 
     [command]="keepIf '_() { [[ \$1 == cat ]]; }; _'"
-    [input]=$'cat\ncatalog\nbobcat'
-    [want]=cat
+    [inputs]='(cat catalog bobcat)'
+    [wants]='(cat)'
   )
 
   # subtest runs each subtest.
@@ -89,7 +90,7 @@ test_keepIf() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(echo "$input" | eval "$command" 2>&1) && rc=$? || rc=$?
+    got=$(stream "${inputs[@]}" | eval "$command" 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -100,6 +101,7 @@ test_keepIf() {
     }
 
     # assert that we got the wanted output
+    local want=$(stream "${wants[@]}")
     [[ $got == "$want" ]] || {
       echo "${NL}keepIf: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
@@ -125,16 +127,16 @@ test_map() {
     [name]='prefix each line with a label'
 
     [command]="map line 'line: \$line'"
-    [input]=$'alpha\nbeta'
-    [want]=$'line: alpha\nline: beta'
+    [inputs]='(alpha beta)'
+    [wants]="('line: alpha' 'line: beta')"
   )
 
   local -A case2=(
     [name]='double each numeric line'
 
     [command]="map line '\$(( line * 2 ))'"
-    [input]=$'1\n2\n3'
-    [want]=$'2\n4\n6'
+    [inputs]='(1 2 3)'
+    [wants]='(2 4 6)'
   )
 
 
@@ -152,17 +154,9 @@ test_map() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(echo "$input" | eval "$command" 2>&1) && rc=$? || rc=$?
+    got=$(stream "${inputs[@]}" | eval "$command" 2>&1) && rc=$? || rc=$?
 
     ## assert
-
-    # if this is a test for error behavior, check it
-    [[ -v wanterr ]] && {
-      (( rc == wanterr )) && return
-
-      echo "${NL}map: error = $rc, want: $wanterr$NL$got"
-      return 1
-    }
 
     # assert no error
     (( rc == 0 )) || {
@@ -171,6 +165,7 @@ test_map() {
     }
 
     # assert that we got the wanted output
+    local want=$(stream "${wants[@]}")
     [[ $got == "$want" ]] || {
       echo "${NL}map: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
