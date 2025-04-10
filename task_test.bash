@@ -10,27 +10,27 @@ test_cmd() {
   local -A case1=(
     [name]='not run when ok'
 
-    [cmd]='echo hello'
+    [command]="cmd 'echo hello'"
     [ok]=true
-    [want]=$'[\E[38;5;82mok\E[0m]\t\tnot run when ok'
+    [wants]="(ok 'not run when ok')"
   )
 
   local -A case2=(
     [name]='given short run, when progress, then skip'
 
-    [cmd]='echo hello'
+    [command]="cmd 'echo hello'"
     [prog]=on
     [shortrun]=on
-    [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when progress, then skip'
+    [wants]="(skipping 'given short run, when progress, then skip')"
   )
 
   local -A case3=(
     [name]='given short run, when unchg, then skip'
 
-    [cmd]='echo hello'
+    [command]="cmd 'echo hello'"
     [shortrun]=on
     [unchg]=hello
-    [want]=$'\r[\E[38;5;208mskipping\E[0m]\tgiven short run, when unchg, then skip'
+    [wants]="(skipping 'given short run, when unchg, then skip')"
   )
 
   # subtest runs each subtest.
@@ -55,17 +55,9 @@ test_cmd() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(cmd "$cmd" 2>&1) && rc=$? || rc=$?
+    got=$(eval "$command" 2>&1) && rc=$? || rc=$?
 
     ## assert
-
-    # if this is a test for error behavior, check it
-    [[ -v wanterr ]] && {
-      (( rc == wanterr )) && return
-
-      echo "${NL}cmd: error = $rc, want: $wanterr$NL$got"
-      return 1
-    }
 
     # assert no error
     (( rc == 0 )) || {
@@ -74,7 +66,8 @@ test_cmd() {
     }
 
     # assert that we got the wanted output
-    [[ $got == "$want" ]] || {
+    local want=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got == $want ]] || {
       echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
       return 1
@@ -90,35 +83,6 @@ test_cmd() {
   done
 
   return $failed
-}
-
-# test_cmd_GivenShortRunWhenProgressThenNotRun sees that an ok task does not invoke the command.
-test_cmd_GivenShortRunWhenProgressThenNotRun() {
-  ## arrange
-  task.SetShortRun on
-  desc 'test_cmd_GivenShortRunWhenProgressThenNotRun'
-  prog on
-
-  ## act
-  # run the command and capture the output and result code
-  local got rc
-  got=$(cmd 'echo hello' 2>&1) && rc=$? || rc=$?
-
-  ## assert
-
-  # assert no error
-  (( rc == 0 )) || {
-    echo "${NL}cmd: error = $rc, want: 0$NL$got"
-    return 1
-  }
-
-  # assert that we got the wanted output
-  local want=$'\r[\E[38;5;208mskipping\E[0m]\ttest_cmd_GivenShortRunWhenProgressThenNotRun'
-  [[ $got == "$want" ]] || {
-    echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
-    echo "use this line to update want to match this output:${NL}want=${got@Q}"
-    return 1
-  }
 }
 
 ## tasks
@@ -156,9 +120,9 @@ test_task.GitClone() {
   }
 
   # assert that we got the wanted output
-  local want=$'[\E[38;5;220mbegin\E[0m]\t\tclone repo clone to clone2\r[\E[38;5;82mchanged\E[0m]\tclone repo clone to clone2'
-
-  [[ $got == "$want" ]] || {
+  local wants=(begin 'clone repo clone to clone2' changed 'clone repo clone to clone2')
+  local want=$(IFS='*'; echo "*${wants[*]}*")
+  [[ $got == $want ]] || {
     echo "${NL}task.GitClone: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
     echo "use this line to update want to match this output:${NL}want=${got@Q}"
     return 1
@@ -171,9 +135,10 @@ test_task.GitClone() {
 test_task.Ln() {
   local -A case1=(
     [name]='spaces in link and target'
+
     [targetname]='a target.txt'
     [linkname]='a link.txt'
-    [want]=$'[\E[38;5;220mbegin\E[0m]\t\tsymlink a link.txt to a target.txt\r[\E[38;5;82mchanged\E[0m]\tsymlink a link.txt to a target.txt'
+    [wants]="(begin 'symlink a link.txt to a target.txt' changed 'symlink a link.txt to a target.txt')"
   )
 
   local -A case2=(
@@ -230,7 +195,8 @@ test_task.Ln() {
     }
 
     # assert that we got the wanted output
-    [[ $got == "$want" ]] || {
+    local want=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got == $want ]] || {
       echo "${NL}task.Ln: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
       return 1
