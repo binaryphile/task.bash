@@ -23,12 +23,12 @@ main() {
 
   # update all project git repositories
   # not a task, so not part of the summary
-  local mkHasRun=0
-  ! (( IsShortRun )) && [[ -e ~/.local/bin/mk ]] && {
+  [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
+
+  (( IsShortRun || runMkLater )) || {
     ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
     mkHasRun=1
   }
-
 
   platform=$(platform)
   if [[ $platform == crostini ]]; then
@@ -133,7 +133,7 @@ main() {
   task.Summarize
 
   echo
-  (( mkHasRun )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 }
 
 ## task definitions
