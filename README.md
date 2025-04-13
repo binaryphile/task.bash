@@ -1,18 +1,24 @@
 # task.bash — Harmonize Your Unix Work Environments with Idempotent Tasks
 
-![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg) ![coverage](assets/coverage.svg)
+![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg)
+![coverage](assets/coverage.svg)
 
-Create a configuration script that follows you across machines. Use shell-native tasks that keep your systems consistent, idempotent, and version-controlled — all in plain Bash.
+Create a configuration script that follows you across machines. Use shell-native tasks that
+keep your systems consistent, idempotent, and version-controlled — all in plain Bash.
 
 **Requires Bash 5**
 
-![update-env](assets/update-env.gif)
+<figure>
+<img src="assets/update-env.gif" alt="update-env" />
+<figcaption aria-hidden="true">update-env</figcaption>
+</figure>
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧭 Why task.bash?
 
-System configuration tools like Make, Ansible, or shell scripts often fall short when your needs include:
+System configuration tools like Make, Ansible, or shell scripts often fall short when your
+needs include:
 
 - Working directly in Bash (no YAML, no extra tooling)
 - Controlling shell-level constructs like `source` or `PATH`
@@ -36,13 +42,13 @@ Other features:
 - Simple user prompting (e.g., for passwords)
 - Ad-hoc scripting support
 
----
+--------------------------------------------------------------------------------------------
 
 ## 📦 Installation
 
 Clone or copy `task.bash` to a location where your configuration script can source it:
 
-```bash
+``` bash
 # Option 1: Local sourcing
 git clone https://github.com/binaryphile/task.bash
 source ./task.bash
@@ -52,23 +58,27 @@ curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bas
 source ./task.bash
 ```
 
-You may also **vendor it inline** by pasting the contents of `task.bash` into your config script in place of the `source` line.
+You may also **vendor it inline** by pasting the contents of `task.bash` into your config
+script in place of the `source` line.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🚀 Getting Started
 
-`task.bash` introduces the concept of a **task** — a Bash function designed to be **idempotent**.
+`task.bash` introduces the concept of a **task** — a Bash function designed to be
+**idempotent**.
 
-**Idempotent** means the system ends up in the same desired state whether the task is run once or many times. Since raw shell commands aren't naturally idempotent, task.bash gives you tools to make them so.
+**Idempotent** means the system ends up in the same desired state whether the task is run
+once or many times. Since raw shell commands aren’t naturally idempotent, task.bash gives
+you tools to make them so.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧱 Anatomy of a Task
 
-Here's the minimal structure of a task:
+Here’s the minimal structure of a task:
 
-```bash
+``` bash
 cloneDotfilesTask() {
   desc  'clone my dotfiles'
   ok    '[[ -e ~/dotfiles ]]'
@@ -78,52 +88,56 @@ cloneDotfilesTask() {
 
 This task will:
 
-- Clone the user's dotfiles into `~/dotfiles` **if** that directory doesn't already exist
+- Clone the user’s dotfiles into `~/dotfiles` **if** that directory doesn’t already exist
 - Report `[changed]` if run
 - Report `[ok]` if skipped due to the `ok` condition
 
 ### Keyword Breakdown
 
-| Keyword | Role |
-|---------|------|
-| `desc`  | Human-readable description for status output |
+| Keyword | Role                                                         |
+|---------|--------------------------------------------------------------|
+| `desc`  | Human-readable description for status output                 |
 | `ok`    | Bash condition to skip running the task if already satisfied |
-| `cmd`   | Command to run if `ok` fails; must be last in the function |
+| `cmd`   | Command to run if `ok` fails; must be last in the function   |
 
-The `cmd` line triggers the actual execution and finalizes the task definition. All keywords must appear **before** it.
+The `cmd` line triggers the actual execution and finalizes the task definition. All keywords
+must appear **before** it.
 
-> ⚠️ `cmd` and `ok` both evaluate strings. Be cautious with user input. Do not interpolate user-supplied values into these fields.
+> ⚠️ `cmd` and `ok` both evaluate strings. Be cautious with user input. Do not interpolate
+> user-supplied values into these fields.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧰 Additional Task Keywords
 
 Other optional keywords you can use in a task:
 
-| Keyword | Purpose |
-|---------|---------|
-| `exist PATH` | Shortcut for `ok` with `[[ -e PATH ]]` |
-| `prog on|off` | Show live command output |
-| `runas USER` | Run command with `sudo -u USER` |
-| `unchg TEXT` | Look for `TEXT` in output; if found, mark as `[ok]` instead of `[changed]` |
+| Keyword       | Purpose                                                                    |
+|---------------|----------------------------------------------------------------------------|
+| `exist PATH`  | Shortcut for `ok` with `[[ -e PATH ]]`                                     |
+| `prog on|off` | Show live command output                                                   |
+| `runas USER`  | Run command with `sudo -u USER`                                            |
+| `unchg TEXT`  | Look for `TEXT` in output; if found, mark as `[ok]` instead of `[changed]` |
 
-We'll explore each of these in examples below.
+We’ll explore each of these in examples below.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧠 task.bash Functions
 
-The keywords (`desc`, `ok`, `cmd`, etc.) are Bash functions used within task definitions. Additional helper functions are provided under the `task.` namespace:
+The keywords (`desc`, `ok`, `cmd`, etc.) are Bash functions used within task definitions.
+Additional helper functions are provided under the `task.` namespace:
 
-| Function | Purpose |
-|----------|---------|
-| `task.Platform` | Returns `macos` or `linux` |
-| `task.Summarize` | Displays summary of task run outcomes |
+| Function                  | Purpose                                         |
+|---------------------------|-------------------------------------------------|
+| `task.Platform`           | Returns `macos` or `linux`                      |
+| `task.Summarize`          | Displays summary of task run outcomes           |
 | `task.SetShortRun on|off` | Skips long-running tasks with `prog` or `unchg` |
 
-These use **PascalCase** with a `task.` prefix to avoid namespace conflicts in your shell environment.
+These use **PascalCase** with a `task.` prefix to avoid namespace conflicts in your shell
+environment.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧩 Configuration Script Outline
 
@@ -131,7 +145,7 @@ A typical script using task.bash has two parts: define tasks, then run them.
 
 Here’s a minimal example (`update-env`):
 
-```bash
+``` bash
 #!/usr/bin/env bash
 
 main() {
@@ -152,14 +166,14 @@ main
 
 Make it executable:
 
-```bash
+``` bash
 chmod +x update-env
 ./update-env
 ```
 
-### What You'll See
+### What You’ll See
 
-```bash
+``` bash
 [changed]       clone my dotfiles
 [summary]
 ok:      0
@@ -172,21 +186,23 @@ changed: 1
 
 Run the script again and it will skip the task:
 
-```bash
+``` bash
 [ok]           clone my dotfiles
 ```
 
-If a command fails or its `ok` condition still fails afterward, the task is marked `[failed]`, and the script stops.
+If a command fails or its `ok` condition still fails afterward, the task is marked
+`[failed]`, and the script stops.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🛠 Defining More Tasks
 
 ### 🧪 Speculative Commands (e.g., package upgrades)
 
-These don’t know in advance if they’ll make a change — they depend on external state (e.g. package manager cache).
+These don’t know in advance if they’ll make a change — they depend on external state
+(e.g. package manager cache).
 
-```bash
+``` bash
 aptUpgradeTask() {
   desc  'upgrade system packages'
   prog  on
@@ -202,11 +218,11 @@ Explanation:
 - `runas root` — executes via `sudo`
 - `unchg` — checks for output suggesting no changes, and maps it to `[ok]`
 
----
+--------------------------------------------------------------------------------------------
 
 ### 🧰 Complex Tasks (e.g., downloads, setup)
 
-```bash
+``` bash
 curlTask() {
   desc   'download coolscript from github'
   exist  ~/.local/bin/coolscript
@@ -220,11 +236,11 @@ curlTask() {
 - Use multi-line strings with `cmd` to group setup logic
 - Prefer `exist` over `ok` for simple file checks
 
----
+--------------------------------------------------------------------------------------------
 
 ### 🔁 Parameterized Tasks
 
-```bash
+``` bash
 mkdirTask() {
   local dir=$1
   desc "make directory $dir"
@@ -241,13 +257,13 @@ This approach avoids quoting pitfalls and enables reuse.
 
 Use it like this:
 
-```bash
+``` bash
 mkdirTask ~/.config/myapp
 ```
 
 You can write parameterized tasks this way with full quoting and evaluation control.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 📄 Example: update-env
 
@@ -259,13 +275,14 @@ It:
 - Uses `task.bash` to stay declarative and idempotent
 - Bootstraps clean machines via curl-pipe from GitHub
 
-```bash
+``` bash
 bash <(curl -fsSL https://raw.githubusercontent.com/your/repo/main/update-env)
 ```
 
-When used alongside tools like **Nix** and **home-manager**, it gives a full declarative system that works offline and in any shell-native workflow.
+When used alongside tools like **Nix** and **home-manager**, it gives a full declarative
+system that works offline and in any shell-native workflow.
 
----
+--------------------------------------------------------------------------------------------
 
 ## 🧪 Summary
 
@@ -276,9 +293,8 @@ When used alongside tools like **Nix** and **home-manager**, it gives a full dec
 - You need idempotency and progress visibility in Bash
 - You don’t want to adopt heavyweight tools just to manage a few settings
 
----
+--------------------------------------------------------------------------------------------
 
 ## 📜 License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
