@@ -1,17 +1,17 @@
-# task.bash — Harmonize Your Unix Work Environments with Idempotent Tasks
+# task.bash -- Harmonize Your Unix Work Environments with Idempotent Tasks
 
-![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg)
-![coverage](assets/coverage.svg)
+![version](assets/version.svg) ![lines](assets/lines.svg) ![tests](assets/tests.svg) ![coverage](assets/coverage.svg)
 
 Create a configuration script that follows you across machines. Use shell-native tasks that
-keep your systems consistent, idempotent, and version-controlled — all in plain Bash.
+keep your systems consistent, idempotent, and version-controlled -- all in plain Bash.
 
 **Requires Bash 5**
 
-<figure>
-<img src="assets/update-env.gif" alt="update-env" />
-<figcaption aria-hidden="true">update-env</figcaption>
-</figure>
+![update-env](assets/update-env.gif)
+
+*a task.bash configuration script updating a system that has been configured already.
+Section headings group tasks together while tasks run with output suppressed.  Except for
+`apt upgrade`, which has been configured to show progress.*
 
 --------------------------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ needs include:
 
 - Working directly in Bash (no YAML, no extra tooling)
 - Controlling shell-level constructs like `source` or `PATH`
-- Ensuring every task is **idempotent** (run it once or 100 times — same result)
+- Ensuring every task is **idempotent** (run it once or 100 times -- same result)
 - Curl-pipeable bootstrapping from GitHub for new machines
 - Declarative task structure, driven by your script as the **source of truth**
 
@@ -65,7 +65,7 @@ script in place of the `source` line.
 
 ## 🚀 Getting Started
 
-`task.bash` introduces the concept of a **task** — a Bash function designed to be
+`task.bash` introduces the concept of a **task** -- a Bash function designed to be
 **idempotent**.
 
 **Idempotent** means the system ends up in the same desired state whether the task is run
@@ -199,7 +199,7 @@ If a command fails or its `ok` condition still fails afterward, the task is mark
 
 ### 🧪 Speculative Commands (e.g., package upgrades)
 
-These don’t know in advance if they’ll make a change — they depend on external state
+These don’t know in advance if they’ll make a change -- they depend on external state
 (e.g. package manager cache).
 
 ``` bash
@@ -214,9 +214,9 @@ aptUpgradeTask() {
 
 Explanation:
 
-- `prog on` — enables live output
-- `runas root` — executes via `sudo`
-- `unchg` — checks for output suggesting no changes, and maps it to `[ok]`
+- `prog on` -- enables live output
+- `runas root` -- executes via `sudo`
+- `unchg` -- checks for output suggesting no changes, and maps it to `[ok]`
 
 --------------------------------------------------------------------------------------------
 
