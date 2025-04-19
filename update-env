@@ -77,6 +77,10 @@ main() {
       each task.Ln
   fi
 
+  section fp.bash
+  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
+  task.Ln ~/projects/fp.bash/fp.bash ~/.local/bin/fp.bash
+
   section mk.bash
   task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash develop
   task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
@@ -94,12 +98,10 @@ main() {
 
   section apps
   task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  stream {fp,task}.bash |
-    map package 'git@github.com:binaryphile/"$package" ~/projects/"$package" develop' |
-    each task.GitClone
+  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
   glob ~/dotfiles/ranger/'*' |
     keepIf isFile |
-    map path '"$path" ~/.config/ranger/"$(basename "$path")"' "$NL" |
+    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
     each task.Ln
 
   each task.Ln <<'  END'
