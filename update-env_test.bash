@@ -39,22 +39,10 @@ test_each() {
 
     # assert that we got the wanted output
     local want=$(stream "${wants[@]}")
-    [[ $got == "$want" ]] || {
-      echo "${NL}each: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
-      return 1
-    }
+    return tesht.AssertGot "$got" "$want"
   }
 
-  local failed=0 casename
-  for casename in ${!case@}; do
-    tesht.Run test_each $casename || {
-      (( $? == 128 )) && return 128 # fatal
-      failed=1
-    }
-  done
-
-  return $failed
+  tesht.Run test_each ${!case@}
 }
 
 # test_keepIf tests that keepIf filters lines by a pattern.
@@ -102,22 +90,10 @@ test_keepIf() {
 
     # assert that we got the wanted output
     local want=$(stream "${wants[@]}")
-    [[ $got == "$want" ]] || {
-      echo "${NL}keepIf: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
-      return 1
-    }
+    tesht.AssertGot "$got" "$want"
   }
 
-  local failed=0 casename
-  for casename in ${!case@}; do
-    tesht.Run test_keepIf $casename || {
-      (( $? == 128 )) && return 128 # fatal
-      failed=1
-    }
-  done
-
-  return $failed
+  tesht.Run test_keepIf "${!case@}"
 }
 
 # test_map tests that map applies a command to each line.
@@ -166,22 +142,10 @@ test_map() {
 
     # assert that we got the wanted output
     local want=$(stream "${wants[@]}")
-    [[ $got == "$want" ]] || {
-      echo "${NL}map: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
-      return 1
-    }
+    tesht.AssertGot "$got" "$want"
   }
 
-  local failed=0 casename
-  for casename in ${!case@}; do
-    tesht.Run test_map $casename || {
-      (( $? == 128 )) && return 128 # fatal
-      failed=1
-    }
-  done
-
-  return $failed
+  tesht.Run test_map "${!case@}"
 }
 
 
@@ -220,20 +184,8 @@ test_stream() {
     }
 
     # assert that we got the wanted output
-    [[ $got == "$want" ]] || {
-      echo "${NL}stream: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
-      return 1
-    }
+    tesht.AssertGot "$got" "$want"
   }
 
-  local failed=0 casename
-  for casename in ${!case@}; do
-    tesht.Run test_stream $casename || {
-      (( $? == 128 )) && return 128 # fatal
-      failed=1
-    }
-  done
-
-  return $failed
+  tesht.Run test_stream "${!case@}"
 }
