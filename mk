@@ -33,17 +33,8 @@ END
 cmd.badges() {
   cmd.cover
   cmd.lines
-  local result=$(tesht | tail -n 1)
-  [[ -e report.json ]] || echo '{}' >$report.json
-  setField tests_passed \"$result\" report.json
 
-  mkdir -p assets
-  mk.Each makeBadge <<'  END'
-    "version"       $(<VERSION)                                         "#007ec6" assets/version.svg
-    "coverage"      "$(getField code_coverage report.json)%"            "#4c1"    assets/coverage.svg
-    "source lines"  $(addCommas $(getField code_lines report.json))     "#007ec6" assets/lines.svg
-    "tests"         $(addCommas $(getField tests_passed report.json))   "#4c1"    assets/tests.svg
-  END
+  makeBadge "version" $(<VERSION) "#007ec6" assets/version.svg
 }
 
 # cmd.cover runs coverage testing and saves the result to report.json.
@@ -55,7 +46,7 @@ cmd.cover() {
   (( ${#filenames[*]} == 1 )) || mk.Fatal 'could not identify report file' 1
 
   local percent=$(jq -r .percent_covered ${filenames[0]})
-  setField code_coverage ${percent%%.*} report.json
+  makeBadge coverage "${percent%%.*}%" "#4c1" assets/coverage.svg
 }
 
 # cmd.gif creates a gif showing a sample run of update-env for README.md.
@@ -68,13 +59,13 @@ cmd.gif() {
 # cmd.lines determines the number of lines of source and saves it to report.json.
 cmd.lines() {
   local lines=$(scc -f csv task.bash | tail -n 1 | { IFS=, read -r language rawLines lines rest; echo $lines; })
-  setField code_lines $lines report.json
+  makeBadge "source lines" $(addCommas $lines) "#007ec6" assets/lines.svg
 }
 
 # cmd.test runs tesht and saves the summary of passing tests to report.json.
 cmd.test() {
-  local result=$(tesht | tee /dev/tty | tail -n 1)
-  setField tests_passed \"$result\" report.json
+  local testsPassed=$(tesht | tee /dev/tty | tail -n 1)
+  makeBadge tests $testsPassed "#4c1" assets/tests.svg
 }
 
 ## helpers
@@ -120,6 +111,9 @@ addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
 # makeBadge makes an svg badge showing label and value, rendered in color and saved to filename.
 makeBadge() {
   local label=$1 value=$2 color=$3 filename=$4
+
+  local dirname=$(dirname "$filename")
+  [[ -d $dirname ]] || mkdir -p "$dirname"
 
   cat >$filename <<END
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="20">

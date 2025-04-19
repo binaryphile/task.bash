@@ -20,7 +20,6 @@
             asciinema-agg
             bash
             git
-            jq
             kcov
             scc
           ];
