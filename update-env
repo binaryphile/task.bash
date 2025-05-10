@@ -280,13 +280,11 @@ fatal() {
 }
 
 glob() {
-  local pattern=$1
-
   local nullglobWasOn=0 noglobWasOn=1
   [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
   [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
 
-  eval "local results=( $pattern )"
+  eval "local results=( $* )"
 
   # reset to old settings
   (( noglobWasOn )) && set -o noglob
