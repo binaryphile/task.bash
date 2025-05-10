@@ -10,16 +10,17 @@ Usage:
 
   Commands:
 
-  The following commands update report.json:
     cover -- run kcov and record results
     lines -- run scc and record results
     test -- run tesht and record results
-
     badges -- run all three and create badges from the results
 
+    code -- run the project IDE
     gif -- create a gif of the tool being run
 
-  Options (if multiple, must be provided as separate flags):
+  Options:
+
+  doesn't support combined flags, e.g. use -h -v, not -hv
 
     -h | --help     show this message and exit
     -v | --version  show the program version and exit
@@ -31,6 +32,7 @@ END
 # cmd.badges renders badges for program version, source lines, tests passed and coverage.
 # It updates the latter three statistics beforehand.
 cmd.badges() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop ./$Prog badges "$@"
   cmd.cover
   cmd.lines
 
@@ -41,6 +43,8 @@ cmd.badges() {
 # It parses the result from kcov's output directory.
 # The badges appear in README.md.
 cmd.cover() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop ./$Prog cover "$@"
+  command -v kcov || return
   kcov --include-path task.bash kcov tesht &>/dev/null
   local filenames=( $(mk.Glob kcov/tesht.*/coverage.json) )
   (( ${#filenames[*]} == 1 )) || mk.Fatal 'could not identify report file' 1
@@ -49,8 +53,15 @@ cmd.cover() {
   makeBadge coverage "${percent%%.*}%" "#4c1" assets/coverage.svg
 }
 
+cmd.code() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop ./$Prog code "$@"
+  command -v cursor &>/dev/null && { mk.Cue cursor .; exit; }
+  code .
+}
+
 # cmd.gif creates a gif showing a sample run of update-env for README.md.
 cmd.gif() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop ./$Prog cover "$@"
   asciinema rec -c '/usr/bin/bash -c update-env' update-env.cast
   agg --speed 0.5 update-env.cast assets/update-env.gif
   rm update-env.cast
@@ -123,6 +134,11 @@ makeBadge() {
   <text x="150" y="14" fill="#fff" font-family="Verdana" font-size="11" text-anchor="middle">$value</text>
 </svg>
 END
+}
+
+# runInNixDevelop runs the current command after loading nix dependencies
+runInNixDevelop() {
+  IN_NIX_DEVELOP=1 exec nix develop ~/flakes/urma --command "$@"
 }
 
 ## globals
