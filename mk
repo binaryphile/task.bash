@@ -125,27 +125,13 @@ makeBadge() {
 END
 }
 
-# accessors
-
-# getField gets fieldname's value from filename.
-getField() {
-  local fieldname=$1 filename=$2
-  jq -r .$fieldname $filename
-}
-
-# setField sets fieldname to value in a simple json object in filename.
-setField() {
-  local fieldname=$1 value=$2 filename=$3
-
-  tmpname=$(mktemp)
-  jq ".$fieldname = $value" $filename >$tmpname && mv $tmpname $filename
-}
-
 ## globals
 
 ## boilerplate
 
-source ~/.local/lib/mk.bash 2>/dev/null || { echo 'fatal: mk.bash not found' >&2; exit 1; }
+source ~/.local/lib/mk.bash 2>/dev/null ||
+  eval "$(curl -fsSL https://raw.githubusercontent.com/binaryphile/mk.bash/develop/mk.bash)" ||
+ { echo 'fatal: mk.bash not found' >&2; exit 1; }
 
 # enable safe expansion
 IFS=$'\n'

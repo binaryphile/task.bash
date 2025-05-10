@@ -76,7 +76,7 @@ test_cmd() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    tesht.Run test_cmd $casename || {
+    tesht.Run $casename || {
       (( $? == 128 )) && return 128 # fatal
       failed=1
     }
@@ -205,7 +205,7 @@ test_task.Ln() {
 
   local failed=0 casename
   for casename in ${!case@}; do
-    tesht.Run test_task.Ln $casename || {
+    tesht.Run $casename || {
       (( $? == 128 )) && return 128   # fatal
       failed=1
     }

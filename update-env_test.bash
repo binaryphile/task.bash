@@ -39,10 +39,10 @@ test_each() {
 
     # assert that we got the wanted output
     local want=$(stream "${wants[@]}")
-    return tesht.AssertGot "$got" "$want"
+    tesht.AssertGot "$got" "$want"
   }
 
-  tesht.Run test_each ${!case@}
+  tesht.Run ${!case@}
 }
 
 # test_keepIf tests that keepIf filters lines by a pattern.
@@ -93,7 +93,7 @@ test_keepIf() {
     tesht.AssertGot "$got" "$want"
   }
 
-  tesht.Run test_keepIf "${!case@}"
+  tesht.Run "${!case@}"
 }
 
 # test_map tests that map applies a command to each line.
@@ -145,7 +145,7 @@ test_map() {
     tesht.AssertGot "$got" "$want"
   }
 
-  tesht.Run test_map "${!case@}"
+  tesht.Run "${!case@}"
 }
 
 
@@ -187,5 +187,5 @@ test_stream() {
     tesht.AssertGot "$got" "$want"
   }
 
-  tesht.Run test_stream "${!case@}"
+  tesht.Run "${!case@}"
 }
