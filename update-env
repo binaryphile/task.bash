@@ -25,10 +25,8 @@ main() {
   # not a task, so not part of the summary
   [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
 
-  (( IsShortRun || runMkLater )) || {
+  (( IsShortRun || runMkLater )) ||
     ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
-    mkHasRun=1
-  }
 
   platform=$(platform)
   if [[ $platform == crostini ]]; then
