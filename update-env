@@ -29,22 +29,25 @@ main() {
     ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 
   platform=$(platform)
-  if [[ $platform == crostini ]]; then
+  case $platform in; crostini|linux )
     section system
     aptUpgradeTask
-  fi
 
-  # copy non-passphrased key if it exists and there isn't already a key
-  if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
-    section credential
-    task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
-  # copy unique key if it exists and there isn't already a key
-  elif [[ -e $CrostiniDir/id_ed25519.pub ]]; then
-    section credential
-    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-  fi
+    # copy non-passphrased key if it exists and there isn't already a key
+    [[ $platform == crostini ]] && local keyDir=$CrostiniDir || local keyDir=~
+    if [[ -e $keyDir/np_id_ed25519.pub ]]; then
+      section credential
+      task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    # copy unique key if it exists and there isn't already a key
+    elif [[ -e $keyDir/id_ed25519.pub ]]; then
+      section credential
+      task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    fi
+    ;;
+  esac
+  unset -v keyDir
 
   section dotfiles
   task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
