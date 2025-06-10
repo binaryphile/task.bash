@@ -45,9 +45,9 @@ main() {
       task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
       task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
     fi
+    unset -v keyDir
     ;;
   esac
-  unset -v keyDir
 
   section dotfiles
   task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
