@@ -29,7 +29,7 @@ main() {
     ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
 
   platform=$(platform)
-  case $platform in; crostini|linux )
+  case $platform in crostini|linux )
     section system
     aptUpgradeTask
 
