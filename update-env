@@ -37,13 +37,13 @@ main() {
     [[ $platform == crostini ]] && local keyDir=$CrostiniDir || local keyDir=~
     if [[ -e $keyDir/np_id_ed25519.pub ]]; then
       section credential
-      task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-      task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+      task.Install 600 $keyDir/np_id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $keyDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
     # copy unique key if it exists and there isn't already a key
     elif [[ -e $keyDir/id_ed25519.pub ]]; then
       section credential
-      task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-      task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+      task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
     fi
     unset -v keyDir
     ;;
