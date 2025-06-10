@@ -45,12 +45,11 @@ main() {
       task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
       task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
     fi
-    unset -v keyDir
     ;;
   esac
 
   section dotfiles
-  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
+  task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
   task.Ln contexts/"$platform" ~/dotfiles/context
 
   section nix
@@ -79,27 +78,27 @@ main() {
   fi
 
   section fp.bash
-  task.GitClone git@github.com:binaryphile/fp.bash ~/projects/fp.bash develop
+  task.GitClone https://github.com/binaryphile/fp.bash ~/projects/fp.bash develop
   task.Ln ~/projects/fp.bash/fp.bash ~/.local/bin/fp.bash
 
   section mk.bash
-  task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash develop
+  task.GitClone https://github.com/binaryphile/mk.bash ~/projects/mk.bash develop
   task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
   task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
 
   section neovim
-  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim master
+  task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
   section tesht
-  task.GitClone git@github.com:binaryphile/tesht ~/projects/tesht develop
+  task.GitClone https://github.com/binaryphile/tesht ~/projects/tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps
-  task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  task.GitClone git@github.com:binaryphile/task.bash ~/projects/task.bash develop
+  #task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
+  task.GitClone https://github.com/binaryphile/task.bash ~/projects/task.bash develop
   glob ~/dotfiles/ranger/'*' |
     keepIf isFile |
     map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
@@ -121,17 +120,18 @@ main() {
     ~/projects/task.bash/update-env               ~/.local/bin/update-env
   END
 
-  if [[ $platform == crostini ]]; then
+  case $platform in crostini|linux )
     section unique_credential
-    if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
-      removeMatchingFileTask ~/.ssh/id_ed25519.pub $CrostiniDir/np_id_ed25519.pub
-      removeMatchingFileTask ~/.ssh/id_ed25519 $CrostiniDir/np_id_ed25519
-      rm $CrostiniDir/np_id_ed25519{,.pub}
+    if [[ -e $keyDir/np_id_ed25519.pub ]]; then
+      removeMatchingFileTask ~/.ssh/id_ed25519.pub $keyDir/np_id_ed25519.pub
+      removeMatchingFileTask ~/.ssh/id_ed25519 $keyDir/np_id_ed25519
+      rm $keyDir/np_id_ed25519{,.pub}
     fi
-    sshKeygenTask $CrostiniDir/id_ed25519
-    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-  fi
+    sshKeygenTask $keyDir/id_ed25519
+    task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    ;;
+  esac
 
   task.Summarize
 
