@@ -169,7 +169,7 @@ installGlobalProtectClientTask() {
     dir=$(mktemp -d) || exit 1
     trap "rm -rf $dir" EXIT
     curl -fsSL https://github.com/yuezk/GlobalProtect-openconnect/releases/download/v2.4.4/globalprotect-openconnect_2.4.4-1_amd64.deb >$dir/globalprotect-openconnect_2.4.4-1_amd64.deb
-    sudo apt install --fix-broken $dir/globalprotect-openconnect_*.deb
+    sudo apt install -y --fix-broken $dir/globalprotect-openconnect_*.deb
   }
   cmd installGlobalProtectClient
 }
