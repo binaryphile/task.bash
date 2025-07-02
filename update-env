@@ -159,18 +159,19 @@ aptUpgradeTask() {
   cmd 'apt update -qq && apt upgrade -y'
 }
 
+installGlobalProtectClient() {
+  local dir
+  dir=$(mktemp -d)
+  trap "rm -rf $dir" EXIT
+  curl -fsSL https://github.com/yuezk/GlobalProtect-openconnect/releases/download/v2.4.4/globalprotect-openconnect_2.4.4-1_amd64.deb >$dir/globalprotect-openconnect_2.4.4-1_amd64.deb
+  sudo apt install -y --fix-broken $dir/globalprotect-openconnect_*.deb
+}
+
 installGlobalProtectClientTask() {
   desc  'install the GlobalProtect VPN client'
-  prog  on
   exist /usr/bin/gpclient
+  prog  on
 
-  installGlobalProtectClient() {
-    local dir
-    dir=$(mktemp -d) || exit 1
-    trap "rm -rf $dir" EXIT
-    curl -fsSL https://github.com/yuezk/GlobalProtect-openconnect/releases/download/v2.4.4/globalprotect-openconnect_2.4.4-1_amd64.deb >$dir/globalprotect-openconnect_2.4.4-1_amd64.deb
-    sudo apt install -y --fix-broken $dir/globalprotect-openconnect_*.deb
-  }
   cmd installGlobalProtectClient
 }
 
@@ -178,8 +179,8 @@ installGlobalProtectClientTask() {
 
 curlPipeLixInstallerTask() {
   desc   'install single-user nix'
-  prog   on
   exist  /nix/var/nix/profiles/default/bin/nix-env
+  prog   on
 
   cmd    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install linux --no-confirm --init none'
 }
