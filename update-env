@@ -26,7 +26,7 @@ main() {
   [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
 
   (( IsShortRun || runMkLater )) ||
-    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{github.com,bitbucket.org}/*
 
   platform=$(platform)
   case $platform in crostini|linux )
@@ -71,15 +71,15 @@ main() {
     task.Ln $CrostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    glob $CrostiniDir/{GolandProjects,obsidian,projects}/* |
+    glob $CrostiniDir/{bitbucket.org,github.com,obsidian,stash.digi.com}/* |
       keepIf isDir |
       map target_ '"$target_" ~/"${target_#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
   fi
 
   section fp.bash
-  task.GitClone https://github.com/binaryphile/fp.bash ~/projects/fp.bash develop
-  task.Ln ~/projects/fp.bash/fp.bash ~/.local/bin/fp.bash
+  task.GitClone https://github.com/binaryphile/fp.bash ~/github.com/fp.bash develop
+  task.Ln ~/github.com/fp.bash/fp.bash ~/.local/bin/fp.bash
 
   case $platform in crostini|linux )
     section VPN client
@@ -87,9 +87,9 @@ main() {
   esac
 
   section mk.bash
-  task.GitClone https://github.com/binaryphile/mk.bash ~/projects/mk.bash develop
-  task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
-  task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
+  task.GitClone https://github.com/binaryphile/mk.bash ~/github.com/mk.bash develop
+  task.Ln ~/github.com/mk.bash/mk.bash ~/.local/lib/mk.bash
+  task.Ln ~/github.com/mk.bash/mk-example ~/.local/bin/mk
 
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
@@ -98,13 +98,13 @@ main() {
   task.Ln ~/.config/nvim ~/nvim
 
   section tesht
-  task.GitClone https://github.com/binaryphile/tesht ~/projects/tesht develop
-  task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
+  task.GitClone https://github.com/binaryphile/tesht ~/github.com/tesht develop
+  task.Ln ~/github.com/tesht/tesht ~/.local/bin/tesht
 
   section apps
-  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  task.GitClone https://github.com/binaryphile/task.bash ~/projects/task.bash develop
-  glob ~/dotfiles/ranger/'*' |
+  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/bitbucket.org/tlilley-daily-notes main
+  task.GitClone https://github.com/binaryphile/task.bash ~/github.com/task.bash develop
+  glob ~/dotfiles/ranger/* |
     keepIf isFile |
     map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
     each task.Ln
@@ -122,7 +122,7 @@ main() {
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
     ~/dotfiles/ssh/config                         ~/.ssh/config
     ~/dotfiles/tmux.conf                          ~/.tmux.conf
-    ~/projects/task.bash/update-env               ~/.local/bin/update-env
+    ~/github.com/task.bash/update-env             ~/.local/bin/update-env
   END
 
   case $platform in crostini|linux )
@@ -141,7 +141,7 @@ main() {
   task.Summarize
 
   echo
-  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{GolandProjects,obsidian,projects}/*
+  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{github.com,bitbucket.org}/*
 }
 
 ## task definitions
