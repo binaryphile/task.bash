@@ -71,7 +71,7 @@ main() {
     task.Ln $CrostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    glob $CrostiniDir/{bitbucket.org,github.com,obsidian,stash.digi.com}/* |
+    glob $CrostiniDir/{bitbucket.org,github.com,obsidian-local,stash.digi.com}/* |
       keepIf isDir |
       map target_ '"$target_" ~/"${target_#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
@@ -118,6 +118,7 @@ main() {
     ~/dotfiles/bash/init.bash                     ~/.profile
     ~/dotfiles/gitconfig                          ~/.gitconfig
     ~/dotfiles/gitignore_global                   ~/.gitignore_global
+    ~/dotfiles/jeeves                             ~/jeeves
     ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
     ~/dotfiles/ssh/config                         ~/.ssh/config
