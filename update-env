@@ -26,7 +26,7 @@ main() {
   [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
 
   (( IsShortRun || runMkLater )) ||
-    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{github.com,bitbucket.org}/*
+    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 
   platform=$(platform)
   case $platform in crostini|linux )
@@ -50,7 +50,19 @@ main() {
 
   section dotfiles
   task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
-  task.Ln contexts/"$platform" ~/dotfiles/context
+  each task.Ln <<'  END'
+    contexts/"$platform"                          ~/dotfiles/context
+    ~/dotfiles/bash/init.bash                     ~/.bash_profile
+    ~/dotfiles/bash/init.bash                     ~/.bashrc
+    ~/dotfiles/bash/init.bash                     ~/.profile
+    ~/dotfiles/gitconfig                          ~/.gitconfig
+    ~/dotfiles/gitignore_global                   ~/.gitignore_global
+    ~/dotfiles/jeeves                             ~/projects/jeeves
+    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
+    ~/dotfiles/ssh/config                         ~/.ssh/config
+    ~/dotfiles/tmux.conf                          ~/.tmux.conf
+  END
 
   section nix
   curlPipeLixInstallerTask
@@ -71,15 +83,14 @@ main() {
     task.Ln $CrostiniDir ~/crostini
 
     # link to permanent project directories from home dir
-    glob $CrostiniDir/{bitbucket.org,github.com,obsidian-local,stash.digi.com}/* |
+    glob $CrostiniDir/projects/* |
       keepIf isDir |
-      map target_ '"$target_" ~/"${target_#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
+      map target '$target ~/${target#$CrostiniDir/}' |  # symlink to the same subtree under CrostiniDir
       each task.Ln
   fi
 
   section fp.bash
-  task.GitClone https://github.com/binaryphile/fp.bash ~/github.com/fp.bash develop
-  task.Ln ~/github.com/fp.bash/fp.bash ~/.local/bin/fp.bash
+  githubCloneAndLinkTask fp.bash develop
 
   case $platform in crostini|linux )
     section VPN client
@@ -87,9 +98,9 @@ main() {
   esac
 
   section mk.bash
-  task.GitClone https://github.com/binaryphile/mk.bash ~/github.com/mk.bash develop
-  task.Ln ~/github.com/mk.bash/mk.bash ~/.local/lib/mk.bash
-  task.Ln ~/github.com/mk.bash/mk-example ~/.local/bin/mk
+  githubCloneAndLinkTask mk.bash develop
+  task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
+  task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
 
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
@@ -97,33 +108,25 @@ main() {
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
+  section task.bash
+  githubCloneAndLinkTask task.bash develop
+  task.Ln ~/projects/task.bash/update-env  ~/.local/bin/update-env
+
   section tesht
-  task.GitClone https://github.com/binaryphile/tesht ~/github.com/tesht develop
-  task.Ln ~/github.com/tesht/tesht ~/.local/bin/tesht
+  githubCloneAndLinkTask tesht develop
+  task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
   section apps
-  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/bitbucket.org/tlilley-daily-notes main
-  task.GitClone https://github.com/binaryphile/task.bash ~/github.com/task.bash develop
+  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
+  task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
   glob ~/dotfiles/ranger/* |
     keepIf isFile |
     map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
     each task.Ln
-
   each task.Ln <<'  END'
-    .config                                       ~/config
-    .local                                        ~/local
-    .ssh                                          ~/ssh
-    ~/dotfiles/bash/init.bash                     ~/.bash_profile
-    ~/dotfiles/bash/init.bash                     ~/.bashrc
-    ~/dotfiles/bash/init.bash                     ~/.profile
-    ~/dotfiles/gitconfig                          ~/.gitconfig
-    ~/dotfiles/gitignore_global                   ~/.gitignore_global
-    ~/dotfiles/jeeves                             ~/jeeves
-    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
-    ~/dotfiles/ssh/config                         ~/.ssh/config
-    ~/dotfiles/tmux.conf                          ~/.tmux.conf
-    ~/github.com/task.bash/update-env             ~/.local/bin/update-env
+    .config   ~/config
+    .local    ~/local
+    .ssh      ~/ssh
   END
 
   case $platform in crostini|linux )
@@ -142,7 +145,7 @@ main() {
   task.Summarize
 
   echo
-  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/{github.com,bitbucket.org}/*
+  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 }
 
 ## task definitions
@@ -158,6 +161,12 @@ aptUpgradeTask() {
   unchg  '0 upgraded, 0 newly installed'
 
   cmd 'apt update -qq && apt upgrade -y'
+}
+
+githubCloneAndLinkTask() {
+  local repo=$1 branch=$2
+  task.GitClone https://github.com/binaryphile/$repo ~/projects/$repo $branch
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
 }
 
 installGlobalProtectClient() {
