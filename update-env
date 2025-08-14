@@ -18,6 +18,79 @@
 # it does not have spaces and is exempt from quoting
 CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
+# MAIN ORCHESTRATION FLOW
+# -----------------------
+#
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 0: Git Repository Updates (conditional)               │
+#  │   └─> Updates all repos in ~/projects/.update/* if mk exists│
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 1: System & Credentials (section system)              │
+#  │   ├─> [crostini/linux] apt upgrade                          │
+#  │   └─> SSH key installation:                                 │
+#  │       • np_id_ed25519 (non-passphrase) if exists            │
+#  │       • id_ed25519 (unique) as fallback                     │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 2: Dotfiles & Configuration (section dotfiles)        │
+#  │   ├─> Clone dotfiles from GitHub                            │
+#  │   └─> Create symlinks:                                      │
+#  │       • bash configs → ~/.bashrc, ~/.profile                │
+#  │       • git configs → ~/.gitconfig, ~/.gitignore_global     │
+#  │       • tmux → ~/.tmux.conf                                 │
+#  │       • liquidprompt theme                                  │
+#  │       • SSH config                                          │
+#  │       • jeeves → ~/projects/jeeves                          │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 3: Package Management (sections nix & home-manager)   │
+#  │   ├─> Install Nix (Lix installer)                           │
+#  │   ├─> Fix /nix ownership                                    │
+#  │   ├─> Add Home Manager channel                              │
+#  │   └─> Apply Home Manager configuration                      │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 4: Platform-Specific Setup                            │
+#  │   └─> [crostini only]:                                      │
+#  │       • Link ~/crostini → $CrostiniDir                      │
+#  │       • Link project directories from permanent storage     │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 5: Development Tools (various sections)               │
+#  │   ├─> fp.bash    - functional programming utilities         │
+#  │   ├─> mk.bash    - build tool & git updater                 │
+#  │   ├─> task.bash  - task automation (this script!)           │
+#  │   └─> tesht      - testing framework                        │
+#  │       All cloned from GitHub and symlinked to ~/.local/bin  │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 6: Applications & VPN (section apps & various)        │
+#  │   ├─> [crostini/linux] GlobalProtect VPN client             │
+#  │   ├─> Neovim setup (vim-plug, plugins)                      │
+#  │   ├─> Daily notes repository                                │
+#  │   └─> Ranger file manager configs                           │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 7: SSH Key Generation (section unique_credential)     │
+#  │   └─> [crostini/linux] Generate unique SSH key if needed    │
+#  │       • Remove non-passphrase key if it was copied          │
+#  │       • Generate new passphrase-protected key               │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ FINALIZATION                                                │
+#  │   ├─> Display task summary                                  │
+#  │   └─> Run deferred git updates (if mk was just installed)   │
+#  └─────────────────────────────────────────────────────────────┘
+#
 main() {
   set -euo pipefail   # enable strict mode
 
