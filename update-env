@@ -189,7 +189,7 @@ main() {
   section obsidian
   task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
   task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
-  task.GitClone https://github.com/binaryphile/obsidian-claude-code-mcp ~/projects/obisidian-claude-code-mcp
+  task.GitClone https://github.com/binaryphile/obsidian-claude-code-mcp ~/projects/obisidian-claude-code-mcp master
   task.Ln ~/projects/obsidian-claude-code-mcp ~/projects/.update/obsidian-claude-code-mcp
 
   section ranger
