@@ -101,9 +101,14 @@ main() {
   (( IsShortRun || runMkLater )) ||
     ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 
+  section system
+  each task.Ln <<'  END'
+    .config   ~/config
+    .local    ~/local
+    .ssh      ~/ssh
+  END
   platform=$(platform)
   case $platform in crostini|linux )
-    section system
     aptUpgradeTask
 
     # copy non-passphrased key if it exists and there isn't already a key
@@ -181,6 +186,18 @@ main() {
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
+  section obsidian
+  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
+  task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
+  task.GitClone https://github.com/binaryphile/obsidian-claude-code-mcp ~/projects/obisidian-claude-code-mcp
+  task.Ln ~/projects/obsidian-claude-code-mcp ~/projects/.update/obsidian-claude-code-mcp
+
+  section ranger
+  glob ~/dotfiles/ranger/* |
+    keepIf isFile |
+    map path '$path ~/.config/ranger/$(basename $path)' |
+    each task.Ln
+
   section task.bash
   githubCloneAndLinkTask task.bash develop
   task.Ln ~/projects/task.bash/update-env  ~/.local/bin/update-env
@@ -188,19 +205,6 @@ main() {
   section tesht
   githubCloneAndLinkTask tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
-
-  section apps
-  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
-  task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
-  glob ~/dotfiles/ranger/* |
-    keepIf isFile |
-    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
-    each task.Ln
-  each task.Ln <<'  END'
-    .config   ~/config
-    .local    ~/local
-    .ssh      ~/ssh
-  END
 
   case $platform in crostini|linux )
     section unique_credential
