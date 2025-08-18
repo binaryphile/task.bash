@@ -58,7 +58,7 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 #  │ PHASE 4: Platform-Specific Setup                            │
 #  │   └─> [crostini only]:                                      │
 #  │       • Link ~/crostini → $CrostiniDir                      │
-#  │       • Link project directories from permanent storage     │
+#  │       • Clone project directories from permanent mount      │
 #  └─────────────────────────────────────────────────────────────┘
 #                            ↓
 #  ┌─────────────────────────────────────────────────────────────┐
@@ -114,9 +114,11 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
   section system
   each task.Ln <<'  END'
-    .config   ~/config
-    .local    ~/local
-    .ssh      ~/ssh
+    .claude         ~/claude
+    .config         ~/config
+    .local          ~/local
+    .ssh            ~/ssh
+    secrets/netrc   ~/.netrc
   END
   platform=$(platform)
   case $platform in crostini|linux )
@@ -134,19 +136,15 @@ main() {
       task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
       task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
     fi
+
+    task.Ln $CrostiniDir/secrets ~/secrets
     ;;
   esac
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 2: Dotfiles & Configuration (section dotfiles)        │
   #  │   ├─> Clone dotfiles from GitHub                            │
-  #  │   └─> Create symlinks:                                      │
-  #  │       • bash configs → ~/.bashrc, ~/.profile                │
-  #  │       • git configs → ~/.gitconfig, ~/.gitignore_global     │
-  #  │       • tmux → ~/.tmux.conf                                 │
-  #  │       • liquidprompt theme                                  │
-  #  │       • SSH config                                          │
-  #  │       • jeeves → ~/projects/jeeves                          │
+  #  │   └─> Create symlinks                                       │
   #  └─────────────────────────────────────────────────────────────┘
   section dotfiles
   task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
@@ -190,7 +188,7 @@ main() {
   #  │ PHASE 4: Platform-Specific Setup                            │
   #  │   └─> [crostini only]:                                      │
   #  │       • Link ~/crostini → $CrostiniDir                      │
-  #  │       • Link project directories from permanent storage     │
+  #  │       • Clone project directories from permanent mount      │
   #  └─────────────────────────────────────────────────────────────┘
   if [[ $platform == crostini ]]; then
     section crostini
