@@ -137,6 +137,7 @@ main() {
       task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
     fi
 
+    task.Ln $CrostiniDir/repos ~/repos
     task.Ln $CrostiniDir/secrets ~/secrets
     ;;
   esac
@@ -197,6 +198,7 @@ main() {
     # clone from persisted repo directories to home dir
     local -A branches=(
       [tlilley-daily-notes.git]=main
+      [urmagit.git]=main
     )
     (cd $CrostiniDir/repos
       glob * |
