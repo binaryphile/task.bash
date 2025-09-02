@@ -229,9 +229,6 @@ main() {
   githubCloneAndLinkTask tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
-  section transcript-generator
-  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
-
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 6: Applications & VPN                                 │
   #  │   ├─> [crostini/linux] GlobalProtect VPN client             │
@@ -252,14 +249,16 @@ main() {
   task.Ln ~/.config/nvim ~/nvim
 
   section obsidian
-  task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
-  task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
+  bitbucketCloneAndLinkTask tlilley-daily-notes main
 
   section ranger
   glob ~/dotfiles/ranger/* |
     keepIf isFile |
     map path '$path ~/.config/ranger/$(basename $path)' |
     each task.Ln
+
+  section transcript-generator
+  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 7: SSH Key Generation (section unique_credential)     │
@@ -303,6 +302,12 @@ aptUpgradeTask() {
   unchg  '0 upgraded, 0 newly installed'
 
   cmd 'apt update -qq && apt upgrade -y'
+}
+
+bitbucketCloneAndLinkTask() {
+  local repo=$1 branch=$2
+  task.GitClone https://bitbucket.org/accelecon/$repo ~/projects/$repo $branch
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
 }
 
 githubCloneAndLinkTask() {
