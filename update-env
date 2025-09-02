@@ -43,7 +43,6 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 #  │       • tmux → ~/.tmux.conf                                 │
 #  │       • liquidprompt theme                                  │
 #  │       • SSH config                                          │
-#  │       • jeeves → ~/projects/jeeves                          │
 #  └─────────────────────────────────────────────────────────────┘
 #                            ↓
 #  ┌─────────────────────────────────────────────────────────────┐
@@ -156,7 +155,6 @@ main() {
     ~/dotfiles/bash/init.bash                     ~/.profile
     ~/dotfiles/gitconfig                          ~/.gitconfig
     ~/dotfiles/gitignore_global                   ~/.gitignore_global
-    ~/dotfiles/jeeves                             ~/projects/jeeves
     ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
     ~/dotfiles/ssh/config                         ~/.ssh/config
@@ -198,11 +196,9 @@ main() {
     # clone from persisted repo directories to home dir
     local -A branches=(
       [tlilley-daily-notes.git]=main
-      [urmagit.git]=main
+      [urma-next-local.git]=main
     )
-    (cd $CrostiniDir/repos
-      glob * |
-      keepIf isDir) |
+    (cd $CrostiniDir/repos; glob * | keepIf isDir) |
       map target '$CrostiniDir/repos/$target ~/projects/${target%.git} ${branches[$target]:-develop}' |
       each task.GitClone
   fi
@@ -233,8 +229,11 @@ main() {
   githubCloneAndLinkTask tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
+  section transcript-generator
+  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
+
   #  ┌─────────────────────────────────────────────────────────────┐
-  #  │ PHASE 6: Applications & VPN (section apps & various)        │
+  #  │ PHASE 6: Applications & VPN                                 │
   #  │   ├─> [crostini/linux] GlobalProtect VPN client             │
   #  │   ├─> Neovim setup (vim-plug, plugins)                      │
   #  │   ├─> Daily notes repository                                │
@@ -255,8 +254,6 @@ main() {
   section obsidian
   task.GitClone https://bitbucket.org/accelecon/tlilley-daily-notes ~/projects/tlilley-daily-notes main
   task.Ln ~/projects/tlilley-daily-notes ~/projects/.update/tlilley-daily-notes
-  task.GitClone https://github.com/binaryphile/obsidian-claude-code-mcp ~/projects/obsidian-claude-code-mcp master
-  task.Ln ~/projects/obsidian-claude-code-mcp ~/projects/.update/obsidian-claude-code-mcp
 
   section ranger
   glob ~/dotfiles/ranger/* |
