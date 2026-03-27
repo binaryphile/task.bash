@@ -237,10 +237,8 @@ main() {
   #  │   └─> Ranger file manager configs                           │
   #  └─────────────────────────────────────────────────────────────┘
 
-  case $platform in crostini|linux )
-    section VPN client
-    installGlobalProtectClientTask
-  esac
+  section VPN client
+  task.Ln ~/dotfiles/scripts/vpn-connect ~/.local/bin/vpn-connect
 
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
