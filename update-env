@@ -169,7 +169,7 @@ main() {
   #  │   └─> Apply Home Manager configuration                      │
   #  └─────────────────────────────────────────────────────────────┘
 
-  if [[ $platform != nixos ]]; then
+  case $platform in crostini|debian|linux|macos )
     section nix
     curlPipeLixInstallerTask
     chownRTask /nix "$(id -u)" "$(id -g)"
@@ -183,7 +183,8 @@ main() {
     loosely source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
     task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
     homeManagerSwitchTask
-  fi
+    ;;
+  esac
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 4: Platform-Specific Setup                            │
