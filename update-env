@@ -120,16 +120,16 @@ main() {
     secrets/netrc   ~/.netrc
   END
   platform=$(platform)
-  case $platform in crostini|linux )
+  case $platform in crostini|debian )
     aptUpgradeTask
+  ;; esac
 
-    # copy non-passphrased key if it exists and there isn't already a key
-    [[ $platform == crostini ]] && local keyDir=$CrostiniDir || local keyDir=~
+  case $platform in crostini )
+    local keyDir=$CrostiniDir
     if [[ -e $keyDir/np_id_ed25519.pub ]]; then
       section credential
       task.Install 600 $keyDir/np_id_ed25519 ~/.ssh/id_ed25519
       task.Install 644 $keyDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
-    # copy unique key if it exists and there isn't already a key
     elif [[ -e $keyDir/id_ed25519.pub ]]; then
       section credential
       task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
@@ -169,19 +169,21 @@ main() {
   #  │   └─> Apply Home Manager configuration                      │
   #  └─────────────────────────────────────────────────────────────┘
 
-  section nix
-  curlPipeLixInstallerTask
-  chownRTask /nix "$(id -u)" "$(id -g)"
-  loosely source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-  task.Ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
+  if [[ $platform != nixos ]]; then
+    section nix
+    curlPipeLixInstallerTask
+    chownRTask /nix "$(id -u)" "$(id -g)"
+    loosely source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+    task.Ln ~/dotfiles/config.nix ~/.config/nixpkgs/config.nix
 
-  section home-manager
-  nixChannelAddHomeManagerTask
-  nixChannelUpdateTask
-  nixShellHomeManagerInstallTask
-  loosely source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
-  task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
-  homeManagerSwitchTask
+    section home-manager
+    nixChannelAddHomeManagerTask
+    nixChannelUpdateTask
+    nixShellHomeManagerInstallTask
+    loosely source ~/.nix-profile/etc/profile.d/hm-session-vars.sh
+    task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
+    homeManagerSwitchTask
+  fi
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 4: Platform-Specific Setup                            │
@@ -240,6 +242,10 @@ main() {
   section VPN client
   task.Ln ~/dotfiles/scripts/vpn-connect ~/.local/bin/vpn-connect
 
+  section jeeves
+  task.GitClone git@bitbucket.org:accelecon/jeeves ~/projects/jeeves main
+  task.Ln ~/projects/jeeves ~/projects/.update/jeeves
+
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
@@ -264,7 +270,7 @@ main() {
   #  │       • Remove non-passphrase key if it was copied          │
   #  │       • Generate new passphrase-protected key               │
   #  └─────────────────────────────────────────────────────────────┘
-  case $platform in crostini|linux )
+  case $platform in crostini )
     section unique_credential
     if [[ -e $keyDir/np_id_ed25519.pub ]]; then
       removeMatchingFileTask ~/.ssh/id_ed25519.pub $keyDir/np_id_ed25519.pub
@@ -495,6 +501,8 @@ ownerAndGroup() {
 platform() {
   [[ $OSTYPE != darwin* ]] || { echo macos; return; }
   [[ $HOSTNAME != penguin ]] || { echo crostini; return; }
+  ! [[ -e /etc/NIXOS ]] || { echo nixos; return; }
+  ! [[ -e /etc/debian_version ]] || { echo debian; return; }
   echo linux
 }
 
