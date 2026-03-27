@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 Prog=$(basename "$0")   # match what the user called
-Version=0.1
+Version=0.2
 
 read -rd '' Usage <<END
 Usage:
@@ -10,16 +10,15 @@ Usage:
 
   Commands:
 
-  The following commands update report.json:
-    cover -- run kcov and record results
-    lines -- run scc and record results
-    test -- run tesht and record results
-
+    cover -- run coverage and record results
+    lines -- run source line count and record results
+    test -- run tests and record results
     badges -- run all three and create badges from the results
 
+    code -- run the project IDE
     gif -- create a gif of the tool being run
 
-  Options (if multiple, must be provided as separate flags):
+  Options:
 
     -h | --help     show this message and exit
     -v | --version  show the program version and exit
@@ -31,50 +30,65 @@ END
 # cmd.badges renders badges for program version, source lines, tests passed and coverage.
 # It updates the latter three statistics beforehand.
 cmd.badges() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
+  cmd.test
   cmd.cover
   cmd.lines
-  local result=$(tesht | tail -n 1)
-  [[ -e report.json ]] || echo '{}' >$report.json
-  setField tests_passed \"$result\" report.json
 
-  mkdir -p assets
-  mk.Each makeBadge <<'  END'
-    "version"       $(<VERSION)                                         "#007ec6" assets/version.svg
-    "coverage"      "$(getField code_coverage report.json)%"            "#4c1"    assets/coverage.svg
-    "source lines"  $(addCommas $(getField code_lines report.json))     "#007ec6" assets/lines.svg
-    "tests"         $(addCommas $(getField tests_passed report.json))   "#4c1"    assets/tests.svg
-  END
+  makeBadge version $(<VERSION) "#007ec6" assets/version.svg
+  echo "made version badge"
 }
 
-# cmd.cover runs coverage testing and saves the result to report.json.
+# cmd.code runs the current IDE
+cmd.code() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
+  command -v cursor &>/dev/null && exec cursor .
+  code .
+}
+
+# cmd.cover runs coverage testing and makes a badge.
 # It parses the result from kcov's output directory.
 # The badges appear in README.md.
 cmd.cover() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
+  command -v kcov &>/dev/null || { echo "kcov not found"; exit 1; }   # tool not supported on mac
   kcov --include-path task.bash kcov tesht &>/dev/null
   local filenames=( $(mk.Glob kcov/tesht.*/coverage.json) )
   (( ${#filenames[*]} == 1 )) || mk.Fatal 'could not identify report file' 1
 
   local percent=$(jq -r .percent_covered ${filenames[0]})
-  setField code_coverage ${percent%%.*} report.json
+  makeBadge coverage "${percent%%.*}%" "#4c1" assets/coverage.svg
+  echo "made coverage badge"
 }
 
-# cmd.gif creates a gif showing a sample run of update-env for README.md.
+cmd.code() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
+  command -v cursor &>/dev/null && { mk.Cue cursor .; exit; }
+  mk.Cue code .
+}
+
+# cmd.gif creates a gif showing a sample run for README.md.
 cmd.gif() {
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
   asciinema rec -c '/usr/bin/bash -c update-env' update-env.cast
-  agg --speed 0.5 update-env.cast assets/update-env.gif
+  agg --speed 0.1 update-env.cast assets/update-env.gif
   rm update-env.cast
+  echo "made gif"
 }
 
-# cmd.lines determines the number of lines of source and saves it to report.json.
+# cmd.lines determines the number of lines of source and makes a badge.
 cmd.lines() {
-  local lines=$(scc -f csv task.bash | tail -n 1 | { IFS=, read -r language rawLines lines rest; echo $lines; })
-  setField code_lines $lines report.json
+  (( IN_NIX_DEVELOP )) || runInNixDevelop
+  local lineCount=$(scc -f csv task.bash | tail -n 1 | { IFS=, read -r language throwaway lineCount rest; echo $lineCount; })
+  makeBadge "source lines" $(addCommas $lineCount) "#007ec6" assets/lines.svg
+  echo "made source lines badge"
 }
 
-# cmd.test runs tesht and saves the summary of passing tests to report.json.
+# cmd.test runs tesht and makes a badge.
 cmd.test() {
-  local result=$(tesht | tee /dev/tty | tail -n 1)
-  setField tests_passed \"$result\" report.json
+  local testsPassed=$(tesht | tee /dev/tty | tail -n 1)
+  makeBadge tests $testsPassed "#4c1" assets/tests.svg
+  echo "made test result badge"
 }
 
 ## helpers
@@ -121,6 +135,9 @@ addCommas() { sed ':a;s/\B[0-9]\{3\}\>/,&/;ta' <<<$1; }
 makeBadge() {
   local label=$1 value=$2 color=$3 filename=$4
 
+  local dirname=$(dirname "$filename")
+  [[ -d $dirname ]] || mkdir -p "$dirname"
+
   cat >$filename <<END
 <svg xmlns="http://www.w3.org/2000/svg" width="200" height="20">
   <rect width="100" height="20" fill="#555"/>
@@ -131,27 +148,18 @@ makeBadge() {
 END
 }
 
-# accessors
-
-# getField gets fieldname's value from filename.
-getField() {
-  local fieldname=$1 filename=$2
-  jq -r .$fieldname $filename
-}
-
-# setField sets fieldname to value in a simple json object in filename.
-setField() {
-  local fieldname=$1 value=$2 filename=$3
-
-  tmpname=$(mktemp)
-  jq ".$fieldname = $value" $filename >$tmpname && mv $tmpname $filename
+# runInNixDevelop runs the current command after loading nix dependencies
+runInNixDevelop() {
+  IN_NIX_DEVELOP=1 exec nix develop --command ./$Prog ${FUNCNAME[1]#cmd.} "$@"
 }
 
 ## globals
 
 ## boilerplate
 
-source ~/.local/lib/mk.bash 2>/dev/null || { echo 'fatal: mk.bash not found' >&2; exit 1; }
+source ~/.local/lib/mk.bash 2>/dev/null ||
+  eval "$(curl -fsSL https://raw.githubusercontent.com/binaryphile/mk.bash/develop/mk.bash)" ||
+  { echo 'fatal: mk.bash not found' >&2; exit 1; }
 
 # enable safe expansion
 IFS=$'\n'
@@ -162,5 +170,6 @@ mk.SetUsage "$Usage"
 mk.SetVersion $Version
 
 return 2>/dev/null    # stop if sourced, for interactive debugging
-mk.HandleOptions $*   # standard options
-mk.Main ${*:$?+1}     # showtime
+mk.HandleOptions $*   # handle standard options, return how many were handled
+mk.Main ${*:$?+1}     # take the arguments except for the ones already handled
+

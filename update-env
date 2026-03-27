@@ -18,30 +18,156 @@
 # it does not have spaces and is exempt from quoting
 CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 
+# MAIN ORCHESTRATION FLOW
+# -----------------------
+#
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 0: Git Repository Updates (conditional)               │
+#  │   └─> Updates all repos in ~/projects/.update/* if mk exists│
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 1: System & Credentials (section system)              │
+#  │   ├─> [crostini/linux] apt upgrade                          │
+#  │   └─> SSH key installation:                                 │
+#  │       • np_id_ed25519 (non-passphrase) if exists            │
+#  │       • id_ed25519 (unique) as fallback                     │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 2: Dotfiles & Configuration (section dotfiles)        │
+#  │   ├─> Clone dotfiles from GitHub                            │
+#  │   └─> Create symlinks:                                      │
+#  │       • bash configs → ~/.bashrc, ~/.profile                │
+#  │       • git configs → ~/.gitconfig, ~/.gitignore_global     │
+#  │       • tmux → ~/.tmux.conf                                 │
+#  │       • liquidprompt theme                                  │
+#  │       • SSH config                                          │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 3: Package Management (sections nix & home-manager)   │
+#  │   ├─> Install Nix (Lix installer)                           │
+#  │   ├─> Fix /nix ownership                                    │
+#  │   ├─> Add Home Manager channel                              │
+#  │   └─> Apply Home Manager configuration                      │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 4: Platform-Specific Setup                            │
+#  │   └─> [crostini only]:                                      │
+#  │       • Link ~/crostini → $CrostiniDir                      │
+#  │       • Clone project directories from permanent mount      │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 5: Development Tools (various sections)               │
+#  │   ├─> fp.bash    - functional programming utilities         │
+#  │   ├─> mk.bash    - build tool & git updater                 │
+#  │   ├─> task.bash  - task automation (this script!)           │
+#  │   └─> tesht      - testing framework                        │
+#  │       All cloned from GitHub and symlinked to ~/.local/bin  │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 6: Applications & VPN (section apps & various)        │
+#  │   ├─> [crostini/linux] GlobalProtect VPN client             │
+#  │   ├─> Neovim setup (vim-plug, plugins)                      │
+#  │   ├─> Daily notes repository                                │
+#  │   └─> Ranger file manager configs                           │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ PHASE 7: SSH Key Generation (section unique_credential)     │
+#  │   └─> [crostini/linux] Generate unique SSH key if needed    │
+#  │       • Remove non-passphrase key if it was copied          │
+#  │       • Generate new passphrase-protected key               │
+#  └─────────────────────────────────────────────────────────────┘
+#                            ↓
+#  ┌─────────────────────────────────────────────────────────────┐
+#  │ FINALIZATION                                                │
+#  │   ├─> Display task summary                                  │
+#  │   └─> Run deferred git updates (if mk was just installed)   │
+#  └─────────────────────────────────────────────────────────────┘
+#
 main() {
   set -euo pipefail   # enable strict mode
 
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 0: Git Repository Updates (conditional)               │
+  #  │   └─> Updates all repos in ~/projects/.update/* if mk exists│
+  #  └─────────────────────────────────────────────────────────────┘
+
+  # not a task, so not part of the summary
+  [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
+
+  (( IsShortRun || runMkLater )) ||
+    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
+
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 1: System & Credentials (section system)              │
+  #  │   ├─> [crostini/linux] apt upgrade                          │
+  #  │   └─> SSH key installation:                                 │
+  #  │       • np_id_ed25519 (non-passphrase) if exists            │
+  #  │       • id_ed25519 (unique) as fallback                     │
+  #  └─────────────────────────────────────────────────────────────┘
+  section system
+  each task.Ln <<'  END'
+    .claude         ~/claude
+    .config         ~/config
+    .local          ~/local
+    .ssh            ~/ssh
+    secrets/netrc   ~/.netrc
+  END
   platform=$(platform)
-  if [[ $platform == crostini ]]; then
-    section system
+  case $platform in crostini|linux )
     aptUpgradeTask
-  fi
 
-  # copy non-passphrased key if it exists and there isn't already a key
-  if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
-    section credential
-    task.Install 600 $CrostiniDir/np_id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
-  # copy unique key if it exists and there isn't already a key
-  elif [[ -e $CrostiniDir/id_ed25519.pub ]]; then
-    section credential
-    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-  fi
+    # copy non-passphrased key if it exists and there isn't already a key
+    [[ $platform == crostini ]] && local keyDir=$CrostiniDir || local keyDir=~
+    if [[ -e $keyDir/np_id_ed25519.pub ]]; then
+      section credential
+      task.Install 600 $keyDir/np_id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $keyDir/np_id_ed25519.pub ~/.ssh/id_ed25519.pub
+    # copy unique key if it exists and there isn't already a key
+    elif [[ -e $keyDir/id_ed25519.pub ]]; then
+      section credential
+      task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
+      task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    fi
 
+    task.Ln $CrostiniDir/repos ~/repos
+    task.Ln $CrostiniDir/secrets ~/secrets
+    ;;
+  esac
+
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 2: Dotfiles & Configuration (section dotfiles)        │
+  #  │   ├─> Clone dotfiles from GitHub                            │
+  #  │   └─> Create symlinks                                       │
+  #  └─────────────────────────────────────────────────────────────┘
   section dotfiles
-  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
-  task.Ln contexts/"$platform" ~/dotfiles/context
+  task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
+  each task.Ln <<'  END'
+    contexts/"$platform"                          ~/dotfiles/context
+    ~/dotfiles/bash/init.bash                     ~/.bash_profile
+    ~/dotfiles/bash/init.bash                     ~/.bashrc
+    ~/dotfiles/bash/init.bash                     ~/.profile
+    ~/dotfiles/gitconfig                          ~/.gitconfig
+    ~/dotfiles/gitignore_global                   ~/.gitignore_global
+    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
+    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
+    ~/dotfiles/ssh/config                         ~/.ssh/config
+    ~/dotfiles/tmux.conf                          ~/.tmux.conf
+  END
+
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 3: Package Management (sections nix & home-manager)   │
+  #  │   ├─> Install Nix (Lix installer)                           │
+  #  │   ├─> Fix /nix ownership                                    │
+  #  │   ├─> Add Home Manager channel                              │
+  #  │   └─> Apply Home Manager configuration                      │
+  #  └─────────────────────────────────────────────────────────────┘
 
   section nix
   curlPipeLixInstallerTask
@@ -57,77 +183,108 @@ main() {
   task.Ln ~/dotfiles/home.nix ~/.config/home-manager/home.nix
   homeManagerSwitchTask
 
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 4: Platform-Specific Setup                            │
+  #  │   └─> [crostini only]:                                      │
+  #  │       • Link ~/crostini → $CrostiniDir                      │
+  #  │       • Clone project directories from permanent mount      │
+  #  └─────────────────────────────────────────────────────────────┘
   if [[ $platform == crostini ]]; then
     section crostini
     task.Ln $CrostiniDir ~/crostini
 
-    # link to permanent project directories from home dir
-    glob '$CrostiniDir/{flakes,GolandProjects,obsidian,projects}/*' |
-      keepIf isDir |
-      map target '"$target" ~/"${target#$CrostiniDir/}"' |  # symlink to the same subtree under CrostiniDir
-      each task.Ln
-    unset -v dirs
+    # clone from persisted repo directories to home dir
+    local -A branches=(
+      [tlilley-daily-notes.git]=main
+      [urma-next-local.git]=main
+    )
+    (cd $CrostiniDir/repos; glob * | keepIf isDir) |
+      map target '$CrostiniDir/repos/$target ~/projects/${target%.git} ${branches[$target]:-develop}' |
+      each task.GitClone
   fi
 
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 5: Development Tools (various sections)               │
+  #  │   ├─> fp.bash    - functional programming utilities         │
+  #  │   ├─> mk.bash    - build tool & git updater                 │
+  #  │   ├─> task.bash  - task automation (this script!)           │
+  #  │   └─> tesht      - testing framework                        │
+  #  │       All cloned from GitHub and symlinked to ~/.local/bin  │
+  #  └─────────────────────────────────────────────────────────────┘
+
+  section fp.bash
+  githubCloneAndLinkTask fp.bash develop
+  task.Ln ~/projects/fp.bash/fp.bash ~/.local/lib/fp.bash
+
   section mk.bash
-  task.GitClone git@github.com:binaryphile/mk.bash ~/projects/mk.bash develop
+  githubCloneAndLinkTask mk.bash develop
   task.Ln ~/projects/mk.bash/mk.bash ~/.local/lib/mk.bash
   task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
 
+  section task.bash
+  githubCloneAndLinkTask task.bash develop
+  task.Ln ~/projects/task.bash/update-env  ~/.local/bin/update-env
+
+  section tesht
+  githubCloneAndLinkTask tesht develop
+  task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
+
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 6: Applications & VPN                                 │
+  #  │   ├─> [crostini/linux] GlobalProtect VPN client             │
+  #  │   ├─> Neovim setup (vim-plug, plugins)                      │
+  #  │   ├─> Daily notes repository                                │
+  #  │   └─> Ranger file manager configs                           │
+  #  └─────────────────────────────────────────────────────────────┘
+
+  section VPN client
+  task.Ln ~/dotfiles/scripts/vpn-connect ~/.local/bin/vpn-connect
+
   section neovim
-  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim master
+  task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
-  section tesht
-  task.GitClone git@github.com:binaryphile/tesht ~/projects/tesht develop
-  task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
+  section obsidian
+  bitbucketCloneAndLinkTask tlilley-daily-notes main
 
-  section apps
-  task.GitClone git@bitbucket.org:accelecon/tlilley-daily-notes ~/obsidian/tlilley-daily-notes main
-  stream fp.bash task.bash |
-    map package 'git@github.com:binaryphile/"$package" ~/projects/"$package" develop' |
-    each task.GitClone
-  glob '~/dotfiles/ranger/*' |
+  section ranger
+  glob ~/dotfiles/ranger/* |
     keepIf isFile |
-    map path '"$path" ~/.config/ranger/"$(basename "$path")"' |
+    map path '$path ~/.config/ranger/$(basename $path)' |
     each task.Ln
 
-  each task.Ln <<'  END'
-    .config                                       ~/config
-    .local                                        ~/local
-    .ssh                                          ~/ssh
-    ~/dotfiles/bash/init.bash                     ~/.bash_profile
-    ~/dotfiles/bash/init.bash                     ~/.bashrc
-    ~/dotfiles/bash/init.bash                     ~/.profile
-    ~/dotfiles/gitconfig                          ~/.gitconfig
-    ~/dotfiles/gitignore_global                   ~/.gitignore_global
-    ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
-    ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
-    ~/dotfiles/ssh/config                         ~/.ssh/config
-    ~/dotfiles/tmux.conf                          ~/.tmux.conf
-    ~/projects/task.bash/update-env               ~/.local/bin/update-env
-  END
+  section transcript-generator
+  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
 
-  if [[ $platform == crostini ]]; then
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 7: SSH Key Generation (section unique_credential)     │
+  #  │   └─> [crostini/linux] Generate unique SSH key if needed    │
+  #  │       • Remove non-passphrase key if it was copied          │
+  #  │       • Generate new passphrase-protected key               │
+  #  └─────────────────────────────────────────────────────────────┘
+  case $platform in crostini|linux )
     section unique_credential
-    if [[ -e $CrostiniDir/np_id_ed25519.pub ]]; then
-      removeMatchingFileTask ~/.ssh/id_ed25519.pub $CrostiniDir/np_id_ed25519.pub
-      removeMatchingFileTask ~/.ssh/id_ed25519 $CrostiniDir/np_id_ed25519
-      rm $CrostiniDir/np_id_ed25519{,.pub}
+    if [[ -e $keyDir/np_id_ed25519.pub ]]; then
+      removeMatchingFileTask ~/.ssh/id_ed25519.pub $keyDir/np_id_ed25519.pub
+      removeMatchingFileTask ~/.ssh/id_ed25519 $keyDir/np_id_ed25519
+      rm $keyDir/np_id_ed25519{,.pub}
     fi
-    sshKeygenTask $CrostiniDir/id_ed25519
-    task.Install 600 $CrostiniDir/id_ed25519 ~/.ssh/id_ed25519
-    task.Install 644 $CrostiniDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
-  fi
+    sshKeygenTask $keyDir/id_ed25519
+    task.Install 600 $keyDir/id_ed25519 ~/.ssh/id_ed25519
+    task.Install 644 $keyDir/id_ed25519.pub ~/.ssh/id_ed25519.pub
+    ;;
+  esac
 
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ FINALIZATION                                                │
+  #  │   ├─> Display task summary                                  │
+  #  │   └─> Run deferred git updates (if mk was just installed)   │
+  #  └─────────────────────────────────────────────────────────────┘
   task.Summarize
   echo
-
-  # update all project git repositories
-  # not a task, so not part of the summary
-  (( IsShortRun )) || ~/.local/bin/mk git-update ~/{GolandProjects,obsidian,projects}/*
+  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 }
 
 ## task definitions
@@ -142,15 +299,43 @@ aptUpgradeTask() {
   runas  root
   unchg  '0 upgraded, 0 newly installed'
 
-  cmd    'apt update -qq && apt upgrade -y'
+  cmd 'apt update -qq && apt upgrade -y'
+}
+
+bitbucketCloneAndLinkTask() {
+  local repo=$1 branch=$2
+  task.GitClone https://bitbucket.org/accelecon/$repo ~/projects/$repo $branch
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
+}
+
+githubCloneAndLinkTask() {
+  local repo=$1 branch=$2
+  task.GitClone https://github.com/binaryphile/$repo ~/projects/$repo $branch
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
+}
+
+installGlobalProtectClient() {
+  local dir
+  dir=$(mktemp -d)
+  trap "rm -rf $dir" EXIT
+  curl -fsSL https://github.com/yuezk/GlobalProtect-openconnect/releases/download/v2.4.4/globalprotect-openconnect_2.4.4-1_amd64.deb >$dir/globalprotect-openconnect_2.4.4-1_amd64.deb
+  sudo apt install -y --fix-broken $dir/globalprotect-openconnect_*.deb
+}
+
+installGlobalProtectClientTask() {
+  desc  'install the GlobalProtect VPN client'
+  exist /usr/bin/gpclient
+  prog  on
+
+  cmd installGlobalProtectClient
 }
 
 # nix
 
 curlPipeLixInstallerTask() {
   desc   'install single-user nix'
-  prog   on
   exist  /nix/var/nix/profiles/default/bin/nix-env
+  prog   on
 
   cmd    'curl -sSf -L https://install.lix.systems/lix | sh -s -- install linux --no-confirm --init none'
 }
@@ -166,8 +351,7 @@ chownRTask() {
   ifIsOwnerAndGroup() { [[ $(ownerAndGroup $path) == "$user:$group" ]]; }
   ok ifIsOwnerAndGroup
 
-  chownR() { chown -R -- "$user:$group" "$path"; }
-  cmd chownR
+  cmd "chown -R -- $user:$group $path"
 }
 
 # home manager
@@ -229,17 +413,21 @@ nvimHeadlessPlugInstallTask() {
 removeMatchingFileTask() {
   local targetFilename=$1 matchFilename=$2
   desc  "remove file $targetFilename if it matches $matchFilename"
-  ifFilesDontMatch() { [[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] || [[ $(<$targetFilename) != $(<$matchFilename) ]]; }
+
+  ifFilesDontMatch() {
+    [[ -e $matchFilename ]] && ! [[ -e $targetFilename ]] ||
+      [[ $(<$targetFilename) != $(<$matchFilename) ]]
+  }
   ok ifFilesDontMatch
 
-  rmTargetFileIfMatch() {
-    if [[ -e $matchFilename && -e $targetFilename &&
-      $(<$targetFilename) == $(<$matchFilename) ]];
+  rmTargetIfMatches() {
+    if [[ -e $matchFilename && -e $targetFilename ]] &&
+      [[ $(<$targetFilename) == $(<$matchFilename) ]];
     then
       rm $targetFilename
     fi
   }
-  cmd rmTargetFileIfMatch
+  cmd rmTargetIfMatches
 }
 
 sshKeygenTask() {
@@ -248,7 +436,8 @@ sshKeygenTask() {
   exist $keyFilename
   prog  on
 
-  sshKeygen() {
+  generateKey() {
+    local passphrase passphrase2
     read -sp 'generating ssh key.  passphrase: ' passphrase
     read -sp "${NL}again: " passphrase2
     [[ $passphrase == $passphrase2 ]] || { echo "${NL}passphrase did not match"; exit 1; }
@@ -256,7 +445,7 @@ sshKeygenTask() {
     ssh-keygen -t ed25519 -f "$keyFilename" -N "$passphrase" -C "$USER@$(host)"
     cat "$keyFilename.pub"
   }
-  cmd sshKeygen
+  cmd generateKey
 }
 
 ## helpers
@@ -268,17 +457,18 @@ fatal() {
 }
 
 glob() {
-  local nullglobWasOn=0 noglobWasOn=1 results
+  local nullglobWasOn=0 noglobWasOn=1
   [[ $(shopt nullglob) == *on ]] && nullglobWasOn=1 || shopt -s nullglob  # enable nullglob
   [[ $- != *f* ]] && noglobWasOn=0 || set +o noglob                       # disable noglob
 
-  results=( $1 )
+  eval "local results=( $* )"
 
   # reset to old settings
   (( noglobWasOn )) && set -o noglob
   (( nullglobWasOn )) || shopt -u nullglob
 
-  stream "${results[@]}"
+  local IFS=$NL
+  (( ${#results[*]} == 0 )) || echo "${results[*]}"
 }
 
 host() {
@@ -308,7 +498,7 @@ platform() {
   echo linux
 }
 
-section() { echo -e "\n[section $1]"; }
+section() { echo "$NL[section $1]"; }
 
 ## fp
 
@@ -326,6 +516,7 @@ keepIf() {
   while IFS='' read -r arg; do
     eval "$command $arg" && echo "$arg"
   done
+  return 0
 }
 
 # map returns $EXPRESSION evaluated with the value of stdin as $VARNAME.
@@ -340,24 +531,20 @@ map() {
   done
 }
 
-# stream echoes arguments escaped and separated by the first character of IFS.
-stream() {
-  local arg
-  for arg in "$@"; do
-    printf "%q${IFS:0:1}" "$arg"
-  done
-}
+## globals
+
+NL=$'\n'
 
 ## boilerplate
 
-here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
-if [[ -e "$here"/task.bash ]]; then
-  source "$here"/task.bash
+Here=$(cd "$(dirname "$BASH_SOURCE")"; cd -P "$(dirname "$(readlink "$BASH_SOURCE" || echo .)")"; pwd)
+if [[ -e "$Here"/task.bash ]]; then
+  source "$Here"/task.bash
 else
-  lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/main/task.bash) || exit
-  eval "$lib"
+  Lib=$(curl -fsSL https://raw.githubusercontent.com/binaryphile/task.bash/develop/task.bash) || exit
+  eval "$Lib"
 fi
-unset -v here lib
+unset -v Here Lib
 
 return 2>/dev/null  # stop here if sourced, for interactive debugging
 
@@ -366,9 +553,8 @@ IsShortRun=0
 # parse options
 while [[ ${1:-} == -?* ]]; do
   case $1 in
-    -h|--help )   [[ -v Usage ]] && echo "$Usage"; exit;;
-
-    -x|--trace )  set -x;;
+    -h|--help   ) [[ -v Usage_ ]] && echo "$Usage_"; exit;;
+    -x|--trace  ) set -x;;
 
     -s|--short )
       task.SetShortRun on

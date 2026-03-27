@@ -2,7 +2,7 @@
   description = "task.bash development environment";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
@@ -19,12 +19,12 @@
             asciinema
             asciinema-agg
             bash
+            coreutils
             git
-            jq
-            kcov
             scc
-          ];
+          ] ++ (if pkgs.stdenv.isLinux then [ kcov vscode ] else [ code-cursor ]);
           shellHook = ''
+            export IN_NIX_DEVELOP=1
             echo "Welcome to the development shell!"
           '';
         };
