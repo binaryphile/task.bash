@@ -170,6 +170,6 @@ mk.SetUsage "$Usage"
 mk.SetVersion $Version
 
 return 2>/dev/null    # stop if sourced, for interactive debugging
-mk.HandleOptions $*   # handle standard options, return how many were handled
-mk.Main ${*:$?+1}     # take the arguments except for the ones already handled
+mk.HandleOptions $*   # handle standard options, returns 1-based offset
+mk.Main ${*:$?}       # remaining arguments
 

@@ -113,7 +113,6 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
   section system
   each task.Ln <<'  END'
-    .claude         ~/claude
     .config         ~/config
     .local          ~/local
     .ssh            ~/ssh
@@ -256,9 +255,6 @@ main() {
     keepIf isFile |
     map path '$path ~/.config/ranger/$(basename $path)' |
     each task.Ln
-
-  section transcript-generator
-  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 7: SSH Key Generation (section unique_credential)     │
