@@ -225,7 +225,7 @@ main() {
   task.Ln ~/projects/mk.bash/mk-example ~/.local/bin/mk
 
   section task.bash
-  githubCloneAndLinkTask task.bash develop
+  githubCloneAndLinkTask task.bash main
   task.Ln ~/projects/task.bash/update-env  ~/.local/bin/update-env
 
   section tesht
@@ -250,7 +250,7 @@ main() {
   task.Ln ~/.config/nvim ~/nvim
 
   section obsidian
-  bitbucketCloneAndLinkTask tlilley-daily-notes main
+  #bitbucketCloneAndLinkTask tlilley-daily-notes main
 
   section ranger
   glob ~/dotfiles/ranger/* |
