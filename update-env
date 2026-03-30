@@ -42,7 +42,7 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 #  │       • git configs → ~/.gitconfig, ~/.gitignore_global     │
 #  │       • tmux → ~/.tmux.conf                                 │
 #  │       • liquidprompt theme                                  │
-#  │       • SSH config                                          │
+#  │       • SSH config and authorized_keys                      │
 #  └─────────────────────────────────────────────────────────────┘
 #                            ↓
 #  ┌─────────────────────────────────────────────────────────────┐
@@ -157,6 +157,7 @@ main() {
     ~/dotfiles/gitignore_global                   ~/.gitignore_global
     ~/dotfiles/liquidprompt/liquid.theme          ~/.config/liquidprompt/liquid.theme
     ~/dotfiles/liquidprompt/liquidpromptrc        ~/.config/liquidpromptrc
+    ~/dotfiles/ssh/authorized_keys                 ~/.ssh/authorized_keys
     ~/dotfiles/ssh/config                         ~/.ssh/config
     ~/dotfiles/tmux.conf                          ~/.tmux.conf
   END
