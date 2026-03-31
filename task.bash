@@ -209,7 +209,7 @@ task.t() {
 }
 
 # section announces a section heading.
-section() { echo "$NL[section $*]"; }
+section() { echo $'\n'"[section $*]"; }
 
 ## helper tasks
 
