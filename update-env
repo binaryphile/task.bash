@@ -245,6 +245,7 @@ main() {
     accelerated-linux master accelerated-linux acl
     share main share ~tlilley
   END
+  try npmInstallTask ~/projects/urma
   try writeMcpJsonTask ~/projects/urma
 
   #  ┌─────────────────────────────────────────────────────────────┐
@@ -343,6 +344,15 @@ eraSystemdEnableTask() {
   desc  'enable era-mcp systemd service'
   ok    'systemctl --user is-enabled era-mcp &>/dev/null'
   cmd   'systemctl --user enable --now era-mcp'
+}
+
+npmInstallTask() {
+  local dir=$1
+  desc   "npm install in $dir"
+  exist  "$dir/node_modules"
+  prog   on
+
+  cmd "cd '$dir' && npm install"
 }
 
 writeMcpJsonTask() {
