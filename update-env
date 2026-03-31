@@ -241,7 +241,7 @@ main() {
   try stashCloneAndLinkTask urma-next develop urma
   try stashCloneAndLinkTask pepin develop
   try stashCloneAndLinkTask cloud-services develop
-  try stashCloneAndLinkTask accelerated-linux develop
+  try stashCloneAndLinkTask accelerated-linux develop accelerated-linux acl
   try stashCloneAndLinkTask share main share ~tlilley
   try writeMcpJsonTask ~/projects/urma
 
