@@ -244,6 +244,7 @@ main() {
   try stashCloneAndLinkTask pepin develop
   try stashCloneAndLinkTask cloud-services develop
   try stashCloneAndLinkTask accelerated-linux develop
+  try stashCloneAndLinkTask share main share ~tlilley
   try writeMcpJsonTask ~/projects/urma
 
   #  ┌─────────────────────────────────────────────────────────────┐
@@ -375,14 +376,14 @@ EOF
 }
 
 stashCloneAndLinkTask() {
-  local repo=$1 branch=$2 dir=${3:-$1}
+  local repo=$1 branch=$2 dir=${3:-$1} project=${4:-idigi}
 
-  desc   "clone repo stash.digi.com/idigi/$repo to ~/projects/$dir"
+  desc   "clone repo stash.digi.com/$project/$repo to ~/projects/$dir"
   exist  "$HOME/projects/$dir"
   check  'task.sshAvailable stash.digi.com'
 
   stashClone() {
-    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/idigi/$repo.git" ~/projects/"$dir"
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/$project/$repo.git" ~/projects/"$dir"
   }
   cmd stashClone
 
