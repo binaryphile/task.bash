@@ -362,7 +362,7 @@ writeMcpJsonTask() {
       "env": {
         "BITBUCKET_URL": "https://stash.digi.com",
         "BITBUCKET_USERNAME": "${BITBUCKET_USERNAME}",
-        "BITBUCKET_TOKEN": "${BITBUCKET_TOKEN}"
+        "BITBUCKET_PERSONAL_TOKEN": "${BITBUCKET_TOKEN}"
       }
     }
   }
