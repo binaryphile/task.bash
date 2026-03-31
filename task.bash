@@ -208,6 +208,9 @@ task.t() {
   echo "${Translations[$text]}$text$ResetX"
 }
 
+# section announces a section heading.
+section() { echo "$NL[section $*]"; }
+
 ## helper tasks
 
 task.GitClone() {

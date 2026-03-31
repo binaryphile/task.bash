@@ -579,7 +579,6 @@ platform() {
   echo linux
 }
 
-section() { echo "$NL[section $1]"; }
 
 ## fp
 
