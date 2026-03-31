@@ -238,11 +238,13 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
 
   section stash
-  try stashCloneAndLinkTask urma-next develop urma
-  try stashCloneAndLinkTask pepin develop
-  try stashCloneAndLinkTask cloud-services develop
-  try stashCloneAndLinkTask accelerated-linux develop accelerated-linux acl
-  try stashCloneAndLinkTask share main share ~tlilley
+  each 'try stashCloneAndLinkTask' <<'  END'
+    urma-next develop urma
+    pepin develop
+    cloud-services develop
+    accelerated-linux develop accelerated-linux acl
+    share main share ~tlilley
+  END
   try writeMcpJsonTask ~/projects/urma
 
   #  ┌─────────────────────────────────────────────────────────────┐
