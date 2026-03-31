@@ -281,8 +281,6 @@ main() {
     map path '$path ~/.config/ranger/$(basename $path)' |
     each task.Ln
 
-  section transcript-generator
-  try task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 7: SSH Key Generation (section unique_credential)     │
