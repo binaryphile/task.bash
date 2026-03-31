@@ -231,38 +231,6 @@ task.GitUpdate() {
   cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=2' git -c http.connectTimeout=2 -C '$dir' pull --rebase"
 }
 
-# task.sshAvailable tests whether ssh access works for a git host.
-# ssh -T exits 1 on success (no shell) and 255 on auth/connection failure.
-task.sshAvailable() {
-  local host=$1
-  local rc=0
-  ssh -T -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes "git@$host" 2>/dev/null && rc=$? || rc=$?
-  (( rc != 255 ))
-}
-
-# task.PreferSsh switches a repo's origin from https to ssh if ssh access is available.
-# It derives the ssh url from the https url: https://host/path -> git@host:path.
-task.PreferSsh() {
-  local dir=$1 host=$2
-
-  desc   "switch $dir origin to ssh"
-
-  task.originIsSsh() { [[ $(git -C "$dir" remote get-url origin) == git@* ]]; }
-  ok task.originIsSsh
-
-  check "task.sshAvailable $host"
-
-  task.switchOrigin() {
-    local httpsUrl sshUrl path
-    httpsUrl=$(git -C "$dir" remote get-url origin)
-    path=${httpsUrl#https://$host/}
-    path=${path#scm/}
-    sshUrl="git@$host:$path"
-    git -C "$dir" remote set-url origin "$sshUrl"
-  }
-  cmd task.switchOrigin
-}
-
 task.Install() {
   local mode=$1 src=$2 dst=$3
   desc  "copy $src to $dst with mode $mode"

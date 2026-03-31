@@ -158,14 +158,13 @@ Additional helper functions are provided under the `task.` namespace:
 | `task.Summarize`                  | Display summary of task outcomes                     |
 | `task.SetShortRun on\|off`       | Skip long-running tasks with `prog` or `unchg`       |
 | `task.GitClone REPO DIR BRANCH`  | Clone a git repo if `DIR` doesn't exist              |
+| `task.GitUpdate DIR`             | Pull latest changes with rebase (skipped in short mode) |
 | `task.Install MODE SRC DST`      | Copy a file with specific permissions                |
 | `task.Ln TARGET LINK`            | Create a symlink, removing any existing one          |
-| `task.PreferSsh DIR HOST`        | Switch a repo's origin from HTTPS to SSH if available |
-| `task.sshAvailable HOST`         | Test whether SSH access works for a git host         |
 | `try COMMAND...`                  | Run a command with graceful failure on error          |
 
 These use **PascalCase** with a `task.` prefix to avoid namespace conflicts in your shell
-environment. `try` and `task.sshAvailable` are exceptions as they are lowercase by convention.
+environment. `try` is an exception as it is lowercase by convention.
 
 --------------------------------------------------------------------------------------------
 

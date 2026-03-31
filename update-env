@@ -130,8 +130,7 @@ main() {
   #  │   └─> Create symlinks                                       │
   #  └─────────────────────────────────────────────────────────────┘
   section dotfiles
-  task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
-  try task.PreferSsh ~/dotfiles github.com
+  task.GitClone git@github.com:binaryphile/dotfiles ~/dotfiles main
   try task.GitUpdate ~/dotfiles
   each task.Ln <<'  END'
     contexts/"$platform"                          ~/dotfiles/context
@@ -259,8 +258,7 @@ main() {
   task.Ln ~/dotfiles/scripts/vpn-connect ~/.local/bin/vpn-connect
 
   section neovim
-  task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
-  try task.PreferSsh ~/.config/nvim github.com
+  task.GitClone git@github.com:binaryphile/dot_vim ~/.config/nvim master
   try task.GitUpdate ~/.config/nvim
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
@@ -322,15 +320,13 @@ aptUpgradeTask() {
 
 bitbucketCloneAndLinkTask() {
   local repo=$1 branch=$2
-  task.GitClone https://bitbucket.org/accelecon/$repo ~/projects/$repo $branch
-  try task.PreferSsh ~/projects/$repo bitbucket.org
+  task.GitClone git@bitbucket.org:accelecon/$repo ~/projects/$repo $branch
   try task.GitUpdate ~/projects/$repo
 }
 
 codebergCloneAndLinkTask() {
   local repo=$1 branch=$2
-  task.GitClone https://codeberg.org/binaryphile/$repo ~/projects/$repo $branch
-  try task.PreferSsh ~/projects/$repo codeberg.org
+  task.GitClone git@codeberg.org:binaryphile/$repo ~/projects/$repo $branch
   try task.GitUpdate ~/projects/$repo
 }
 
@@ -380,21 +376,19 @@ stashCloneAndLinkTask() {
 
   desc   "clone repo stash.digi.com/$project/$repo to ~/projects/$dir"
   exist  "$HOME/projects/$dir"
-  check  'task.sshAvailable stash.digi.com'
+  check  'ping -c 1 -W 2 stash.digi.com'
 
   stashClone() {
-    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/$project/$repo.git" ~/projects/"$dir"
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "git@stash.digi.com:$project/$repo.git" ~/projects/"$dir"
   }
   cmd stashClone
 
-  try task.PreferSsh ~/projects/$dir stash.digi.com
   try task.GitUpdate ~/projects/$dir
 }
 
 githubCloneAndLinkTask() {
   local repo=$1 branch=$2
-  task.GitClone https://github.com/binaryphile/$repo ~/projects/$repo $branch
-  try task.PreferSsh ~/projects/$repo github.com
+  task.GitClone git@github.com:binaryphile/$repo ~/projects/$repo $branch
   try task.GitUpdate ~/projects/$repo
 }
 
