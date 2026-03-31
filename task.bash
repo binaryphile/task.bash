@@ -28,11 +28,32 @@
 cmd() {
   local CMD=$1
 
+  # if a previous cmd in a try block failed, skip subsequent cmds
+  (( TryFailedX )) && {
+    echo -e "[$(task.t skipping)]\t$DescriptionX"
+
+    return
+  }
+
   [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && {
     OksX[$DescriptionX]=1
     echo -e "[$(task.t ok)]\t\t$DescriptionX"
 
     return
+  }
+
+  # check preflight condition before running cmd
+  [[ $CheckX != '' ]] && ! ( eval "$CheckX" &>/dev/null ) && {
+    (( TryModeX )) && {
+      echo -e "[$(task.t tried)]\t$DescriptionX"
+      TriedsX[$DescriptionX]=1
+      TryFailedX=1
+
+      return 0
+    }
+    echo -e "[$(task.t failed)]\t$DescriptionX"
+    echo 'stopped due to failure (preflight check)'
+    return 1
   }
 
   ! (( ShortRunX || ShowProgressX )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
@@ -62,6 +83,14 @@ cmd() {
     ChangedsX[$DescriptionX]=1
     echo -e "\r[$(task.t changed)]\t$DescriptionX"
   else
+    (( TryModeX )) && {
+      echo -e "\r[$(task.t tried)]\t$DescriptionX"
+      ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
+      TriedsX[$DescriptionX]=1
+      TryFailedX=1
+
+      return 0
+    }
     echo -e "\r[$(task.t failed)]\t$DescriptionX"
     ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
     echo 'stopped due to failure'
@@ -78,6 +107,11 @@ desc() {
   DescriptionX=${1:-}
 }
 
+# check sets a preflight condition that must pass before cmd runs.
+# Unlike ok, check is not a success condition -- it gates execution.
+# If check fails, the task is marked tried (in try mode) or failed without running cmd.
+check() { CheckX=$1; }
+
 # exist is a shortcut for ok that tests for path existence.
 exist() { ok "[[ -e $1 ]]"; }
 
@@ -90,6 +124,7 @@ prog() { [[ $1 == on ]] && ShowProgressX=1 || ShowProgressX=0; }
 
 declare -A OksX=()        # tasks that were already satisfied
 declare -A ChangedsX=()   # tasks that succeeded
+declare -A TriedsX=()     # tasks that failed gracefully under try
 
 # runas tells the task to run under sudo as user $1
 runas() { RunAsUserX=$1; }
@@ -102,6 +137,7 @@ unchg() { UnchangedTextX=$1; }
 
 # task.initTaskEnv initializes all relevant settings for a new task.
 task.initTaskEnv() {
+  CheckX=''                  # a preflight expression that must pass before cmd runs
   ConditionX=''              # an expression to tell when the task is already satisfied
   DescriptionX=''
   OutputX=''                 # OutputX from the task, including stderr
@@ -112,7 +148,23 @@ task.initTaskEnv() {
 
 # initialize environment
 task.initTaskEnv
-ShortRunX=0   # doesn't reset from task to task
+ShortRunX=0     # doesn't reset from task to task
+TryModeX=0      # doesn't reset from task to task
+TryFailedX=0    # doesn't reset from task to task
+
+# try runs a command, allowing it to fail gracefully.
+# Failed tasks are marked [tried] and tracked separately.
+# Subsequent cmds in the same try block are skipped after a failure.
+# cmd returns 0 in try mode, so set -e does not trigger.
+# Saves and restores state so try blocks can nest.
+try() {
+  local prevTryMode=$TryModeX prevTryFailed=$TryFailedX
+  TryModeX=1
+  TryFailedX=0
+  "$@"
+  TryModeX=$prevTryMode
+  TryFailedX=$prevTryFailed
+}
 
 task.Platform() {
   [[ $OSTYPE != darwin* ]] || { echo macos; return; }
@@ -129,6 +181,7 @@ task.Summarize() {
 [summary]
 ok:      ${#OksX[*]}
 changed: ${#ChangedsX[*]}
+tried:   ${#TriedsX[*]}
 END
 }
 
@@ -146,6 +199,7 @@ declare -A Translations=(
   [ok]=$GreenX
   [progress]=$YellowX
   [skipping]=$OrangeX
+  [tried]=$OrangeX
 )
 
 # task.t translates text for presentation.
@@ -165,6 +219,38 @@ task.GitClone() {
     GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "$repo" "$dir"
   }
   cmd task.gitClone
+}
+
+# task.sshAvailable tests whether ssh access works for a git host.
+# ssh -T exits 1 on success (no shell) and 255 on auth/connection failure.
+task.sshAvailable() {
+  local host=$1
+  local rc=0
+  ssh -T -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes "git@$host" 2>/dev/null && rc=$? || rc=$?
+  (( rc != 255 ))
+}
+
+# task.PreferSsh switches a repo's origin from https to ssh if ssh access is available.
+# It derives the ssh url from the https url: https://host/path -> git@host:path.
+task.PreferSsh() {
+  local dir=$1 host=$2
+
+  desc   "switch $dir origin to ssh"
+
+  task.originIsSsh() { [[ $(git -C "$dir" remote get-url origin) == git@* ]]; }
+  ok task.originIsSsh
+
+  check "task.sshAvailable $host"
+
+  task.switchOrigin() {
+    local httpsUrl sshUrl path
+    httpsUrl=$(git -C "$dir" remote get-url origin)
+    path=${httpsUrl#https://$host/}
+    path=${path#scm/}
+    sshUrl="git@$host:$path"
+    git -C "$dir" remote set-url origin "$sshUrl"
+  }
+  cmd task.switchOrigin
 }
 
 task.Install() {

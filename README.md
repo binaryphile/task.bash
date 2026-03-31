@@ -111,12 +111,39 @@ Other optional keywords you can use in a task:
 
 | Keyword        | Purpose                                                                    |
 |----------------|----------------------------------------------------------------------------|
+| `check EXPR`   | Preflight gate -- if `EXPR` fails, skip `cmd` without running it           |
 | `exist PATH`   | Shortcut for `ok` with `[[ -e PATH ]]`                                     |
 | `prog on\|off` | Show live command output                                                   |
 | `runas USER`   | Run command with `sudo -u USER`                                            |
 | `unchg TEXT`   | Look for `TEXT` in output; if found, mark as `[ok]` instead of `[changed]` |
 
 We’ll explore each of these in examples below.
+
+### Graceful Failure with `try`
+
+`try` is a wrapper function that allows a task (or group of tasks) to fail without stopping
+the script. Failed tasks are marked `[tried]` and tracked in the summary.
+
+``` bash
+try bitbucketCloneTask my-private-repo develop
+```
+
+If the task fails, subsequent `cmd` calls in the same `try` block are automatically skipped
+(e.g., a symlink after a failed clone). `try` blocks can nest safely.
+
+### Preflight Checks with `check`
+
+`check` gates `cmd` execution on a fast preflight condition. If the check fails, the task is
+marked `[tried]` (under `try`) or `[failed]` (without `try`) immediately, without running the
+potentially slow or hanging command.
+
+``` bash
+vpnRequiredTask() {
+  desc   ‘fetch data from internal server’
+  check  ‘ping -c 1 -W 2 internal.example.com’
+  cmd    ‘curl https://internal.example.com/data’
+}
+```
 
 --------------------------------------------------------------------------------------------
 
@@ -125,14 +152,20 @@ We’ll explore each of these in examples below.
 The keywords (`desc`, `ok`, `cmd`, etc.) are Bash functions used within task definitions.
 Additional helper functions are provided under the `task.` namespace:
 
-| Function                   | Purpose                                        |
-|----------------------------|------------------------------------------------|
-| `task.Platform`            | Return `macos` or `linux`                      |
-| `task.Summarize`           | Display summary of task outcomes               |
-| `task.SetShortRun on\|off` | Skip long-running tasks with `prog` or `unchg` |
+| Function                          | Purpose                                              |
+|-----------------------------------|------------------------------------------------------|
+| `task.Platform`                   | Return `macos` or `linux`                            |
+| `task.Summarize`                  | Display summary of task outcomes                     |
+| `task.SetShortRun on\|off`       | Skip long-running tasks with `prog` or `unchg`       |
+| `task.GitClone REPO DIR BRANCH`  | Clone a git repo if `DIR` doesn't exist              |
+| `task.Install MODE SRC DST`      | Copy a file with specific permissions                |
+| `task.Ln TARGET LINK`            | Create a symlink, removing any existing one          |
+| `task.PreferSsh DIR HOST`        | Switch a repo's origin from HTTPS to SSH if available |
+| `task.sshAvailable HOST`         | Test whether SSH access works for a git host         |
+| `try COMMAND...`                  | Run a command with graceful failure on error          |
 
 These use **PascalCase** with a `task.` prefix to avoid namespace conflicts in your shell
-environment.
+environment. `try` and `task.sshAvailable` are exceptions as they are lowercase by convention.
 
 --------------------------------------------------------------------------------------------
 
@@ -178,9 +211,10 @@ chmod +x update-env
 [summary]
 ok:      0
 changed: 1
+tried:   0
 ```
 
-- Output is color-coded (green for `[ok]`/`[changed]`, red for `[failed]`)
+- Output is color-coded (green for `[ok]`/`[changed]`, red for `[failed]`, orange for `[tried]`)
 - Command output is hidden unless `prog on` is used
 
 Run the script again and it will skip the task:

@@ -148,6 +148,7 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
   section dotfiles
   task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
+  try task.PreferSsh ~/dotfiles github.com
   each task.Ln <<'  END'
     contexts/"$platform"                          ~/dotfiles/context
     ~/dotfiles/bash/init.bash                     ~/.bash_profile
@@ -212,7 +213,8 @@ main() {
   #  │   ├─> fp.bash    - functional programming utilities         │
   #  │   ├─> mk.bash    - build tool & git updater                 │
   #  │   ├─> task.bash  - task automation (this script!)           │
-  #  │   └─> tesht      - testing framework                        │
+  #  │   ├─> tesht      - testing framework                        │
+  #  │   └─> era        - semantic memory MCP server for AI agents │
   #  │       All cloned from GitHub and symlinked to ~/.local/bin  │
   #  └─────────────────────────────────────────────────────────────┘
 
@@ -233,6 +235,32 @@ main() {
   githubCloneAndLinkTask tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
 
+  section era
+  codebergCloneAndLinkTask era main
+  eraBuildTask
+  each task.Ln <<'  END'
+    ~/projects/era/era       ~/.local/bin/era
+    ~/projects/era/era-mcp   ~/.local/bin/era-mcp
+    ~/projects/era/era-hook  ~/.local/bin/era-hook
+  END
+  task.Install 644 ~/projects/era/era-mcp.service ~/.config/systemd/user/era-mcp.service
+  eraSystemdEnableTask
+
+  #  ┌─────────────────────────────────────────────────────────────┐
+  #  │ PHASE 5b: Work Projects (VPN-dependent, graceful failure)   │
+  #  │   ├─> urma-next     - main application                     │
+  #  │   ├─> pepin         - build/deploy tooling                  │
+  #  │   ├─> cloud-services                                        │
+  #  │   └─> accelerated-linux                                     │
+  #  │       All from stash.digi.com, require VPN                  │
+  #  └─────────────────────────────────────────────────────────────┘
+
+  section stash
+  try stashCloneAndLinkTask urma-next develop
+  try stashCloneAndLinkTask pepin develop
+  try stashCloneAndLinkTask cloud-services develop
+  try stashCloneAndLinkTask accelerated-linux develop
+
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 6: Applications & VPN                                 │
   #  │   ├─> [crostini/linux] GlobalProtect VPN client             │
@@ -246,12 +274,13 @@ main() {
 
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
+  try task.PreferSsh ~/.config/nvim github.com
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
 
   section obsidian
-  #bitbucketCloneAndLinkTask tlilley-daily-notes main
+  try bitbucketCloneAndLinkTask tlilley-daily-notes main
 
   section ranger
   glob ~/dotfiles/ranger/* |
@@ -260,7 +289,7 @@ main() {
     each task.Ln
 
   section transcript-generator
-  task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
+  try task.Ln ~/projects/share/claude-transcript-generator/bin/transcript-generator ~/.local/bin/transcript-generator
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 7: SSH Key Generation (section unique_credential)     │
@@ -309,12 +338,51 @@ aptUpgradeTask() {
 bitbucketCloneAndLinkTask() {
   local repo=$1 branch=$2
   task.GitClone https://bitbucket.org/accelecon/$repo ~/projects/$repo $branch
+  try task.PreferSsh ~/projects/$repo bitbucket.org
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
+}
+
+codebergCloneAndLinkTask() {
+  local repo=$1 branch=$2
+  task.GitClone https://codeberg.org/binaryphile/$repo ~/projects/$repo $branch
+  try task.PreferSsh ~/projects/$repo codeberg.org
+  task.Ln ~/projects/$repo ~/projects/.update/$repo
+}
+
+eraBuildTask() {
+  desc  'build era binaries'
+  prog  on
+  exist ~/projects/era/era-mcp
+
+  cmd 'nix develop ~/projects/era --command bash -c "cd ~/projects/era && go generate ./internal/hugot/ && go build ./cmd/era/ && go build ./cmd/era-mcp/ && go build ./cmd/era-hook/"'
+}
+
+eraSystemdEnableTask() {
+  desc  'enable era-mcp systemd service'
+  ok    'systemctl --user is-enabled era-mcp &>/dev/null'
+  cmd   'systemctl --user enable --now era-mcp'
+}
+
+stashCloneAndLinkTask() {
+  local repo=$1 branch=$2
+
+  desc   "clone repo stash.digi.com/idigi/$repo to ~/projects/$repo"
+  exist  "$HOME/projects/$repo"
+  check  'task.sshAvailable stash.digi.com'
+
+  stashClone() {
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/idigi/$repo.git" ~/projects/"$repo"
+  }
+  cmd stashClone
+
+  try task.PreferSsh ~/projects/$repo stash.digi.com
   task.Ln ~/projects/$repo ~/projects/.update/$repo
 }
 
 githubCloneAndLinkTask() {
   local repo=$1 branch=$2
   task.GitClone https://github.com/binaryphile/$repo ~/projects/$repo $branch
+  try task.PreferSsh ~/projects/$repo github.com
   task.Ln ~/projects/$repo ~/projects/.update/$repo
 }
 

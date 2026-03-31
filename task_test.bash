@@ -85,6 +85,140 @@ test_cmd() {
   return $failed
 }
 
+# test_try tests the try wrapper for graceful failure.
+test_try() {
+  local -A case1=(
+    [name]='failing command shows tried and returns 0'
+
+    [wants]="(tried 'failing command shows tried and returns 0')"
+  )
+
+  local -A case2=(
+    [name]='succeeding command works normally under try'
+
+    [wants]="(ok 'succeeding command works normally under try')"
+  )
+
+  local -A case3=(
+    [name]='subsequent cmd skipped after try failure'
+
+    [wants]="(tried 'subsequent cmd skipped after try failure' skipping 'second task in try block')"
+  )
+
+  local -A case4=(
+    [name]='check failure shows tried under try'
+
+    [wants]="(tried 'check failure shows tried under try')"
+  )
+
+  local -A case5=(
+    [name]='nested try restores outer state'
+
+    [wants]="(tried 'outer failing task' tried 'inner failing task' skipping 'task after outer failure')"
+  )
+
+  subtest() {
+    local casename=$1
+
+    ## arrange
+
+    eval "$(tesht.Inherit "$casename")"
+
+    ## act
+
+    local got rc
+
+    case $name in
+      'failing command shows tried and returns 0' )
+        failingTask() {
+          desc "$name"
+          ok false
+          cmd false
+        }
+        got=$(try failingTask 2>&1) && rc=$? || rc=$?
+        ;;
+
+      'succeeding command works normally under try' )
+        succeedingTask() {
+          desc "$name"
+          ok '[[ -e / ]]'
+          cmd true
+        }
+        got=$(try succeedingTask 2>&1) && rc=$? || rc=$?
+        ;;
+
+      'subsequent cmd skipped after try failure' )
+        multiCmdTask() {
+          desc "$name"
+          ok false
+          cmd false
+
+          desc 'second task in try block'
+          ok false
+          cmd true
+        }
+        got=$(try multiCmdTask 2>&1) && rc=$? || rc=$?
+        ;;
+
+      'check failure shows tried under try' )
+        checkFailTask() {
+          desc "$name"
+          ok    false
+          check false
+          cmd   true
+        }
+        got=$(try checkFailTask 2>&1) && rc=$? || rc=$?
+        ;;
+
+      'nested try restores outer state' )
+        nestedTryTask() {
+          desc 'outer failing task'
+          ok false
+          cmd false
+
+          try innerTask
+
+          desc 'task after outer failure'
+          ok false
+          cmd true
+        }
+        innerTask() {
+          desc 'inner failing task'
+          ok false
+          cmd false
+        }
+        got=$(try nestedTryTask 2>&1) && rc=$? || rc=$?
+        ;;
+    esac
+
+    ## assert
+
+    # assert no error
+    (( rc == 0 )) || {
+      echo "${NL}try: error = $rc, want: 0$NL$got"
+      return 1
+    }
+
+    # assert that we got the wanted output
+    local want=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got == $want ]] || {
+      echo "${NL}try: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
+      echo "use this line to update want to match this output:${NL}want=${got@Q}"
+      return 1
+    }
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.Run $casename || {
+      (( $? == 128 )) && return 128 # fatal
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
 ## tasks
 
 # test_task.GitClone tests whether git cloning works.
