@@ -221,6 +221,16 @@ task.GitClone() {
   cmd task.gitClone
 }
 
+# task.GitUpdate pulls the latest changes for a repo.
+# Uses unchg so it is skipped in short-run mode.
+task.GitUpdate() {
+  local dir=$1
+  desc   "update $dir"
+  unchg  'Already up to date'
+
+  cmd "timeout 30 git -C '$dir' pull --rebase"
+}
+
 # task.sshAvailable tests whether ssh access works for a git host.
 # ssh -T exits 1 on success (no shell) and 255 on auth/connection failure.
 task.sshAvailable() {

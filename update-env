@@ -22,11 +22,6 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 # -----------------------
 #
 #  ┌─────────────────────────────────────────────────────────────┐
-#  │ PHASE 0: Git Repository Updates (conditional)               │
-#  │   └─> Updates all repos in ~/projects/.update/* if mk exists│
-#  └─────────────────────────────────────────────────────────────┘
-#                            ↓
-#  ┌─────────────────────────────────────────────────────────────┐
 #  │ PHASE 1: System & Credentials (section system)              │
 #  │   ├─> [crostini/linux] apt upgrade                          │
 #  │   └─> SSH key installation:                                 │
@@ -86,23 +81,11 @@ CrostiniDir=/mnt/chromeos/MyFiles/Downloads/crostini
 #                            ↓
 #  ┌─────────────────────────────────────────────────────────────┐
 #  │ FINALIZATION                                                │
-#  │   ├─> Display task summary                                  │
-#  │   └─> Run deferred git updates (if mk was just installed)   │
+#  │   └─> Display task summary                                  │
 #  └─────────────────────────────────────────────────────────────┘
 #
 main() {
   set -euo pipefail   # enable strict mode
-
-  #  ┌─────────────────────────────────────────────────────────────┐
-  #  │ PHASE 0: Git Repository Updates (conditional)               │
-  #  │   └─> Updates all repos in ~/projects/.update/* if mk exists│
-  #  └─────────────────────────────────────────────────────────────┘
-
-  # not a task, so not part of the summary
-  [[ -e ~/.local/bin/mk ]] && local runMkLater=0 || local runMkLater=1
-
-  (( IsShortRun || runMkLater )) ||
-    ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 1: System & Credentials (section system)              │
@@ -149,6 +132,7 @@ main() {
   section dotfiles
   task.GitClone https://github.com/binaryphile/dotfiles ~/dotfiles main
   try task.PreferSsh ~/dotfiles github.com
+  try task.GitUpdate ~/dotfiles
   each task.Ln <<'  END'
     contexts/"$platform"                          ~/dotfiles/context
     ~/dotfiles/bash/init.bash                     ~/.bash_profile
@@ -275,6 +259,7 @@ main() {
   section neovim
   task.GitClone https://github.com/binaryphile/dot_vim ~/.config/nvim master
   try task.PreferSsh ~/.config/nvim github.com
+  try task.GitUpdate ~/.config/nvim
   curlTask https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim ~/.local/share/nvim/site/autoload/plug.vim
   nvimHeadlessPlugInstallTask
   task.Ln ~/.config/nvim ~/nvim
@@ -316,8 +301,6 @@ main() {
   #  │   └─> Run deferred git updates (if mk was just installed)   │
   #  └─────────────────────────────────────────────────────────────┘
   task.Summarize
-  echo
-  (( IsShortRun )) || ! (( runMkLater )) || ~/.local/bin/mk git-update ~/{dotfiles,.config/nvim} ~/projects/.update/*
 }
 
 ## task definitions
@@ -339,14 +322,14 @@ bitbucketCloneAndLinkTask() {
   local repo=$1 branch=$2
   task.GitClone https://bitbucket.org/accelecon/$repo ~/projects/$repo $branch
   try task.PreferSsh ~/projects/$repo bitbucket.org
-  task.Ln ~/projects/$repo ~/projects/.update/$repo
+  try task.GitUpdate ~/projects/$repo
 }
 
 codebergCloneAndLinkTask() {
   local repo=$1 branch=$2
   task.GitClone https://codeberg.org/binaryphile/$repo ~/projects/$repo $branch
   try task.PreferSsh ~/projects/$repo codeberg.org
-  task.Ln ~/projects/$repo ~/projects/.update/$repo
+  try task.GitUpdate ~/projects/$repo
 }
 
 eraBuildTask() {
@@ -376,14 +359,14 @@ stashCloneAndLinkTask() {
   cmd stashClone
 
   try task.PreferSsh ~/projects/$repo stash.digi.com
-  task.Ln ~/projects/$repo ~/projects/.update/$repo
+  try task.GitUpdate ~/projects/$repo
 }
 
 githubCloneAndLinkTask() {
   local repo=$1 branch=$2
   task.GitClone https://github.com/binaryphile/$repo ~/projects/$repo $branch
   try task.PreferSsh ~/projects/$repo github.com
-  task.Ln ~/projects/$repo ~/projects/.update/$repo
+  try task.GitUpdate ~/projects/$repo
 }
 
 installGlobalProtectClient() {
