@@ -240,10 +240,11 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
 
   section stash
-  try stashCloneAndLinkTask urma-next develop
+  try stashCloneAndLinkTask urma-next develop urma
   try stashCloneAndLinkTask pepin develop
   try stashCloneAndLinkTask cloud-services develop
   try stashCloneAndLinkTask accelerated-linux develop
+  try writeMcpJsonTask ~/projects/urma
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 6: Applications & VPN                                 │
@@ -346,20 +347,47 @@ eraSystemdEnableTask() {
   cmd   'systemctl --user enable --now era-mcp'
 }
 
-stashCloneAndLinkTask() {
-  local repo=$1 branch=$2
+writeMcpJsonTask() {
+  local dir=$1
+  desc   "write .mcp.json to $dir"
+  exist  "$dir/.mcp.json"
+  check  "[[ -d '$dir' ]]"
 
-  desc   "clone repo stash.digi.com/idigi/$repo to ~/projects/$repo"
-  exist  "$HOME/projects/$repo"
+  writeMcpJson() {
+    cat >"$dir/.mcp.json" <<'EOF'
+{
+  "mcpServers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-atlassian-with-bitbucket"],
+      "env": {
+        "BITBUCKET_URL": "https://stash.digi.com",
+        "BITBUCKET_USERNAME": "${BITBUCKET_USERNAME}",
+        "BITBUCKET_TOKEN": "${BITBUCKET_TOKEN}"
+      }
+    }
+  }
+}
+EOF
+  }
+  cmd writeMcpJson
+}
+
+stashCloneAndLinkTask() {
+  local repo=$1 branch=$2 dir=${3:-$1}
+
+  desc   "clone repo stash.digi.com/idigi/$repo to ~/projects/$dir"
+  exist  "$HOME/projects/$dir"
   check  'task.sshAvailable stash.digi.com'
 
   stashClone() {
-    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/idigi/$repo.git" ~/projects/"$repo"
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "https://stash.digi.com/scm/idigi/$repo.git" ~/projects/"$dir"
   }
   cmd stashClone
 
-  try task.PreferSsh ~/projects/$repo stash.digi.com
-  try task.GitUpdate ~/projects/$repo
+  try task.PreferSsh ~/projects/$dir stash.digi.com
+  try task.GitUpdate ~/projects/$dir
 }
 
 githubCloneAndLinkTask() {
