@@ -208,10 +208,8 @@ task.t() {
   echo "${Translations[$text]}$text$ResetX"
 }
 
-NL=$'\n'
-
 # section announces a section heading.
-section() { echo "$NL[section $*]"; }
+section() { echo $'\n'"[section $*]"; }
 
 ## helper tasks
 
