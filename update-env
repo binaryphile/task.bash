@@ -144,6 +144,8 @@ main() {
     ~/dotfiles/ssh/config                         ~/.ssh/config
     ~/dotfiles/tmux.conf                          ~/.tmux.conf
   END
+  [[ -e ~/dotfiles/context/btop.conf ]] &&
+    task.Ln ~/dotfiles/context/btop.conf ~/.config/btop/btop.conf
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 3: Package Management (sections nix & home-manager)   │
@@ -216,6 +218,10 @@ main() {
   section tesht
   githubCloneAndLinkTask tesht develop
   task.Ln ~/projects/tesht/tesht ~/.local/bin/tesht
+
+  section share
+  bitbucketCloneAndLinkTask share main
+  task.Ln ~/projects/share/scaffold/scaffold ~/.local/bin/scaffold
 
   section era
   codebergCloneAndLinkTask era main
@@ -584,7 +590,10 @@ ownerAndGroup() {
 platform() {
   [[ $OSTYPE != darwin* ]] || { echo macos; return; }
   [[ $HOSTNAME != penguin ]] || { echo crostini; return; }
-  ! [[ -e /etc/NIXOS ]] || { echo nixos; return; }
+  if [[ -e /etc/NIXOS ]]; then
+    [[ ! -d ~/dotfiles/contexts/$HOSTNAME ]] || { echo "$HOSTNAME"; return; }
+    echo nixos; return
+  fi
   ! [[ -e /etc/debian_version ]] || { echo debian; return; }
   echo linux
 }
