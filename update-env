@@ -242,7 +242,7 @@ main() {
     urma-next develop urma
     pepin develop
     cloud-services develop
-    accelerated-linux develop accelerated-linux acl
+    accelerated-linux master accelerated-linux acl
     share main share ~tlilley
   END
   try writeMcpJsonTask ~/projects/urma
