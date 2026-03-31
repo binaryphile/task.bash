@@ -228,7 +228,7 @@ task.GitUpdate() {
   desc   "update $dir"
   unchg  'Already up to date'
 
-  cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=5' git -c http.connectTimeout=5 -C '$dir' pull --rebase"
+  cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=2' git -c http.connectTimeout=2 -C '$dir' pull --rebase"
 }
 
 # task.sshAvailable tests whether ssh access works for a git host.
