@@ -96,7 +96,6 @@ main() {
   #  └─────────────────────────────────────────────────────────────┘
   section system
   each task.Ln <<'  END'
-    .claude         ~/claude
     .config         ~/config
     .local          ~/local
     .ssh            ~/ssh
