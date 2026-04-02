@@ -226,6 +226,9 @@ main() {
   section jeeves
   try bitbucketCloneAndLinkTask jeeves main
 
+  section sofdevsim-2026
+  githubCloneAndLinkTask sofdevsim-2026 main
+
   section era
   codebergCloneAndLinkTask era main
   eraBuildTask
