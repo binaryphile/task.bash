@@ -223,16 +223,20 @@ main() {
   bitbucketCloneAndLinkTask share main
   task.Ln ~/projects/share/scaffold/scaffold ~/.local/bin/scaffold
 
+  section jeeves
+  try bitbucketCloneAndLinkTask jeeves main
+
   section era
   codebergCloneAndLinkTask era main
   eraBuildTask
   each task.Ln <<'  END'
-    ~/projects/era/era       ~/.local/bin/era
-    ~/projects/era/era-mcp   ~/.local/bin/era-mcp
-    ~/projects/era/era-hook  ~/.local/bin/era-hook
+    ~/projects/era/bin/era       ~/.local/bin/era
+    ~/projects/era/bin/era-mcp   ~/.local/bin/era-mcp
+    ~/projects/era/bin/era-hook  ~/.local/bin/era-hook
   END
   task.Install 644 ~/projects/era/era-mcp.service ~/.config/systemd/user/era-mcp.service
   eraSystemdEnableTask
+  eraMcpRegisterTask
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 5b: Work Projects (VPN-dependent, graceful failure)   │
@@ -339,15 +343,29 @@ codebergCloneAndLinkTask() {
 eraBuildTask() {
   desc  'build era binaries'
   prog  on
-  exist ~/projects/era/era-mcp
+  exist ~/projects/era/bin/era-mcp
 
-  cmd 'nix develop ~/projects/era --command bash -c "cd ~/projects/era && go generate ./internal/hugot/ && go build ./cmd/era/ && go build ./cmd/era-mcp/ && go build ./cmd/era-hook/"'
+  cmd 'nix develop ~/projects/era --command bash -c "cd ~/projects/era && go generate ./internal/hugot/ && ./mk build"'
 }
 
 eraSystemdEnableTask() {
   desc  'enable era-mcp systemd service'
   ok    'systemctl --user is-enabled era-mcp &>/dev/null'
   cmd   'systemctl --user enable --now era-mcp'
+}
+
+eraMcpRegisterTask() {
+  desc  'register era MCP in claude.json'
+  ok    '[[ -f ~/.claude.json ]] && jq -e ".mcpServers.era" ~/.claude.json &>/dev/null'
+
+  eraMcpRegister() {
+    local src=${1:-'{}'}
+    [[ -f ~/.claude.json ]] && src=$(cat ~/.claude.json)
+    printf '%s' "$src" |
+      jq '.mcpServers.era = {type: "http", url: "http://127.0.0.1:9310/mcp"}' > ~/.claude.json.tmp &&
+      mv ~/.claude.json.tmp ~/.claude.json
+  }
+  cmd eraMcpRegister
 }
 
 npmInstallTask() {
