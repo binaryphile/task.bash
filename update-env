@@ -229,13 +229,17 @@ main() {
   section sofdevsim-2026
   githubCloneAndLinkTask sofdevsim-2026 main
 
+  section tandem-protocol
+  codebergCloneAndLinkTask tandem-protocol main
+
   section era
   codebergCloneAndLinkTask era main
   eraBuildTask
   each task.Ln <<'  END'
-    ~/projects/era/bin/era       ~/.local/bin/era
-    ~/projects/era/bin/era-mcp   ~/.local/bin/era-mcp
-    ~/projects/era/bin/era-hook  ~/.local/bin/era-hook
+    ~/projects/era/bin/era           ~/.local/bin/era
+    ~/projects/era/bin/era-mcp       ~/.local/bin/era-mcp
+    ~/projects/era/bin/era-hook      ~/.local/bin/era-hook
+    ~/projects/era/scripts/evtctl    ~/.local/bin/evtctl
   END
   task.Install 644 ~/projects/era/era-mcp.service ~/.config/systemd/user/era-mcp.service
   eraSystemdEnableTask
