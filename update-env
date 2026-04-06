@@ -261,7 +261,7 @@ main() {
     cloud-services develop
     accelerated-linux master accelerated-linux acl
     share main share ~tlilley
-    urma-obsidian main urma-obsidian ~tlilley
+    urma-obsidian main urma/obsidian ~tlilley
   END
   try npmInstallTask ~/projects/urma
   try writeMcpJsonTask ~/projects/urma
