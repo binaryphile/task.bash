@@ -243,7 +243,8 @@ main() {
     ~/projects/era/bin/era           ~/.local/bin/era
     ~/projects/era/bin/era-mcp       ~/.local/bin/era-mcp
     ~/projects/era/bin/era-hook      ~/.local/bin/era-hook
-    ~/projects/era/scripts/evtctl    ~/.local/bin/evtctl
+    ~/projects/era/scripts/evtctl                ~/.local/bin/evtctl
+    ~/projects/era/scripts/validate-attestation   ~/.local/bin/validate-attestation
   END
   task.Install 644 ~/projects/era/era-mcp.service ~/.config/systemd/user/era-mcp.service
   eraSystemdEnableTask
