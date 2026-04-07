@@ -231,6 +231,10 @@ main() {
 
   section tandem-protocol
   codebergCloneAndLinkTask tandem-protocol main
+  glob ~/projects/tandem-protocol/commands/* |
+    keepIf isFile |
+    map path '$path ~/.claude/commands/$(basename $path)' |
+    each task.Ln
 
   section era
   codebergCloneAndLinkTask era main
