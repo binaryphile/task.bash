@@ -229,6 +229,9 @@ main() {
   section sofdevsim-2026
   githubCloneAndLinkTask sofdevsim-2026 main
 
+  section blog
+  githubCloneAndLinkTask binaryphile.github.io main
+
   section tandem-protocol
   codebergCloneAndLinkTask tandem-protocol main
   glob ~/projects/tandem-protocol/commands/* |
@@ -244,11 +247,13 @@ main() {
     ~/projects/era/bin/era-mcp       ~/.local/bin/era-mcp
     ~/projects/era/bin/era-hook      ~/.local/bin/era-hook
     ~/projects/era/scripts/evtctl                ~/.local/bin/evtctl
+    ~/projects/era/scripts/task-audit             ~/.local/bin/task-audit
     ~/projects/era/scripts/validate-attestation   ~/.local/bin/validate-attestation
   END
   task.Install 644 ~/projects/era/era-mcp.service ~/.config/systemd/user/era-mcp.service
   eraSystemdEnableTask
   eraMcpRegisterTask
+  chromeDevtoolsMcpRegisterTask
 
   #  ┌─────────────────────────────────────────────────────────────┐
   #  │ PHASE 5b: Work Projects (VPN-dependent, graceful failure)   │
@@ -379,6 +384,20 @@ eraMcpRegisterTask() {
       mv ~/.claude.json.tmp ~/.claude.json
   }
   cmd eraMcpRegister
+}
+
+chromeDevtoolsMcpRegisterTask() {
+  desc  'register chrome-devtools MCP in claude.json'
+  ok    '[[ -f ~/.claude.json ]] && jq -e ".mcpServers.\"chrome-devtools\"" ~/.claude.json &>/dev/null'
+
+  chromeDevtoolsMcpRegister() {
+    local src=${1:-'{}'}
+    [[ -f ~/.claude.json ]] && src=$(cat ~/.claude.json)
+    printf '%s' "$src" |
+      jq '.mcpServers."chrome-devtools" = {command: "npx", args: ["-y", "chrome-devtools-mcp@latest", "--browser-url", "http://127.0.0.1:9222"]}' > ~/.claude.json.tmp &&
+      mv ~/.claude.json.tmp ~/.claude.json
+  }
+  cmd chromeDevtoolsMcpRegister
 }
 
 npmInstallTask() {
