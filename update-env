@@ -9,6 +9,11 @@
 # Local variable names begin with lowercase letters, e.g. localVariable.
 # Global variable names begin with uppercase letters, e.g. GlobalVariable.
 #
+# Exception: globals whose sole purpose is to be overridden by locals
+# (e.g. injectable command variables for testing) use lowercase names.
+# They live in the global scope only as defaults; callers shadow them
+# with locals via bash dynamic scope.
+#
 # Variable declarations that are name references borrow the environment namespace, e.g.
 # "local -n ARRAY=$1".
 #
