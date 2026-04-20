@@ -35,15 +35,6 @@ cmd() {
     return
   }
 
-  # if the argument looks like a bare function name, verify it exists before
-  # dispatching. Catches typos like makeNixConf at task-definition time rather
-  # than deferring to eval's cryptic "command not found" at runtime.
-  # Placed after TryFailed skip so skipped tasks don't trigger false failures.
-  if [[ $CMD =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! declare -F "$CMD" >/dev/null 2>&1; then
-    echo "fatal: cmd references undefined function: $CMD" >&2
-    return 1
-  fi
-
   [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && {
     OksX[$DescriptionX]=1
     echo -e "[$(task.t ok)]\t\t$DescriptionX"
@@ -76,6 +67,15 @@ cmd() {
       return
     }
   }
+
+  # if the argument looks like a bare function name, verify it exists before
+  # eval. Placed after all early-return paths (TryFailed, ok, check, ShortRun)
+  # so the guard only fires when the command will actually be executed.
+  # Uses $1 (original argument) since RunAsUserX may have wrapped CMD.
+  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! declare -F "$1" >/dev/null 2>&1; then
+    echo "fatal: cmd references undefined function: $1" >&2
+    return 1
+  fi
 
   local RC=0
   if (( ShowProgressX )); then
