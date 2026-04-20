@@ -28,6 +28,14 @@
 cmd() {
   local CMD=$1
 
+  # if the argument looks like a bare function name, verify it exists before
+  # dispatching. Catches typos like makeNixConf at task-definition time rather
+  # than deferring to eval's cryptic "command not found" at runtime.
+  if [[ $CMD =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! declare -F "$CMD" >/dev/null 2>&1; then
+    echo "fatal: cmd references undefined function: $CMD" >&2
+    return 1
+  fi
+
   # if a previous cmd in a try block failed, skip subsequent cmds
   (( TryFailedX )) && {
     echo -e "[$(task.t skipping)]\t$DescriptionX"
