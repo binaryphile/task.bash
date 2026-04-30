@@ -62,7 +62,7 @@ cmd() {
 
   (( ShortRunX )) && {
     (( ShowProgressX )) || [[ $UnchangedTextX != '' ]] && {
-      echo -e "\r[$(task.t skipping)]\t$DescriptionX"
+      echo -e "\r\033[K[$(task.t skipping)]\t$DescriptionX"
 
       return
     }
@@ -87,20 +87,20 @@ cmd() {
 
   if [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]]; then
     OksX[$DescriptionX]=1
-    echo -e "\r[$(task.t ok)]\t\t$DescriptionX"
+    echo -e "\r\033[K[$(task.t ok)]\t\t$DescriptionX"
   elif (( RC == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
     ChangedsX[$DescriptionX]=1
-    echo -e "\r[$(task.t changed)]\t$DescriptionX"
+    echo -e "\r\033[K[$(task.t changed)]\t$DescriptionX"
   else
     (( TryModeX )) && {
-      echo -e "\r[$(task.t tried)]\t$DescriptionX"
+      echo -e "\r\033[K[$(task.t tried)]\t$DescriptionX"
       ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
       TriedsX[$DescriptionX]=1
       TryFailedX=1
 
       return 0
     }
-    echo -e "\r[$(task.t failed)]\t$DescriptionX"
+    echo -e "\r\033[K[$(task.t failed)]\t$DescriptionX"
     ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
     echo 'stopped due to failure'
     (( RC == 0 )) && echo 'task reported success but condition not met'
