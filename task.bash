@@ -45,7 +45,7 @@ cmd() {
   # check preflight condition before running cmd
   [[ $CheckX != '' ]] && ! ( eval "$CheckX" &>/dev/null ) && {
     (( TryModeX )) && {
-      echo -e "[$(task.t tried)]\t$DescriptionX"
+      echo -e "[$(task.t tried)]\t\t$DescriptionX"
       TriedsX[$DescriptionX]=1
       TryFailedX=1
 
@@ -93,7 +93,7 @@ cmd() {
     echo -e "\r\033[K[$(task.t changed)]\t$DescriptionX"
   else
     (( TryModeX )) && {
-      echo -e "\r\033[K[$(task.t tried)]\t$DescriptionX"
+      echo -e "\r\033[K[$(task.t tried)]\t\t$DescriptionX"
       if ! (( ShowProgressX )); then
         echo -e "[$(task.t output)]\t$DescriptionX"
         while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
