@@ -227,8 +227,8 @@ test_task.GitClone() {
   ## arrange
 
   # temporary directory
-  local dir=$(tesht.MktempDir) || return 128  # fatal if can't make dir
-  trap "rm -rf $dir" EXIT                     # always clean up
+  local dir
+  tesht.MktempDir dir || return 128  # fatal if can't make dir
   cd "$dir"
 
   createCloneRepo
@@ -292,8 +292,8 @@ test_task.Ln() {
     ## arrange
 
     # temporary directory
-    local dir=$(tesht.MktempDir) || return 128  # fatal if can't make dir
-    trap "rm -rf $dir" EXIT                     # always clean up
+    local dir
+    tesht.MktempDir dir || return 128  # fatal if can't make dir
     cd $dir
 
     # create variables from the keys/values of the test map
@@ -369,8 +369,10 @@ createCheckoutRepo() {
 # It runs in a subshell so it can change directory without affecting the caller.
 # It suppresses stdout with a redirection of the entire function.
 createCloneRepo() (
-  git init clone
+  git init -b main clone
   cd clone
+  git config user.email "test@test"
+  git config user.name "test"
   echo hello >hello.txt
   git add hello.txt
   git commit -m init

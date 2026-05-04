@@ -72,7 +72,7 @@ cmd() {
   # eval. Placed after all early-return paths (TryFailed, ok, check, ShortRun)
   # so the guard only fires when the command will actually be executed.
   # Uses $1 (original argument) since RunAsUserX may have wrapped CMD.
-  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! declare -F "$1" >/dev/null 2>&1; then
+  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! type -t "$1" >/dev/null 2>&1; then
     echo "fatal: cmd references undefined function: $1" >&2
     return 1
   fi
@@ -94,14 +94,22 @@ cmd() {
   else
     (( TryModeX )) && {
       echo -e "\r\033[K[$(task.t tried)]\t$DescriptionX"
-      ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
+      if ! (( ShowProgressX )); then
+        echo -e "[$(task.t output)]\t$DescriptionX"
+        while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
+        echo
+      fi
       TriedsX[$DescriptionX]=1
       TryFailedX=1
 
       return 0
     }
     echo -e "\r\033[K[$(task.t failed)]\t$DescriptionX"
-    ! (( ShowProgressX )) && echo -e "[output]\t$DescriptionX\n$OutputX\n"
+    if ! (( ShowProgressX )); then
+      echo -e "[$(task.t output)]\t$DescriptionX"
+      while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
+      echo
+    fi
     echo 'stopped due to failure'
     (( RC == 0 )) && echo 'task reported success but condition not met'
   fi
@@ -208,6 +216,7 @@ declare -A Translations=(
   [ok]=$GreenX
   [progress]=$YellowX
   [skipping]=$OrangeX
+  [output]=$OrangeX
   [tried]=$OrangeX
 )
 
