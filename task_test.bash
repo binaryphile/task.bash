@@ -373,6 +373,7 @@ createCloneRepo() (
   cd clone
   git config user.email "test@test"
   git config user.name "test"
+  git config commit.gpgsign false
   echo hello >hello.txt
   git add hello.txt
   git commit -m init

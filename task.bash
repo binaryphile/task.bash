@@ -72,9 +72,11 @@ cmd() {
   # eval. Placed after all early-return paths (TryFailed, ok, check, ShortRun)
   # so the guard only fires when the command will actually be executed.
   # Uses $1 (original argument) since RunAsUserX may have wrapped CMD.
-  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]] && ! type -t "$1" >/dev/null 2>&1; then
-    echo "fatal: cmd references undefined function: $1" >&2
-    return 1
+  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]]; then
+    case "$(type -t "$1" 2>/dev/null)" in
+      function|builtin) ;;
+      *) echo "fatal: cmd references undefined function: $1" >&2; return 1;;
+    esac
   fi
 
   local RC=0
@@ -95,7 +97,6 @@ cmd() {
     (( TryModeX )) && {
       echo -e "\r\033[K[$(task.t tried)]\t\t$DescriptionX"
       if ! (( ShowProgressX )); then
-        echo -e "[$(task.t output)]\t$DescriptionX"
         while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
         echo
       fi
@@ -106,7 +107,6 @@ cmd() {
     }
     echo -e "\r\033[K[$(task.t failed)]\t$DescriptionX"
     if ! (( ShowProgressX )); then
-      echo -e "[$(task.t output)]\t$DescriptionX"
       while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
       echo
     fi
@@ -244,14 +244,34 @@ task.GitClone() {
 
 # task.GitUpdate pulls the latest changes for a repo.
 # Uses unchg so it is skipped in short-run mode.
-# Skips repos with unpushed commits to avoid rebasing over local work.
+# Skips repos with unpushed or diverged commits to avoid rebasing over local work.
+# Skips detached HEAD (ambiguous state).
 task.GitUpdate() {
   local dir=$1
   desc   "update $dir"
   unchg  'Already up to date'
-  check  "! git -C '$dir' log --oneline '@{upstream}..HEAD' 2>/dev/null | grep -q ."
+  check  "task.gitUpdateSafe '$dir'"
 
   cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=2' git -c http.connectTimeout=2 -C '$dir' pull --rebase"
+}
+
+# task.gitUpdateSafe checks whether pull --rebase is safe for a repo.
+# Returns 0 (safe) only when the repo is on a branch, behind-only or even.
+# Blocks on: ahead, diverged, detached HEAD, missing upstream.
+task.gitUpdateSafe() {
+  local dir=$1
+  # must be on a branch
+  local branch
+  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 1
+  [[ $branch != HEAD ]] || return 1
+  # must have an upstream
+  git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || return 1
+  # must not be ahead or diverged
+  local counts
+  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || return 1
+  local ahead behind
+  read -r ahead behind <<<"$counts"
+  (( ahead == 0 ))
 }
 
 task.Install() {
