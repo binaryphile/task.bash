@@ -97,7 +97,11 @@ cmd() {
     (( TryModeX )) && {
       echo -e "\r\033[K[$(task.t tried)]\t\t$DescriptionX"
       if ! (( ShowProgressX )); then
-        while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
+        local n=0
+        while IFS= read -r line; do
+          (( ++n > 20 )) && { echo -e "[$(task.t output)]\t... (truncated)"; break; }
+          echo -e "[$(task.t output)]\t$line"
+        done <<<"$OutputX"
         echo
       fi
       TriedsX[$DescriptionX]=1
@@ -262,16 +266,16 @@ task.gitUpdateSafe() {
   local dir=$1
   # must be on a branch
   local branch
-  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 1
-  [[ $branch != HEAD ]] || return 1
+  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || { echo "skip: not a git repo"; return 1; }
+  [[ $branch != HEAD ]] || { echo "skip: detached HEAD"; return 1; }
   # must have an upstream
-  git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || return 1
+  git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || { echo "skip: no upstream tracking branch"; return 1; }
   # must not be ahead or diverged
   local counts
-  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || return 1
+  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "skip: could not compare with upstream"; return 1; }
   local ahead behind
   read -r ahead behind <<<"$counts"
-  (( ahead == 0 ))
+  (( ahead == 0 )) || { echo "skip: $ahead unpushed commit(s)"; return 1; }
 }
 
 task.Install() {
