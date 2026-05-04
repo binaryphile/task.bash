@@ -244,10 +244,12 @@ task.GitClone() {
 
 # task.GitUpdate pulls the latest changes for a repo.
 # Uses unchg so it is skipped in short-run mode.
+# Skips repos with unpushed commits to avoid rebasing over local work.
 task.GitUpdate() {
   local dir=$1
   desc   "update $dir"
   unchg  'Already up to date'
+  check  "! git -C '$dir' log --oneline '@{upstream}..HEAD' 2>/dev/null | grep -q ."
 
   cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=2' git -c http.connectTimeout=2 -C '$dir' pull --rebase"
 }
