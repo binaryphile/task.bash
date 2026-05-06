@@ -173,9 +173,9 @@ ok() { ConditionX=$1; }
 # We want to see task progression on long-running tasks.
 prog() { [[ $1 == on ]] && ShowProgressX=1 || ShowProgressX=0; }
 
-declare -A OksX=()        # tasks that were already satisfied
-declare -A ChangedsX=()   # tasks that succeeded
-declare -A TriedsX=()     # tasks that failed gracefully under try
+declare -gA OksX=()        # tasks that were already satisfied
+declare -gA ChangedsX=()   # tasks that succeeded
+declare -gA TriedsX=()     # tasks that failed gracefully under try
 
 # runas tells the task to run under sudo as user $1
 runas() { RunAsUserX=$1; }
@@ -243,7 +243,7 @@ YellowX=$'\033[38;5;220m'
 
 ResetX=$'\033[0m'
 
-declare -A Translations=(
+declare -gA Translations=(
   [begin]=$YellowX
   [changed]=$GreenX
   [failed]=$RedX
