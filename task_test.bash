@@ -348,6 +348,436 @@ test_task.Ln() {
   return $failed
 }
 
+# test_task.GitUpdate tests git update with fetch+rebase and untracked conflict stashing.
+# Subtests cover: happy path, untracked conflict, restore after failure, no-conflict passthrough.
+test_task.GitUpdate() {
+  local -A case1=(
+    [name]='happy path with upstream changes'
+  )
+
+  local -A case2=(
+    [name]='untracked file conflict resolved by stash'
+  )
+
+  local -A case3=(
+    [name]='restore after rebase failure'
+  )
+
+  local -A case4=(
+    [name]='unrelated untracked files untouched'
+  )
+
+  subtest() {
+    local casename=$1
+
+    ## arrange
+
+    eval "$(tesht.Inherit "$casename")"
+
+    local dir
+    tesht.MktempDir dir || return 128
+    cd "$dir"
+
+    # Create "remote" repo and clone it.
+    createCloneRepo
+    git clone clone local >/dev/null 2>&1
+    cd local
+    git config user.email "test@test"
+    git config user.name "test"
+    git config commit.gpgsign false
+    cd ..
+
+    local got rc
+
+    case $name in
+      'happy path with upstream changes' )
+        # Add a commit to the remote.
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit --allow-empty -m 'upstream change' >/dev/null 2>&1
+
+        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+
+        # Assert success.
+        (( rc == 0 )) || {
+          echo "${NL}GitUpdate happy: error = $rc, want: 0$NL$got"
+          return 1
+        }
+
+        # Assert upstream commit is present.
+        git -C local log --oneline | grep -q 'upstream change' || {
+          echo "${NL}GitUpdate happy: upstream commit not found$NL$got"
+          return 1
+        }
+        ;;
+
+      'untracked file conflict resolved by stash' )
+        # Remote adds a tracked bin/node.
+        mkdir -p clone/bin
+        echo '#!/bin/sh' >clone/bin/node
+        git -C clone add bin/node
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit -m 'add bin/node' >/dev/null 2>&1
+
+        # Local has an untracked bin/node symlink (scaffold artifact).
+        mkdir -p local/bin
+        ln -s nix-wrapper local/bin/node
+        echo '/bin' >>local/.git/info/exclude
+
+        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+
+        # Assert success.
+        (( rc == 0 )) || {
+          echo "${NL}GitUpdate conflict: error = $rc, want: 0$NL$got"
+          return 1
+        }
+
+        # Assert bin/node is still a symlink (not the upstream file).
+        [[ -L local/bin/node ]] || {
+          echo "${NL}GitUpdate conflict: bin/node is not a symlink$NL$got"
+          return 1
+        }
+        ;;
+
+      'restore after rebase failure' )
+        # Create a tracked file in both remote and local with conflicting content.
+        echo 'remote content' >clone/conflict.txt
+        git -C clone add conflict.txt
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit -m 'add conflict.txt' >/dev/null 2>&1
+
+        # Local diverges: create the same file with different content and commit.
+        echo 'local content' >local/conflict.txt
+        git -C local add conflict.txt
+        git -C local -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit -m 'local conflict.txt' >/dev/null 2>&1
+
+        # Also add an untracked scaffold file that collides with something upstream will add.
+        # We need a second remote commit for this.
+        mkdir -p clone/bin
+        echo '#!/bin/sh' >clone/bin/tool
+        git -C clone add bin/tool
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit -m 'add bin/tool' >/dev/null 2>&1
+
+        mkdir -p local/bin
+        ln -s nix-wrapper local/bin/tool
+        echo '/bin' >>local/.git/info/exclude
+
+        got=$(try task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+
+        # Assert try succeeded (try always returns 0).
+        (( rc == 0 )) || {
+          echo "${NL}GitUpdate restore: try error = $rc, want: 0$NL$got"
+          return 1
+        }
+
+        # Assert scaffold file was restored (even though rebase failed).
+        [[ -L local/bin/tool ]] || {
+          echo "${NL}GitUpdate restore: bin/tool symlink not restored$NL$got"
+          return 1
+        }
+
+        # Clean up rebase state for test teardown.
+        git -C local rebase --abort 2>/dev/null || true
+        ;;
+
+      'unrelated untracked files untouched' )
+        # Remote adds a commit (no bin/ files).
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit --allow-empty -m 'upstream change' >/dev/null 2>&1
+
+        # Local has an untracked file that does NOT conflict with upstream.
+        echo 'my notes' >local/scratch.txt
+
+        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+
+        # Assert success.
+        (( rc == 0 )) || {
+          echo "${NL}GitUpdate passthrough: error = $rc, want: 0$NL$got"
+          return 1
+        }
+
+        # Assert unrelated file was not moved/modified.
+        [[ -f local/scratch.txt ]] || {
+          echo "${NL}GitUpdate passthrough: scratch.txt missing$NL$got"
+          return 1
+        }
+        [[ $(cat local/scratch.txt) == 'my notes' ]] || {
+          echo "${NL}GitUpdate passthrough: scratch.txt content changed$NL$got"
+          return 1
+        }
+        ;;
+    esac
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.Run $casename || {
+      (( $? == 128 )) && return 128
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
+# test_task.classify tests the pre-execution classification logic.
+test_task.classify() {
+  local -A case1=(
+    [name]='skipping when TryFailedX is set'
+    [tryFailed]=1
+    [wants]=skipping
+  )
+
+  local -A case2=(
+    [name]='ok when condition is met'
+    [condition]='true'
+    [wants]=ok
+  )
+
+  local -A case3=(
+    [name]='check_failed when check fails'
+    [condition]='false'
+    [checkExpr]='false'
+    [wants]=check_failed
+  )
+
+  local -A case4=(
+    [name]='shortrun_skip when short run and unchg set'
+    [shortrun]=on
+    [unchg]=anything
+    [wants]=shortrun_skip
+  )
+
+  local -A case5=(
+    [name]='shortrun_skip when short run and progress set'
+    [shortrun]=on
+    [prog]=on
+    [wants]=shortrun_skip
+  )
+
+  local -A case6=(
+    [name]='run when nothing blocks'
+    [wants]=run
+  )
+
+  local -A case7=(
+    [name]='run when condition not met and no check'
+    [condition]='false'
+    [wants]=run
+  )
+
+  local -A case8=(
+    [name]='run when short run but no unchg or progress'
+    [shortrun]=on
+    [wants]=run
+  )
+
+  subtest() {
+    local casename=$1
+
+    ## arrange
+    unset -v condition checkExpr tryFailed shortrun prog unchg
+    eval "$(tesht.Inherit "$casename")"
+
+    desc "$name"
+    [[ -v condition  ]] && ok "$condition"
+    [[ -v checkExpr  ]] && check "$checkExpr"
+    [[ -v tryFailed  ]] && TryFailedX=$tryFailed
+    [[ -v shortrun   ]] && task.SetShortRun "$shortrun"
+    [[ -v prog       ]] && prog "$prog"
+    [[ -v unchg      ]] && unchg "$unchg"
+
+    ## act
+    local got
+    got=$(task.classify)
+
+    ## assert
+    [[ $got == "$wants" ]] || {
+      echo "${NL}classify: got=$got, want=$wants"
+      return 1
+    }
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.Run $casename || {
+      (( $? == 128 )) && return 128
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
+# test_task.classifyResult tests the post-execution classification logic.
+test_task.classifyResult() {
+  local -A case1=(
+    [name]='ok when unchg text found in output'
+    [unchg]='up to date'
+    [output]='Already up to date.'
+    [rc]=0
+    [wants]=ok
+  )
+
+  local -A case2=(
+    [name]='changed when rc=0 and condition met'
+    [condition]='true'
+    [rc]=0
+    [wants]=changed
+  )
+
+  local -A case3=(
+    [name]='failed when rc!=0'
+    [rc]=1
+    [wants]=failed
+  )
+
+  local -A case4=(
+    [name]='failed when rc=0 but condition not met'
+    [condition]='false'
+    [rc]=0
+    [wants]=failed
+  )
+
+  local -A case5=(
+    [name]='unchg takes priority over condition'
+    [unchg]='no change'
+    [output]='no change detected'
+    [condition]='false'
+    [rc]=0
+    [wants]=ok
+  )
+
+  subtest() {
+    local casename=$1
+
+    ## arrange
+    unset -v condition unchg output
+    eval "$(tesht.Inherit "$casename")"
+
+    desc "$name"
+    [[ -v condition ]] && ok "$condition"
+    [[ -v unchg     ]] && unchg "$unchg"
+    OutputX=${output:-}
+
+    ## act
+    local got
+    got=$(task.classifyResult "$rc")
+
+    ## assert
+    [[ $got == "$wants" ]] || {
+      echo "${NL}classifyResult: got=$got, want=$wants"
+      return 1
+    }
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.Run $casename || {
+      (( $? == 128 )) && return 128
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
+# test_task.gitUpdateSafe tests the preflight safety check for git update.
+test_task.gitUpdateSafe() {
+  local -A case1=(
+    [name]='safe when on branch with upstream and not ahead'
+  )
+
+  local -A case2=(
+    [name]='blocks on detached HEAD'
+  )
+
+  local -A case3=(
+    [name]='blocks when ahead of upstream'
+  )
+
+  local -A case4=(
+    [name]='blocks when no upstream tracking'
+  )
+
+  subtest() {
+    local casename=$1
+
+    ## arrange
+    eval "$(tesht.Inherit "$casename")"
+
+    local dir
+    tesht.MktempDir dir || return 128
+    cd "$dir"
+
+    createCloneRepo
+    git clone clone local >/dev/null 2>&1
+    (cd local && git config user.email t@t && git config user.name t && git config commit.gpgsign false)
+
+    local got rc
+
+    case $name in
+      'safe when on branch with upstream and not ahead' )
+        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
+        (( rc == 0 )) || {
+          echo "${NL}gitUpdateSafe: expected rc=0, got rc=$rc$NL$got"
+          return 1
+        }
+        ;;
+
+      'blocks on detached HEAD' )
+        git -C local checkout --detach >/dev/null 2>&1
+        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
+        (( rc != 0 )) || {
+          echo "${NL}gitUpdateSafe: expected nonzero rc for detached HEAD"
+          return 1
+        }
+        [[ $got == *'detached HEAD'* ]] || {
+          echo "${NL}gitUpdateSafe: expected 'detached HEAD' in output, got: $got"
+          return 1
+        }
+        ;;
+
+      'blocks when ahead of upstream' )
+        git -C local commit --allow-empty -m 'local commit' >/dev/null 2>&1
+        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
+        (( rc != 0 )) || {
+          echo "${NL}gitUpdateSafe: expected nonzero rc when ahead"
+          return 1
+        }
+        [[ $got == *'unpushed'* ]] || {
+          echo "${NL}gitUpdateSafe: expected 'unpushed' in output, got: $got"
+          return 1
+        }
+        ;;
+
+      'blocks when no upstream tracking' )
+        git -C local branch --unset-upstream >/dev/null 2>&1
+        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
+        (( rc != 0 )) || {
+          echo "${NL}gitUpdateSafe: expected nonzero rc when no upstream"
+          return 1
+        }
+        [[ $got == *'no upstream'* ]] || {
+          echo "${NL}gitUpdateSafe: expected 'no upstream' in output, got: $got"
+          return 1
+        }
+        ;;
+    esac
+  }
+
+  local failed=0 casename
+  for casename in ${!case@}; do
+    tesht.Run $casename || {
+      (( $? == 128 )) && return 128
+      failed=1
+    }
+  done
+
+  return $failed
+}
+
 ## helpers
 
 # createCheckoutRepo creates a git repository in the current directory.

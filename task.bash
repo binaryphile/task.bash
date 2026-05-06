@@ -24,54 +24,78 @@
 
 ## task definition keywords
 
+# task.classify determines the outcome of a task based on current state.
+# Returns a status string: skipping, ok, check_failed, shortrun_skip, run.
+# "run" means no early exit -- the command should be executed.
+# Pure decision logic with no side effects (no output, no state mutation).
+task.classify() {
+  (( TryFailedX )) && { echo skipping; return; }
+
+  [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && { echo ok; return; }
+
+  [[ $CheckX != '' ]] && ! ( eval "$CheckX" &>/dev/null ) && { echo check_failed; return; }
+
+  (( ShortRunX )) && { (( ShowProgressX )) || [[ $UnchangedTextX != '' ]]; } && { echo shortrun_skip; return; }
+
+  echo run
+}
+
+# task.classifyResult determines the outcome after running a command.
+# Args: rc (exit code from command)
+# Reads: OutputX, UnchangedTextX, ConditionX
+# Returns a status string: ok, changed, failed.
+# Pure decision logic with no side effects.
+task.classifyResult() {
+  local rc=$1
+
+  [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]] && { echo ok; return; }
+  (( rc == 0 )) && ( eval "$ConditionX" &>/dev/null ) && { echo changed; return; }
+
+  echo failed
+}
+
 # cmd runs $cmd after checking that it is not already satisfied and records the result.
 cmd() {
   local CMD=$1
 
-  # if a previous cmd in a try block failed, skip subsequent cmds
-  (( TryFailedX )) && {
-    echo -e "[$(task.t skipping)]\t$DescriptionX"
+  local status
+  status=$(task.classify)
 
-    return
-  }
+  case $status in
+    skipping)
+      echo -e "[$(task.t skipping)]\t$DescriptionX"
+      return
+      ;;
+    ok)
+      OksX[$DescriptionX]=1
+      echo -e "[$(task.t ok)]\t\t$DescriptionX"
+      return
+      ;;
+    check_failed)
+      (( TryModeX )) && {
+        echo -e "[$(task.t tried)]\t\t$DescriptionX"
+        TriedsX[$DescriptionX]=1
+        TryFailedX=1
+        return 0
+      }
+      echo -e "[$(task.t failed)]\t$DescriptionX"
+      echo 'stopped due to failure (preflight check)'
+      return 1
+      ;;
+    shortrun_skip)
+      echo -e "\r\033[K[$(task.t skipping)]\t$DescriptionX"
+      return
+      ;;
+  esac
 
-  [[ $ConditionX != '' ]] && ( eval "$ConditionX" &>/dev/null ) && {
-    OksX[$DescriptionX]=1
-    echo -e "[$(task.t ok)]\t\t$DescriptionX"
-
-    return
-  }
-
-  # check preflight condition before running cmd
-  [[ $CheckX != '' ]] && ! ( eval "$CheckX" &>/dev/null ) && {
-    (( TryModeX )) && {
-      echo -e "[$(task.t tried)]\t\t$DescriptionX"
-      TriedsX[$DescriptionX]=1
-      TryFailedX=1
-
-      return 0
-    }
-    echo -e "[$(task.t failed)]\t$DescriptionX"
-    echo 'stopped due to failure (preflight check)'
-    return 1
-  }
+  # status == run: execute the command.
 
   ! (( ShortRunX || ShowProgressX )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
 
   [[ $RunAsUserX != '' ]] && CMD="sudo -u ${RunAsUserX@Q} bash -c ${CMD@Q}"
 
-  (( ShortRunX )) && {
-    (( ShowProgressX )) || [[ $UnchangedTextX != '' ]] && {
-      echo -e "\r\033[K[$(task.t skipping)]\t$DescriptionX"
-
-      return
-    }
-  }
-
   # if the argument looks like a bare function name, verify it exists before
-  # eval. Placed after all early-return paths (TryFailed, ok, check, ShortRun)
-  # so the guard only fires when the command will actually be executed.
-  # Uses $1 (original argument) since RunAsUserX may have wrapped CMD.
+  # eval. Uses $1 (original argument) since RunAsUserX may have wrapped CMD.
   if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_.]*$ ]]; then
     case "$(type -t "$1" 2>/dev/null)" in
       function|builtin) ;;
@@ -87,36 +111,42 @@ cmd() {
     OutputX=$(eval "$CMD" 2>&1) && RC=$? || RC=$?
   fi
 
-  if [[ $UnchangedTextX != '' && $OutputX == *"$UnchangedTextX"* ]]; then
-    OksX[$DescriptionX]=1
-    echo -e "\r\033[K[$(task.t ok)]\t\t$DescriptionX"
-  elif (( RC == 0 )) && ( eval "$ConditionX" &>/dev/null ); then
-    ChangedsX[$DescriptionX]=1
-    echo -e "\r\033[K[$(task.t changed)]\t$DescriptionX"
-  else
-    (( TryModeX )) && {
-      echo -e "\r\033[K[$(task.t tried)]\t\t$DescriptionX"
+  local result
+  result=$(task.classifyResult $RC)
+
+  case $result in
+    ok)
+      OksX[$DescriptionX]=1
+      echo -e "\r\033[K[$(task.t ok)]\t\t$DescriptionX"
+      ;;
+    changed)
+      ChangedsX[$DescriptionX]=1
+      echo -e "\r\033[K[$(task.t changed)]\t$DescriptionX"
+      ;;
+    failed)
+      (( TryModeX )) && {
+        echo -e "\r\033[K[$(task.t tried)]\t\t$DescriptionX"
+        if ! (( ShowProgressX )); then
+          local n=0
+          while IFS= read -r line; do
+            (( ++n > 20 )) && { echo -e "[$(task.t output)]\t... (truncated)"; break; }
+            echo -e "[$(task.t output)]\t$line"
+          done <<<"$OutputX"
+          echo
+        fi
+        TriedsX[$DescriptionX]=1
+        TryFailedX=1
+        return 0
+      }
+      echo -e "\r\033[K[$(task.t failed)]\t$DescriptionX"
       if ! (( ShowProgressX )); then
-        local n=0
-        while IFS= read -r line; do
-          (( ++n > 20 )) && { echo -e "[$(task.t output)]\t... (truncated)"; break; }
-          echo -e "[$(task.t output)]\t$line"
-        done <<<"$OutputX"
+        while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
         echo
       fi
-      TriedsX[$DescriptionX]=1
-      TryFailedX=1
-
-      return 0
-    }
-    echo -e "\r\033[K[$(task.t failed)]\t$DescriptionX"
-    if ! (( ShowProgressX )); then
-      while IFS= read -r line; do echo -e "[$(task.t output)]\t$line"; done <<<"$OutputX"
-      echo
-    fi
-    echo 'stopped due to failure'
-    (( RC == 0 )) && echo 'task reported success but condition not met'
-  fi
+      echo 'stopped due to failure'
+      (( RC == 0 )) && echo 'task reported success but condition not met'
+      ;;
+  esac
 
   return $RC
 }
@@ -241,7 +271,7 @@ task.GitClone() {
   exist  "'$dir'"
 
   task.gitClone() {
-    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no' git clone --branch "$branch" "$repo" "$dir"
+    GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10' git -c http.connectTimeout=10 clone --branch "$branch" "$repo" "$dir"
   }
   cmd task.gitClone
 }
@@ -250,13 +280,76 @@ task.GitClone() {
 # Uses unchg so it is skipped in short-run mode.
 # Skips repos with unpushed or diverged commits to avoid rebasing over local work.
 # Skips detached HEAD (ambiguous state).
+# Uses fetch+rebase instead of pull to detect untracked conflicts accurately.
+# Scaffold-created files (e.g. nix-wrapper symlinks in bin/) that collide with
+# upstream-tracked files are temporarily stashed and restored after rebase.
+# After restore, the file appears as a tracked modification — autoStash handles
+# it on subsequent pulls (self-healing).
 task.GitUpdate() {
   local dir=$1
   desc   "update $dir"
   unchg  'Already up to date'
   check  "task.gitUpdateSafe '$dir'"
 
-  cmd "GIT_SSH_COMMAND='ssh -o ConnectTimeout=2' git -c http.connectTimeout=2 -C '$dir' pull --rebase"
+  task.gitUpdate() {
+    local ssh='ssh -o ConnectTimeout=10'
+
+    # Fetch first so tracking refs are current for conflict detection.
+    GIT_SSH_COMMAND=$ssh git -c http.connectTimeout=10 -C "$dir" fetch || return 1
+
+    local upstream
+    upstream=$(git -C "$dir" rev-parse --abbrev-ref '@{upstream}') || return 1
+
+    # Check if already up to date (no rebase needed).
+    local local_head upstream_head
+    local_head=$(git -C "$dir" rev-parse HEAD)
+    upstream_head=$(git -C "$dir" rev-parse "$upstream")
+    if [[ $local_head == "$upstream_head" ]]; then
+      echo 'Already up to date.'
+      return 0
+    fi
+
+    # Detect working-tree files that collide with incoming upstream-tracked files.
+    # Can't use ls-files --others --exclude-standard because scaffold files in
+    # .git/info/exclude (e.g. /bin) are hidden from that listing. Instead, walk
+    # the upstream tree and check if each file exists locally but is not tracked.
+    local stashed=()
+    local incoming
+    incoming=$(git -C "$dir" diff --name-only "$local_head" "$upstream" -- 2>/dev/null) || true
+
+    if [[ -n $incoming ]]; then
+      local f
+      while IFS= read -r f; do
+        # Skip files already tracked locally — autoStash handles those.
+        git -C "$dir" ls-files --error-unmatch "$f" &>/dev/null && continue
+        # File is incoming from upstream but not tracked locally.
+        # If it exists in the working tree, it will conflict.
+        # Use -e OR -L to catch broken symlinks (e.g. bin/node -> nix-wrapper
+        # where the target doesn't exist yet).
+        [[ -e "$dir/$f" || -L "$dir/$f" ]] || continue
+        local tmpfile
+        tmpfile=$(mktemp "${dir}/.git/stash-untracked-XXXXXX") || return 1
+        mv "$dir/$f" "$tmpfile"
+        stashed+=("$f|$tmpfile")
+      done <<<"$incoming"
+    fi
+
+    # Rebase onto upstream.
+    local rc=0
+    GIT_SSH_COMMAND=$ssh git -C "$dir" rebase "$upstream" && rc=$? || rc=$?
+
+    # Restore stashed files unconditionally (even on failure).
+    local entry
+    for entry in "${stashed[@]+"${stashed[@]}"}"; do
+      local origname=${entry%%|*}
+      local tmpfile=${entry#*|}
+      mkdir -p "$(dirname "$dir/$origname")"
+      mv "$tmpfile" "$dir/$origname"
+    done
+
+    return $rc
+  }
+  cmd task.gitUpdate
 }
 
 # task.gitUpdateSafe checks whether pull --rebase is safe for a repo.
@@ -274,7 +367,7 @@ task.gitUpdateSafe() {
   local counts
   counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "skip: could not compare with upstream"; return 1; }
   local ahead behind
-  read -r ahead behind <<<"$counts"
+  IFS=$' \t' read -r ahead behind <<<"$counts"
   (( ahead == 0 )) || { echo "skip: $ahead unpushed commit(s)"; return 1; }
 }
 
