@@ -278,7 +278,9 @@ task.GitClone() {
 
 # task.GitUpdate pulls the latest changes for a repo.
 # Uses unchg so it is skipped in short-run mode.
-# Skips repos with unpushed or diverged commits to avoid rebasing over local work.
+# Skips only when diverged (ahead AND behind) to avoid rebasing over unreconciled
+# remote history. Ahead-only is safe: git pull --rebase is a no-op when the remote
+# hasn't changed. Emits a visible warning on skip rather than silently failing.
 # Skips detached HEAD (ambiguous state).
 # Uses fetch+rebase instead of pull to detect untracked conflicts accurately.
 # Scaffold-created files (e.g. nix-wrapper symlinks in bin/) that collide with
@@ -287,10 +289,13 @@ task.GitClone() {
 # it on subsequent pulls (self-healing).
 task.GitUpdate() {
   local dir=$1
+  local skip_reason
+  if ! skip_reason=$(task.gitUpdateSafe "$dir"); then
+    echo "update $dir: skipped ($skip_reason) -- run 'git -C $dir pull --rebase' to reconcile manually"
+    return 0
+  fi
   desc   "update $dir"
   unchg  'Already up to date'
-  check  "task.gitUpdateSafe '$dir'"
-
   task.gitUpdate() {
     local ssh='ssh -o ConnectTimeout=10'
 
@@ -353,22 +358,21 @@ task.GitUpdate() {
 }
 
 # task.gitUpdateSafe checks whether pull --rebase is safe for a repo.
-# Returns 0 (safe) only when the repo is on a branch, behind-only or even.
-# Blocks on: ahead, diverged, detached HEAD, missing upstream.
+# Returns 0 (safe) when: on a branch, upstream exists, not diverged.
+# Blocks on: diverged (ahead AND behind), detached HEAD, missing upstream.
+# Ahead-only is allowed: the remote is unchanged, so rebase is a no-op.
 task.gitUpdateSafe() {
   local dir=$1
-  # must be on a branch
   local branch
-  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || { echo "skip: not a git repo"; return 1; }
-  [[ $branch != HEAD ]] || { echo "skip: detached HEAD"; return 1; }
-  # must have an upstream
-  git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || { echo "skip: no upstream tracking branch"; return 1; }
-  # must not be ahead or diverged
+  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || { echo "not a git repo"; return 1; }
+  [[ $branch != HEAD ]] || { echo "detached HEAD"; return 1; }
+  git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || { echo "no upstream tracking branch"; return 1; }
   local counts
-  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "skip: could not compare with upstream"; return 1; }
+  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "could not compare with upstream"; return 1; }
   local ahead behind
-  IFS=$' \t' read -r ahead behind <<<"$counts"
-  (( ahead == 0 )) || { echo "skip: $ahead unpushed commit(s)"; return 1; }
+  IFS=$'\t' read -r ahead behind <<<"$counts"
+  (( ahead > 0 && behind > 0 )) && { echo "diverged ($ahead ahead, $behind behind)"; return 1; }
+  return 0
 }
 
 task.Install() {

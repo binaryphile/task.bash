@@ -683,99 +683,132 @@ test_task.classifyResult() {
   return $failed
 }
 
-# test_task.gitUpdateSafe tests the preflight safety check for git update.
+## gitUpdateSafe policy
+
+# test_task.gitUpdateSafe verifies the skip-only-on-diverged policy.
+# Uses real git repos (integration style): the function calls git subprocesses
+# that can't be meaningfully stubbed.
 test_task.gitUpdateSafe() {
   local -A case1=(
-    [name]='safe when on branch with upstream and not ahead'
+    [name]='even: safe'
+    [scenario]='even'
+    [want_rc]=0
   )
-
   local -A case2=(
-    [name]='blocks on detached HEAD'
+    [name]='behind-only: safe'
+    [scenario]='behind-only'
+    [want_rc]=0
   )
-
   local -A case3=(
-    [name]='blocks when ahead of upstream'
+    [name]='ahead-only: safe (rebase is no-op)'
+    [scenario]='ahead-only'
+    [want_rc]=0
   )
-
   local -A case4=(
-    [name]='blocks when no upstream tracking'
+    [name]='diverged: skip with message'
+    [scenario]='diverged'
+    [want_rc]=1
+    [want_msg]='diverged'
+  )
+  local -A case5=(
+    [name]='detached HEAD: skip with message'
+    [scenario]='detached-head'
+    [want_rc]=1
+    [want_msg]='detached HEAD'
   )
 
   subtest() {
     local casename=$1
-
-    ## arrange
+    unset -v want_msg
     eval "$(tesht.Inherit "$casename")"
 
     local dir
     tesht.MktempDir dir || return 128
-    cd "$dir"
 
-    createCloneRepo
-    git clone clone local >/dev/null 2>&1
-    (cd local && git config user.email t@t && git config user.name t && git config commit.gpgsign false)
+    gitUpdateSafe.setupScenario "$dir" "$scenario"
 
     local got rc
+    got=$(task.gitUpdateSafe "$dir/local") && rc=$? || rc=$?
 
-    case $name in
-      'safe when on branch with upstream and not ahead' )
-        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
-        (( rc == 0 )) || {
-          echo "${NL}gitUpdateSafe: expected rc=0, got rc=$rc$NL$got"
-          return 1
-        }
-        ;;
-
-      'blocks on detached HEAD' )
-        git -C local checkout --detach >/dev/null 2>&1
-        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
-        (( rc != 0 )) || {
-          echo "${NL}gitUpdateSafe: expected nonzero rc for detached HEAD"
-          return 1
-        }
-        [[ $got == *'detached HEAD'* ]] || {
-          echo "${NL}gitUpdateSafe: expected 'detached HEAD' in output, got: $got"
-          return 1
-        }
-        ;;
-
-      'blocks when ahead of upstream' )
-        git -C local commit --allow-empty -m 'local commit' >/dev/null 2>&1
-        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
-        (( rc != 0 )) || {
-          echo "${NL}gitUpdateSafe: expected nonzero rc when ahead"
-          return 1
-        }
-        [[ $got == *'unpushed'* ]] || {
-          echo "${NL}gitUpdateSafe: expected 'unpushed' in output, got: $got"
-          return 1
-        }
-        ;;
-
-      'blocks when no upstream tracking' )
-        git -C local branch --unset-upstream >/dev/null 2>&1
-        got=$(task.gitUpdateSafe "$dir/local" 2>&1) && rc=$? || rc=$?
-        (( rc != 0 )) || {
-          echo "${NL}gitUpdateSafe: expected nonzero rc when no upstream"
-          return 1
-        }
-        [[ $got == *'no upstream'* ]] || {
-          echo "${NL}gitUpdateSafe: expected 'no upstream' in output, got: $got"
-          return 1
-        }
-        ;;
-    esac
+    (( rc == want_rc )) || {
+      echo "rc=$rc want=$want_rc output: $got"
+      return 1
+    }
+    [[ -v want_msg ]] || return 0
+    [[ $got == *"$want_msg"* ]] || {
+      echo "output '$got' missing expected pattern '$want_msg'"
+      return 1
+    }
   }
 
-  local failed=0 casename
-  for casename in ${!case@}; do
-    tesht.Run $casename || {
-      (( $? == 128 )) && return 128
-      failed=1
-    }
-  done
+  tesht.Run ${!case@}
+}
 
-  return $failed
+# gitUpdateSafe.setupScenario creates a bare remote + local clone in $dir,
+# then sets up the requested git scenario.
+# All git output suppressed so test output stays clean.
+gitUpdateSafe.setupScenario() {
+  local dir=$1 scenario=$2
+  (
+    cd "$dir"
+    git init --bare remote
+    git clone remote local
+    cd local
+    git config user.email 'test@test'
+    git config user.name  'test'
+    git config commit.gpgsign false
+    echo init > file.txt
+    git add file.txt
+    git commit -m 'init'
+    git push
+
+    case $scenario in
+      even) ;;
+
+      ahead-only)
+        echo ahead > file.txt
+        git add file.txt
+        git commit -m 'local commit'
+        ;;
+
+      behind-only)
+        cd "$dir"
+        git clone remote other
+        cd other
+        git config user.email 'test@test'
+        git config user.name  'test'
+        git config commit.gpgsign false
+        echo behind > file.txt
+        git add file.txt
+        git commit -m 'remote commit'
+        git push
+        cd "$dir/local"
+        git fetch
+        ;;
+
+      diverged)
+        echo ahead > file.txt
+        git add file.txt
+        git commit -m 'local commit'
+        cd "$dir"
+        git clone remote other
+        cd other
+        git config user.email 'test@test'
+        git config user.name  'test'
+        git config commit.gpgsign false
+        echo diverged > file.txt
+        git add file.txt
+        git commit -m 'remote commit'
+        git push
+        cd "$dir/local"
+        git fetch
+        ;;
+
+      detached-head)
+        git checkout --detach HEAD
+        ;;
+    esac
+  ) >/dev/null 2>&1
 }
 
 ## helpers
