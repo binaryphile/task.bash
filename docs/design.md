@@ -232,7 +232,7 @@ Tests use the [tesht](https://github.com/binaryphile/tesht) framework.
 | `task.classifyResult` | Domain | Unit test (5 cases including priority rules) |
 | `task.gitUpdateSafe` | Domain | Unit test (4 cases: safe, detached, ahead, no upstream) |
 | `task.gitUpdate` | Controller | Integration test (4 cases with real git repos) |
-| `cmd` | Controller | Integration test (3 cases via output matching) |
+| `cmd` | Controller | Integration test (5 cases via output matching; `task.hasTty` mocked for no-TTY cases — see UC-4 Extension 2a) |
 | `try` | Trivial (but contract matters) | Unit test (5 cases for scoping semantics) |
 | `task.t`, keywords, `section` | Trivial | Not tested |
 
