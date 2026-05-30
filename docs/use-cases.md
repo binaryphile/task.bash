@@ -173,8 +173,8 @@
     `tee /dev/tty` fails at runtime — rare, e.g. session detachment):
     1. The wrapped command's exit code is preserved; tee's failure does
        not promote a successful task to `[failed]`.
-    2. Captured output may be partial (whatever tee wrote before its
-       failure).
+    2. Captured output may be empty or partial (whatever tee wrote to
+       stdout before its failure).
 - **Technology & Data Variations:**
   - Status colors: green (ok, changed), orange (tried, skipping, output), red (failed), yellow (begin, progress)
 - **Success Guarantee:** Every executed task has exactly one status line; summary counts are accurate.
