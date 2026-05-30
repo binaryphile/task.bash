@@ -33,6 +33,29 @@ test_cmd() {
     [wants]="(skipping 'given short run, when unchg, then skip')"
   )
 
+  # case4 + case5: gate on TTY availability (#19448). Override task.hasTty to
+  # force the no-TTY branch portably -- the override is scoped to the subshell
+  # tesht runs each subtest in. Pre-fix: tee /dev/tty fails with rc=1, cmd
+  # mis-reports [failed] for a successful wrapped command.
+  local -A case4=(
+    [name]='prog on without TTY: success rc preserved (#19448)'
+
+    [command]="cmd 'echo hello'"
+    [prog]=on
+    [hasTty]=no
+    [wants]="(changed 'prog on without TTY: success rc preserved (#19448)')"
+  )
+
+  local -A case5=(
+    [name]='prog on without TTY: failure rc preserved (#19448)'
+
+    [command]="cmd 'false'"
+    [prog]=on
+    [hasTty]=no
+    [wanterr]=1
+    [wants]="(failed 'prog on without TTY: failure rc preserved (#19448)')"
+  )
+
   # subtest runs each subtest.
   # casename is expected to be the name of an associative array holding at least the key "name".
   subtest() {
@@ -41,7 +64,7 @@ test_cmd() {
     ## arrange
 
     # create variables from the keys/values of the test map
-    unset -v ok shortrun prog unchg want wanterr  # unset optional fields
+    unset -v ok shortrun prog unchg want wanterr hasTty  # unset optional fields
     eval "$(tesht.Inherit "$casename")"
 
     desc "$name"  # desc resets the environment so make other changes after
@@ -50,6 +73,7 @@ test_cmd() {
     [[ -v prog      ]] && prog "$prog"
     [[ -v shortrun  ]] && task.SetShortRun "$shortrun"
     [[ -v unchg     ]] && unchg "$unchg"
+    [[ -v hasTty && $hasTty == no ]] && task.hasTty() { return 1; }
 
     ## act
 
@@ -59,9 +83,10 @@ test_cmd() {
 
     ## assert
 
-    # assert no error
-    (( rc == 0 )) || {
-      echo "${NL}cmd: error = $rc, want: 0$NL$got"
+    # assert wanted rc (default 0; cases expecting non-zero set [wanterr]=N)
+    local wantrc=${wanterr:-0}
+    (( rc == wantrc )) || {
+      echo "${NL}cmd: error = $rc, want: $wantrc$NL$got"
       return 1
     }
 

@@ -54,6 +54,11 @@ task.classifyResult() {
   echo failed
 }
 
+# task.hasTty reports whether /dev/tty is open-for-write from this process.
+# Used by cmd to gate `prog on` live-tee on TTY availability (#19448).
+# Tests override this to force the no-TTY branch.
+task.hasTty() { { : >/dev/tty; } 2>/dev/null; }
+
 # cmd runs $cmd after checking that it is not already satisfied and records the result.
 cmd() {
   local CMD=$1
@@ -90,7 +95,14 @@ cmd() {
 
   # status == run: execute the command.
 
-  ! (( ShortRunX || ShowProgressX )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
+  # liveProgress: prog on AND a writable controlling TTY. Falls back to
+  # silent capture in non-TTY contexts (Claude Code agents, ssh -T, cron,
+  # CI) where `tee /dev/tty` would otherwise abort with rc=1 and propagate
+  # a false failure for the wrapped command (#19448).
+  local liveProgress=0
+  (( ShowProgressX )) && task.hasTty && liveProgress=1
+
+  ! (( ShortRunX || liveProgress )) && echo -ne "[$(task.t begin)]\t\t$DescriptionX"
 
   [[ $RunAsUserX != '' ]] && CMD="sudo -u ${RunAsUserX@Q} bash -c ${CMD@Q}"
 
@@ -104,7 +116,7 @@ cmd() {
   fi
 
   local RC=0
-  if (( ShowProgressX )); then
+  if (( liveProgress )); then
     echo -e "[$(task.t progress)]\t$DescriptionX"
     OutputX=$(eval "$CMD" 2>&1 | tee /dev/tty) && RC=$? || RC=$?
   else
