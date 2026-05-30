@@ -162,6 +162,12 @@
     1. Output is dumped (up to 20 lines) with `[output]` prefix.
   - 1b. Task in short-run mode with progress or unchg:
     1. System reports `[skipping]` without running.
+  - 2a. `prog on` requested without a controlling TTY (Claude Code agent,
+    `ssh -T`, cron, systemd timer, CI):
+    1. System suppresses live output; the `[begin]` line is still shown.
+    2. Wrapped command runs with output captured silently.
+    3. Status reporting and the failure-output dump (Extension 1a) are
+       unaffected.
 - **Technology & Data Variations:**
   - Status colors: green (ok, changed), orange (tried, skipping, output), red (failed), yellow (begin, progress)
 - **Success Guarantee:** Every executed task has exactly one status line; summary counts are accurate.
