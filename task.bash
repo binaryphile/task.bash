@@ -118,7 +118,11 @@ cmd() {
   local RC=0
   if (( liveProgress )); then
     echo -e "[$(task.t progress)]\t$DescriptionX"
-    OutputX=$(eval "$CMD" 2>&1 | tee /dev/tty) && RC=$? || RC=$?
+    # PIPESTATUS[0] preserves the wrapped command's rc even if tee fails at
+    # runtime (e.g. TTY disappears between task.hasTty probe and pipeline
+    # execution -- session detachment, job-control edges). Defense-in-depth
+    # for the probe-time gate above; see UC-4 Extension 2b (#19448).
+    OutputX=$(eval "$CMD" 2>&1 | tee /dev/tty 2>/dev/null; exit ${PIPESTATUS[0]}) && RC=$? || RC=$?
   else
     OutputX=$(eval "$CMD" 2>&1) && RC=$? || RC=$?
   fi

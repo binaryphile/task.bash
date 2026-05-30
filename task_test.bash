@@ -56,6 +56,22 @@ test_cmd() {
     [wants]="(failed 'prog on without TTY: failure rc preserved (#19448)')"
   )
 
+  # case6 exercises the live-tee branch (hasTty=yes) with tee mocked to fail
+  # at runtime. Verifies PIPESTATUS[0] preserves the wrapped command's rc
+  # even when tee aborts mid-pipeline -- closes the regression-hole that
+  # case4/case5 leave open (a future revert of the gating would only surface
+  # in non-TTY environments, but case6 catches it regardless of host TTY
+  # state because tee itself is shadowed). See UC-4 Extension 2b (#19448).
+  local -A case6=(
+    [name]='prog on with TTY: tee runtime failure rc preserved (#19448)'
+
+    [command]="cmd 'echo hello'"
+    [prog]=on
+    [hasTty]=yes
+    [teeFails]=yes
+    [wants]="(changed 'prog on with TTY: tee runtime failure rc preserved (#19448)')"
+  )
+
   # subtest runs each subtest.
   # casename is expected to be the name of an associative array holding at least the key "name".
   subtest() {
@@ -64,7 +80,7 @@ test_cmd() {
     ## arrange
 
     # create variables from the keys/values of the test map
-    unset -v ok shortrun prog unchg want wanterr hasTty  # unset optional fields
+    unset -v ok shortrun prog unchg want wanterr hasTty teeFails  # unset optional fields
     eval "$(tesht.Inherit "$casename")"
 
     desc "$name"  # desc resets the environment so make other changes after
@@ -73,7 +89,9 @@ test_cmd() {
     [[ -v prog      ]] && prog "$prog"
     [[ -v shortrun  ]] && task.SetShortRun "$shortrun"
     [[ -v unchg     ]] && unchg "$unchg"
-    [[ -v hasTty && $hasTty == no ]] && task.hasTty() { return 1; }
+    [[ -v hasTty && $hasTty == no  ]] && task.hasTty() { return 1; }
+    [[ -v hasTty && $hasTty == yes ]] && task.hasTty() { return 0; }
+    [[ -v teeFails && $teeFails == yes ]] && tee() { return 1; }
 
     ## act
 
