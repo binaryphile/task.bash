@@ -164,10 +164,17 @@
     1. System reports `[skipping]` without running.
   - 2a. `prog on` requested without a controlling TTY (Claude Code agent,
     `ssh -T`, cron, systemd timer, CI):
-    1. System suppresses live output; the `[begin]` line is still shown.
+    1. System suppresses live output; `[begin]` is shown instead of
+       `[progress]` to signal task start.
     2. Wrapped command runs with output captured silently.
     3. Status reporting and the failure-output dump (Extension 1a) are
        unaffected.
+  - 2b. TTY becomes unavailable mid-command (live-tee path entered, then
+    `tee /dev/tty` fails at runtime — rare, e.g. session detachment):
+    1. The wrapped command's exit code is preserved; tee's failure does
+       not promote a successful task to `[failed]`.
+    2. Captured output may be partial (whatever tee wrote before its
+       failure).
 - **Technology & Data Variations:**
   - Status colors: green (ok, changed), orange (tried, skipping, output), red (failed), yellow (begin, progress)
 - **Success Guarantee:** Every executed task has exactly one status line; summary counts are accurate.

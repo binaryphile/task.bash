@@ -123,7 +123,7 @@ integration tests.
 | `[skipping]` | orange | Skipped (prior try failure or short-run mode) |
 | `[failed]` | red | Failed, script stops |
 | `[begin]` | yellow | Task starting (shown before command runs) |
-| `[progress]` | yellow | Task with live output starting |
+| `[progress]` | yellow | Task with live output starting (live-tee mode only — `prog on` AND a writable controlling TTY; otherwise `[begin]` is emitted per UC-4 Extension 2a) |
 | `[output]` | orange | Dumped output from failed command |
 
 ## Try scoping
