@@ -1,0 +1,25 @@
+# Safe expansion conventions: IFS=$'\n'; set -o noglob
+#
+# Production code:
+# SC2086: unquoted $var -- safe for non-_ vars under IFS+noglob (style guide s5)
+# SC2046: unquoted $(cmd) -- safe under noglob (e.g., $(dirname $path))
+# SC2053: [[ $x == $pattern ]] -- intentional glob matching (style guide s5: unquoted RHS)
+# SC1090: dynamic source paths (variable-dependent)
+# SC1091: source targets resolved at runtime (./update-env, $PWD/scripts/...)
+# SC2064: trap "rm -rf $dir" -- intentional early expansion (style guide s14)
+# SC2015: cmd && rc=$? || rc=$? -- standard RC capture (style guide s8)
+# SC2016: single-quoted $ expressions -- intentional literal $
+# SC2317: code after "return 2>/dev/null" -- standard boilerplate
+#
+# tesht test conventions:
+# SC2329: subtest() invoked indirectly by tesht.Run
+# SC2154: variables populated by tesht.Inherit
+# SC2034: test case arrays and injectable globals consumed by sourced code
+# SC2088: tilde expands in [[ ]] in bash -- shellcheck false positive
+# SC2206: array+=($var) -- safe under noglob (style guide s5)
+# SC2068: ${!array[@]} index expansion and ${array[@]:-} fallback (set -u pattern)
+# SC2178: local -n nameref to array -- shellcheck misreads as scalar assignment
+# SC2229: read -r $VARNAME -- intentional dynamic variable assignment
+# SC1010: unquoted sentences in echo misread as syntax -- safe under IFS+noglob
+# SC2164: cd without || exit -- tests use temp dirs with deferred cleanup (RETURN traps)
+disable=SC2086,SC2046,SC2053,SC1010,SC1090,SC1091,SC2064,SC2015,SC2016,SC2088,SC2206,SC2068,SC2178,SC2229,SC2317,SC2329,SC2154,SC2034,SC2164
