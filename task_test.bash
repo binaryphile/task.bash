@@ -1,5 +1,10 @@
 source ./task.bash
 
+# Enable safe expansion (test consumer of task.bash; library doesn't force
+# discipline per bash style guide §1 "libraries should not force strict mode").
+IFS=$'\n'
+set -o noglob
+
 NL=$'\n'
 
 ## functions
