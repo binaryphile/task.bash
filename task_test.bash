@@ -86,14 +86,14 @@ test_cmd() {
 
     # create variables from the keys/values of the test map
     unset -v ok shortrun prog unchg want wanterr hasTty teeFails  # unset optional fields
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"  # desc resets the environment so make other changes after
+    desc $name  # desc resets the environment so make other changes after
 
-    [[ -v ok        ]] && ok "$ok"
-    [[ -v prog      ]] && prog "$prog"
-    [[ -v shortrun  ]] && task.SetShortRun "$shortrun"
-    [[ -v unchg     ]] && unchg "$unchg"
+    [[ -v ok        ]] && ok $ok
+    [[ -v prog      ]] && prog $prog
+    [[ -v shortrun  ]] && task.SetShortRun $shortrun
+    [[ -v unchg     ]] && unchg $unchg
     [[ -v hasTty && $hasTty == no  ]] && task.hasTty() { return 1; }
     [[ -v hasTty && $hasTty == yes ]] && task.hasTty() { return 0; }
     [[ -v teeFails && $teeFails == yes ]] && tee() { return 1; }
@@ -101,23 +101,23 @@ test_cmd() {
     ## act
 
     # run the command and capture the output and result code
-    local got rc
-    got=$(eval "$command" 2>&1) && rc=$? || rc=$?
+    local got_ rc
+    got_=$(eval $command 2>&1) && rc=$? || rc=$?
 
     ## assert
 
     # assert wanted rc (default 0; cases expecting non-zero set [wanterr]=N)
     local wantrc=${wanterr:-0}
     (( rc == wantrc )) || {
-      echo "${NL}cmd: error = $rc, want: $wantrc$NL$got"
+      echo "${NL}cmd: error = $rc, want: $wantrc$NL$got_"
       return 1
     }
 
     # assert that we got the wanted output
-    local want=$(IFS='*'; echo "*${wants[*]}*")
-    [[ $got == $want ]] || {
-      echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
+    local want_=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got_ == $want_ ]] || {
+      echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff "$got_" "$want_" 1)$NL"
+      echo "use this line to update want to match this output:${NL}want=${got_@Q}"
       return 1
     }
   }
@@ -170,34 +170,34 @@ test_try() {
 
     ## arrange
 
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     ## act
 
-    local got rc
+    local got_ rc
 
     case $name in
       'failing command shows tried and returns 0' )
         failingTask() {
-          desc "$name"
+          desc $name
           ok false
           cmd false
         }
-        got=$(try failingTask 2>&1) && rc=$? || rc=$?
+        got_=$(try failingTask 2>&1) && rc=$? || rc=$?
         ;;
 
       'succeeding command works normally under try' )
         succeedingTask() {
-          desc "$name"
+          desc $name
           ok '[[ -e / ]]'
           cmd true
         }
-        got=$(try succeedingTask 2>&1) && rc=$? || rc=$?
+        got_=$(try succeedingTask 2>&1) && rc=$? || rc=$?
         ;;
 
       'subsequent cmd skipped after try failure' )
         multiCmdTask() {
-          desc "$name"
+          desc $name
           ok false
           cmd false
 
@@ -205,17 +205,17 @@ test_try() {
           ok false
           cmd true
         }
-        got=$(try multiCmdTask 2>&1) && rc=$? || rc=$?
+        got_=$(try multiCmdTask 2>&1) && rc=$? || rc=$?
         ;;
 
       'check failure shows tried under try' )
         checkFailTask() {
-          desc "$name"
+          desc $name
           ok    false
           check false
           cmd   true
         }
-        got=$(try checkFailTask 2>&1) && rc=$? || rc=$?
+        got_=$(try checkFailTask 2>&1) && rc=$? || rc=$?
         ;;
 
       'nested try restores outer state' )
@@ -235,7 +235,7 @@ test_try() {
           ok false
           cmd false
         }
-        got=$(try nestedTryTask 2>&1) && rc=$? || rc=$?
+        got_=$(try nestedTryTask 2>&1) && rc=$? || rc=$?
         ;;
     esac
 
@@ -243,15 +243,15 @@ test_try() {
 
     # assert no error
     (( rc == 0 )) || {
-      echo "${NL}try: error = $rc, want: 0$NL$got"
+      echo "${NL}try: error = $rc, want: 0$NL$got_"
       return 1
     }
 
     # assert that we got the wanted output
-    local want=$(IFS='*'; echo "*${wants[*]}*")
-    [[ $got == $want ]] || {
-      echo "${NL}try: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
+    local want_=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got_ == $want_ ]] || {
+      echo "${NL}try: got doesn't match want:$NL$(tesht.Diff "$got_" "$want_" 1)$NL"
+      echo "use this line to update want to match this output:${NL}want=${got_@Q}"
       return 1
     }
   }
@@ -277,36 +277,36 @@ test_task.GitClone() {
   # temporary directory
   local dir
   tesht.MktempDir dir || return 128  # fatal if can't make dir
-  cd "$dir"
+  cd $dir
 
   createCloneRepo
 
   ## act
 
   # run the command and capture the output and result code
-  local got rc
-  got=$(task.GitClone clone clone2 main 2>&1) && rc=$? || rc=$?
+  local got_ rc
+  got_=$(task.GitClone clone clone2 main 2>&1) && rc=$? || rc=$?
 
   ## assert
 
   # assert no error
   (( rc == 0 )) || {
-    echo "${NL}task.GitClone: error = $rc, want: 0$NL$got"
+    echo "${NL}task.GitClone: error = $rc, want: 0$NL$got_"
     return 1
   }
 
   # assert that the repo was cloned
   [[ -e clone2/.git ]] || {
-    echo "${NL}task.GitClone: expected .git directory.$NL$got"
+    echo "${NL}task.GitClone: expected .git directory.$NL$got_"
     return 1
   }
 
   # assert that we got the wanted output
   local wants=(begin 'clone repo clone to clone2' changed 'clone repo clone to clone2')
-  local want=$(IFS='*'; echo "*${wants[*]}*")
-  [[ $got == $want ]] || {
-    echo "${NL}task.GitClone: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
-    echo "use this line to update want to match this output:${NL}want=${got@Q}"
+  local want_=$(IFS='*'; echo "*${wants[*]}*")
+  [[ $got_ == $want_ ]] || {
+    echo "${NL}task.GitClone: got doesn't match want:$NL$(tesht.Diff "$got_" "$want_")$NL"
+    echo "use this line to update want to match this output:${NL}want=${got_@Q}"
     return 1
   }
 }
@@ -346,13 +346,13 @@ test_task.Ln() {
 
     # create variables from the keys/values of the test map
     unset -v wanterr  # unset optional fields
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     ## act
 
     # run the command and capture the output and result code
-    local got rc
-    got=$(task.Ln "$targetname" "$linkname" 2>&1) && rc=$? || rc=$?
+    local got_ rc
+    got_=$(task.Ln $targetname $linkname 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -360,27 +360,27 @@ test_task.Ln() {
     [[ -v wanterr ]] && {
       (( rc == wanterr )) && return
 
-      echo -e "\ntask.Ln: error = $rc, want: $wanterr\n$got"
+      echo -e "\ntask.Ln: error = $rc, want: $wanterr\n$got_"
       return 1
     }
 
     # assert no error
     (( rc == 0 )) || {
-      echo "${NL}task.Ln: error = $rc, want: 0$NL$got"
+      echo "${NL}task.Ln: error = $rc, want: 0$NL$got_"
       return 1
     }
 
     # assert that the symlink was made
     [[ -L $linkname ]] || {
-      echo "${NL}task.Ln: expected $linkname to be symlink$NL$got"
+      echo "${NL}task.Ln: expected $linkname to be symlink$NL$got_"
       return 1
     }
 
     # assert that we got the wanted output
-    local want=$(IFS='*'; echo "*${wants[*]}*")
-    [[ $got == $want ]] || {
-      echo "${NL}task.Ln: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
-      echo "use this line to update want to match this output:${NL}want=${got@Q}"
+    local want_=$(IFS='*'; echo "*${wants[*]}*")
+    [[ $got_ == $want_ ]] || {
+      echo "${NL}task.Ln: got doesn't match want:$NL$(tesht.Diff "$got_" "$want_")$NL"
+      echo "use this line to update want to match this output:${NL}want=${got_@Q}"
       return 1
     }
   }
@@ -409,22 +409,22 @@ test_task.Ln_wrong_target_absolute_repairs() {
   ln -s "$dir/wrong.txt" "$dir/link"
 
   ## act
-  local got rc
-  got=$(task.Ln "$dir/correct.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+  local got_ rc
+  got_=$(task.Ln "$dir/correct.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
 
   ## assert
   (( rc == 0 )) || {
-    echo "${NL}task.Ln: error = $rc, want: 0$NL$got"
+    echo "${NL}task.Ln: error = $rc, want: 0$NL$got_"
     return 1
   }
   local actual
   actual=$(readlink "$dir/link")
   [[ $actual == "$dir/correct.txt" ]] || {
-    echo "${NL}task.Ln: readlink = $actual, want $dir/correct.txt$NL$got"
+    echo "${NL}task.Ln: readlink = $actual, want $dir/correct.txt$NL$got_"
     return 1
   }
-  [[ $got == *changed* ]] || {
-    echo "${NL}task.Ln: expected [changed] event in output$NL$got"
+  [[ $got_ == *changed* ]] || {
+    echo "${NL}task.Ln: expected [changed] event in output$NL$got_"
     return 1
   }
 }
@@ -441,24 +441,24 @@ test_task.Ln_dangling_absolute_refuses() {
   ln -s "$dir/nonexistent.txt" "$dir/link"
 
   ## act
-  local got rc
-  got=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+  local got_ rc
+  got_=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
 
   ## assert
   (( rc == 1 )) || {
-    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got"
+    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got_"
     return 1
   }
   # Link should still exist (cmd refused BEFORE removing) pointing at the
   # same dangling target
   [[ -L $dir/link ]] || {
-    echo "${NL}task.Ln: expected $dir/link to still exist as symlink$NL$got"
+    echo "${NL}task.Ln: expected $dir/link to still exist as symlink$NL$got_"
     return 1
   }
   local actual
   actual=$(readlink "$dir/link")
   [[ $actual == "$dir/nonexistent.txt" ]] || {
-    echo "${NL}task.Ln: readlink = $actual, want $dir/nonexistent.txt (unchanged)$NL$got"
+    echo "${NL}task.Ln: readlink = $actual, want $dir/nonexistent.txt (unchanged)$NL$got_"
     return 1
   }
 }
@@ -471,16 +471,16 @@ test_task.Ln_missing_absolute_source_refuses() {
   tesht.MktempDir dir || return 128
 
   ## act
-  local got rc
-  got=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+  local got_ rc
+  got_=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
 
   ## assert
   (( rc == 1 )) || {
-    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got"
+    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got_"
     return 1
   }
   [[ ! -L $dir/link && ! -e $dir/link ]] || {
-    echo "${NL}task.Ln: expected $dir/link to NOT be created$NL$got"
+    echo "${NL}task.Ln: expected $dir/link to NOT be created$NL$got_"
     return 1
   }
 }
@@ -503,14 +503,14 @@ test_task.Ln_relative_target_greenfield() {
     # Sanitize target into a unique linkname per shape.
     sanitized=${target//[\.\/]/_}
     linkname="$dir/link_$sanitized"
-    got=$(task.Ln "$target" "$linkname" 2>&1) && rc=$? || rc=$?
+    got_=$(task.Ln $target $linkname 2>&1) && rc=$? || rc=$?
     (( rc == 0 )) || {
-      echo "${NL}task.Ln (shape '$target'): error = $rc, want: 0$NL$got"
+      echo "${NL}task.Ln (shape '$target'): error = $rc, want: 0$NL$got_"
       failed=1; continue
     }
-    actual=$(readlink "$linkname")
+    actual=$(readlink $linkname)
     [[ $actual == "$target" ]] || {
-      echo "${NL}task.Ln (shape '$target'): readlink = $actual, want literal '$target'$NL$got"
+      echo "${NL}task.Ln (shape '$target'): readlink = $actual, want literal '$target'$NL$got_"
       failed=1
     }
   done
@@ -550,11 +550,11 @@ test_task.GitUpdate() {
 
     ## arrange
 
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     local dir
     tesht.MktempDir dir || return 128
-    cd "$dir"
+    cd $dir
 
     # Create "remote" repo and clone it.
     createCloneRepo
@@ -565,7 +565,7 @@ test_task.GitUpdate() {
     git config commit.gpgsign false
     cd ..
 
-    local got rc
+    local got_ rc
 
     case $name in
       'happy path with upstream changes' )
@@ -573,17 +573,17 @@ test_task.GitUpdate() {
         git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
           commit --allow-empty -m 'upstream change' >/dev/null 2>&1
 
-        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        got_=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
 
         # Assert success.
         (( rc == 0 )) || {
-          echo "${NL}GitUpdate happy: error = $rc, want: 0$NL$got"
+          echo "${NL}GitUpdate happy: error = $rc, want: 0$NL$got_"
           return 1
         }
 
         # Assert upstream commit is present.
         git -C local log --oneline | grep -q 'upstream change' || {
-          echo "${NL}GitUpdate happy: upstream commit not found$NL$got"
+          echo "${NL}GitUpdate happy: upstream commit not found$NL$got_"
           return 1
         }
         ;;
@@ -601,17 +601,17 @@ test_task.GitUpdate() {
         ln -s nix-wrapper local/bin/node
         echo '/bin' >>local/.git/info/exclude
 
-        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        got_=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
 
         # Assert success.
         (( rc == 0 )) || {
-          echo "${NL}GitUpdate conflict: error = $rc, want: 0$NL$got"
+          echo "${NL}GitUpdate conflict: error = $rc, want: 0$NL$got_"
           return 1
         }
 
         # Assert bin/node is still a symlink (not the upstream file).
         [[ -L local/bin/node ]] || {
-          echo "${NL}GitUpdate conflict: bin/node is not a symlink$NL$got"
+          echo "${NL}GitUpdate conflict: bin/node is not a symlink$NL$got_"
           return 1
         }
         ;;
@@ -641,17 +641,17 @@ test_task.GitUpdate() {
         ln -s nix-wrapper local/bin/tool
         echo '/bin' >>local/.git/info/exclude
 
-        got=$(try task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        got_=$(try task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
 
         # Assert try succeeded (try always returns 0).
         (( rc == 0 )) || {
-          echo "${NL}GitUpdate restore: try error = $rc, want: 0$NL$got"
+          echo "${NL}GitUpdate restore: try error = $rc, want: 0$NL$got_"
           return 1
         }
 
         # Assert scaffold file was restored (even though rebase failed).
         [[ -L local/bin/tool ]] || {
-          echo "${NL}GitUpdate restore: bin/tool symlink not restored$NL$got"
+          echo "${NL}GitUpdate restore: bin/tool symlink not restored$NL$got_"
           return 1
         }
 
@@ -667,21 +667,21 @@ test_task.GitUpdate() {
         # Local has an untracked file that does NOT conflict with upstream.
         echo 'my notes' >local/scratch.txt
 
-        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        got_=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
 
         # Assert success.
         (( rc == 0 )) || {
-          echo "${NL}GitUpdate passthrough: error = $rc, want: 0$NL$got"
+          echo "${NL}GitUpdate passthrough: error = $rc, want: 0$NL$got_"
           return 1
         }
 
         # Assert unrelated file was not moved/modified.
         [[ -f local/scratch.txt ]] || {
-          echo "${NL}GitUpdate passthrough: scratch.txt missing$NL$got"
+          echo "${NL}GitUpdate passthrough: scratch.txt missing$NL$got_"
           return 1
         }
         [[ $(cat local/scratch.txt) == 'my notes' ]] || {
-          echo "${NL}GitUpdate passthrough: scratch.txt content changed$NL$got"
+          echo "${NL}GitUpdate passthrough: scratch.txt content changed$NL$got_"
           return 1
         }
         ;;
@@ -822,23 +822,23 @@ test_task.classify() {
 
     ## arrange
     unset -v condition checkExpr tryFailed shortrun prog unchg
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"
-    [[ -v condition  ]] && ok "$condition"
-    [[ -v checkExpr  ]] && check "$checkExpr"
+    desc $name
+    [[ -v condition  ]] && ok $condition
+    [[ -v checkExpr  ]] && check $checkExpr
     [[ -v tryFailed  ]] && TryFailedX=$tryFailed
-    [[ -v shortrun   ]] && task.SetShortRun "$shortrun"
-    [[ -v prog       ]] && prog "$prog"
-    [[ -v unchg      ]] && unchg "$unchg"
+    [[ -v shortrun   ]] && task.SetShortRun $shortrun
+    [[ -v prog       ]] && prog $prog
+    [[ -v unchg      ]] && unchg $unchg
 
     ## act
-    local got
-    got=$(task.classify)
+    local got_
+    got_=$(task.classify)
 
     ## assert
-    [[ $got == "$wants" ]] || {
-      echo "${NL}classify: got=$got, want=$wants"
+    [[ $got_ == "$wants" ]] || {
+      echo "${NL}classify: got=$got_, want=$wants"
       return 1
     }
   }
@@ -898,20 +898,20 @@ test_task.classifyResult() {
 
     ## arrange
     unset -v condition unchg output
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"
-    [[ -v condition ]] && ok "$condition"
-    [[ -v unchg     ]] && unchg "$unchg"
+    desc $name
+    [[ -v condition ]] && ok $condition
+    [[ -v unchg     ]] && unchg $unchg
     OutputX=${output:-}
 
     ## act
-    local got
-    got=$(task.classifyResult "$rc")
+    local got_
+    got_=$(task.classifyResult $rc)
 
     ## assert
-    [[ $got == "$wants" ]] || {
-      echo "${NL}classifyResult: got=$got, want=$wants"
+    [[ $got_ == "$wants" ]] || {
+      echo "${NL}classifyResult: got=$got_, want=$wants"
       return 1
     }
   }
@@ -964,23 +964,23 @@ test_task.gitUpdateSafe() {
   subtest() {
     local casename=$1
     unset -v want_msg
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     local dir
     tesht.MktempDir dir || return 128
 
-    gitUpdateSafe.setupScenario "$dir" "$scenario"
+    gitUpdateSafe.setupScenario $dir $scenario
 
-    local got rc
-    got=$(task.gitUpdateSafe "$dir/local") && rc=$? || rc=$?
+    local got_ rc
+    got_=$(task.gitUpdateSafe "$dir/local") && rc=$? || rc=$?
 
     (( rc == want_rc )) || {
-      echo "rc=$rc want=$want_rc output: $got"
+      echo "rc=$rc want=$want_rc output: $got_"
       return 1
     }
     [[ -v want_msg ]] || return 0
-    [[ $got == *"$want_msg"* ]] || {
-      echo "output '$got' missing expected pattern '$want_msg'"
+    [[ $got_ == *"$want_msg"* ]] || {
+      echo "output '$got_' missing expected pattern '$want_msg'"
       return 1
     }
   }
@@ -994,7 +994,7 @@ test_task.gitUpdateSafe() {
 gitUpdateSafe.setupScenario() {
   local dir=$1 scenario=$2
   (
-    cd "$dir"
+    cd $dir
     git init --bare remote
     git clone remote local
     cd local
@@ -1016,7 +1016,7 @@ gitUpdateSafe.setupScenario() {
         ;;
 
       behind-only)
-        cd "$dir"
+        cd $dir
         git clone remote other
         cd other
         git config user.email 'test@test'
@@ -1034,7 +1034,7 @@ gitUpdateSafe.setupScenario() {
         echo ahead > file.txt
         git add file.txt
         git commit -m 'local commit'
-        cd "$dir"
+        cd $dir
         git clone remote other
         cd other
         git config user.email 'test@test'
