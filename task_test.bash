@@ -480,33 +480,36 @@ test_task.Ln_missing_absolute_source_refuses() {
   }
 }
 
-# Contract: relative targetname (nix-wrapper-style symlink) creates the link
-# without source-existence check, since relative resolution depends on the
-# link's parent directory which task.Ln does not navigate. This is the
-# highest-volume production pattern (bin/{node,npx,...} → nix-wrapper
-# across many project repos).
+# Contract: relative targetname creates the link without source-existence
+# check, since relative resolution depends on the link's parent directory
+# which task.Ln does not navigate. Pressures multiple relative shapes
+# (bare-name, ./, ../, subdir/) in a single test to avoid further
+# fragmenting the test harness while still pinning each shape's literal
+# readlink contract. Bare-name `nix-wrapper` is the highest-volume
+# production pattern (bin/{node,npx,...} → nix-wrapper across many
+# project repos); the other shapes pin the broader literal-equality
+# contract.
 test_task.Ln_relative_target_greenfield() {
-  ## arrange
   local dir
   tesht.MktempDir dir || return 128
-  # No nix-wrapper file pre-created — proves source-existence check is
-  # skipped for relative targets.
 
-  ## act
-  local got rc
-  got=$(task.Ln nix-wrapper "$dir/foo" 2>&1) && rc=$? || rc=$?
-
-  ## assert
-  (( rc == 0 )) || {
-    echo "${NL}task.Ln: error = $rc, want: 0 (relative target skips source check)$NL$got"
-    return 1
-  }
-  local actual
-  actual=$(readlink "$dir/foo")
-  [[ $actual == "nix-wrapper" ]] || {
-    echo "${NL}task.Ln: readlink = $actual, want literal 'nix-wrapper'$NL$got"
-    return 1
-  }
+  local target linkname got rc actual sanitized failed=0
+  for target in nix-wrapper ./foo ../foo subdir/foo; do
+    # Sanitize target into a unique linkname per shape.
+    sanitized=${target//[\.\/]/_}
+    linkname="$dir/link_$sanitized"
+    got=$(task.Ln "$target" "$linkname" 2>&1) && rc=$? || rc=$?
+    (( rc == 0 )) || {
+      echo "${NL}task.Ln (shape '$target'): error = $rc, want: 0$NL$got"
+      failed=1; continue
+    }
+    actual=$(readlink "$linkname")
+    [[ $actual == "$target" ]] || {
+      echo "${NL}task.Ln (shape '$target'): readlink = $actual, want literal '$target'$NL$got"
+      failed=1
+    }
+  done
+  return $failed
 }
 
 # test_task.GitUpdate tests git update with fetch+rebase and untracked conflict stashing.

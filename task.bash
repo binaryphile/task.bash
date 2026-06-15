@@ -425,6 +425,12 @@ task.Ln() {
   ok task.linknameMatchesTarget
 
   task.ln() {
+    # Refusal is conservative: when refusing, an existing dangling link is
+    # left in place rather than removed. Cleanup-on-refusal was considered
+    # and rejected — task.Ln should not delete a link it cannot replace,
+    # since the caller may want to inspect the dangling state. Operators
+    # remove obsolete dangling links explicitly (e.g., update-env's
+    # predicate-gated one-time-cleanup task pattern).
     if [[ ${targetname:0:1} == / && ! -e $targetname ]]; then
       echo "task.Ln: refusing to symlink $linkname → $targetname (source missing)" >&2
       return 1
