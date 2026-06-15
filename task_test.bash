@@ -391,6 +391,124 @@ test_task.Ln() {
   return $failed
 }
 
+# Contract: pre-existing absolute symlink pointing at the wrong target gets
+# repaired to the declared target. Hardened predicate detects the mismatch
+# (literal readlink equality fails), cmd removes the wrong link and creates
+# the right one. Exit 0, output reports [changed].
+test_task.Ln_wrong_target_absolute_repairs() {
+  ## arrange
+  local dir
+  tesht.MktempDir dir || return 128
+  echo correct > "$dir/correct.txt"
+  echo wrong > "$dir/wrong.txt"
+  ln -s "$dir/wrong.txt" "$dir/link"
+
+  ## act
+  local got rc
+  got=$(task.Ln "$dir/correct.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+
+  ## assert
+  (( rc == 0 )) || {
+    echo "${NL}task.Ln: error = $rc, want: 0$NL$got"
+    return 1
+  }
+  local actual
+  actual=$(readlink "$dir/link")
+  [[ $actual == "$dir/correct.txt" ]] || {
+    echo "${NL}task.Ln: readlink = $actual, want $dir/correct.txt$NL$got"
+    return 1
+  }
+  [[ $got == *changed* ]] || {
+    echo "${NL}task.Ln: expected [changed] event in output$NL$got"
+    return 1
+  }
+}
+
+# Contract: pre-existing dangling absolute symlink (link exists, source
+# missing) and task.Ln re-invoked with the SAME absolute target — predicate
+# fails source-existence check, cmd refuses to recreate. Exit 1, link
+# unchanged (still dangling).
+test_task.Ln_dangling_absolute_refuses() {
+  ## arrange
+  local dir
+  tesht.MktempDir dir || return 128
+  # Pre-existing dangling link: target source does not exist
+  ln -s "$dir/nonexistent.txt" "$dir/link"
+
+  ## act
+  local got rc
+  got=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+
+  ## assert
+  (( rc == 1 )) || {
+    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got"
+    return 1
+  }
+  # Link should still exist (cmd refused BEFORE removing) pointing at the
+  # same dangling target
+  [[ -L $dir/link ]] || {
+    echo "${NL}task.Ln: expected $dir/link to still exist as symlink$NL$got"
+    return 1
+  }
+  local actual
+  actual=$(readlink "$dir/link")
+  [[ $actual == "$dir/nonexistent.txt" ]] || {
+    echo "${NL}task.Ln: readlink = $actual, want $dir/nonexistent.txt (unchanged)$NL$got"
+    return 1
+  }
+}
+
+# Contract: no pre-existing link, absolute target source missing — cmd
+# refuses to create the dangling link. Exit 1, no link created.
+test_task.Ln_missing_absolute_source_refuses() {
+  ## arrange
+  local dir
+  tesht.MktempDir dir || return 128
+
+  ## act
+  local got rc
+  got=$(task.Ln "$dir/nonexistent.txt" "$dir/link" 2>&1) && rc=$? || rc=$?
+
+  ## assert
+  (( rc == 1 )) || {
+    echo "${NL}task.Ln: error = $rc, want: 1 (refuse on absolute + missing source)$NL$got"
+    return 1
+  }
+  [[ ! -L $dir/link && ! -e $dir/link ]] || {
+    echo "${NL}task.Ln: expected $dir/link to NOT be created$NL$got"
+    return 1
+  }
+}
+
+# Contract: relative targetname (nix-wrapper-style symlink) creates the link
+# without source-existence check, since relative resolution depends on the
+# link's parent directory which task.Ln does not navigate. This is the
+# highest-volume production pattern (bin/{node,npx,...} → nix-wrapper
+# across many project repos).
+test_task.Ln_relative_target_greenfield() {
+  ## arrange
+  local dir
+  tesht.MktempDir dir || return 128
+  # No nix-wrapper file pre-created — proves source-existence check is
+  # skipped for relative targets.
+
+  ## act
+  local got rc
+  got=$(task.Ln nix-wrapper "$dir/foo" 2>&1) && rc=$? || rc=$?
+
+  ## assert
+  (( rc == 0 )) || {
+    echo "${NL}task.Ln: error = $rc, want: 0 (relative target skips source check)$NL$got"
+    return 1
+  }
+  local actual
+  actual=$(readlink "$dir/foo")
+  [[ $actual == "nix-wrapper" ]] || {
+    echo "${NL}task.Ln: readlink = $actual, want literal 'nix-wrapper'$NL$got"
+    return 1
+  }
+}
+
 # test_task.GitUpdate tests git update with fetch+rebase and untracked conflict stashing.
 # Subtests cover: happy path, untracked conflict, restore after failure, no-conflict passthrough.
 test_task.GitUpdate() {

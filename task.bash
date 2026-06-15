@@ -404,14 +404,31 @@ task.Install() {
   cmd task.install
 }
 
+# task.Ln symlinks linkname → targetname idempotently.
+#
+# Idempotence predicate is LITERAL readlink equality, not semantic path
+# equality: `./foo`, `foo`, and `/abs/path/foo` are distinct targets. For
+# absolute targetnames, source existence is additionally required, so
+# declaring a link to a missing absolute source fails closed (refuses to
+# create) rather than producing a dangling link. Relative targetnames
+# (e.g., `nix-wrapper` symlinks in per-project bin/ dirs) bypass the
+# source-existence check, since relative resolution depends on the link's
+# parent directory, which task.Ln does not navigate.
 task.Ln() {
   local targetname=$1 linkname=$2
   desc  "symlink $linkname to $targetname"
 
-  task.linknameIsLink() { [[ -L $linkname ]]; }
-  ok task.linknameIsLink
+  task.linknameMatchesTarget() {
+    [[ -L $linkname && "$(readlink "$linkname")" == "$targetname" ]] &&
+      { [[ ${targetname:0:1} != / ]] || [[ -e $targetname ]]; }
+  }
+  ok task.linknameMatchesTarget
 
   task.ln() {
+    if [[ ${targetname:0:1} == / && ! -e $targetname ]]; then
+      echo "task.Ln: refusing to symlink $linkname → $targetname (source missing)" >&2
+      return 1
+    fi
     mkdir -p "$(dirname "$linkname")"
     [[ -L $linkname ]] && rm "$linkname"
     ln -sf "$targetname" "$linkname"

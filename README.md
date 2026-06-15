@@ -160,7 +160,7 @@ Additional helper functions are provided under the `task.` namespace:
 | `task.GitClone REPO DIR BRANCH`  | Clone a git repo if `DIR` doesn't exist              |
 | `task.GitUpdate DIR`             | Pull latest changes with rebase (skipped in short mode) |
 | `task.Install MODE SRC DST`      | Copy a file with specific permissions                |
-| `task.Ln TARGET LINK`            | Create a symlink, removing any existing one          |
+| `task.Ln TARGET LINK`            | Symlink `LINK` → `TARGET`; idempotence is literal `readlink` equality, and absolute `TARGET` additionally requires source existence (refuses to create dangling links) |
 | `try COMMAND...`                  | Run a command with graceful failure on error          |
 
 These use **PascalCase** with a `task.` prefix to avoid namespace conflicts in your shell
