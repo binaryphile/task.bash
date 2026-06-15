@@ -63,10 +63,10 @@ task.hasTty() { { : >/dev/tty; } 2>/dev/null; }
 cmd() {
   local CMD=$1
 
-  local status
-  status=$(task.classify)
+  local status_
+  status_=$(task.classify)
 
-  case $status in
+  case $status_ in
     skipping)
       echo -e "[$(task.t skipping)]\t$DescriptionX"
       return
@@ -127,10 +127,10 @@ cmd() {
     OutputX=$(eval "$CMD" 2>&1) && RC=$? || RC=$?
   fi
 
-  local result
-  result=$(task.classifyResult $RC)
+  local result_
+  result_=$(task.classifyResult $RC)
 
-  case $result in
+  case $result_ in
     ok)
       OksX[$DescriptionX]=1
       echo -e "\r\033[K[$(task.t ok)]\t\t$DescriptionX"
@@ -305,9 +305,9 @@ task.GitClone() {
 # it on subsequent pulls (self-healing).
 task.GitUpdate() {
   local dir=$1
-  local skip_reason
-  if ! skip_reason=$(task.gitUpdateSafe "$dir"); then
-    echo "update $dir: skipped ($skip_reason) -- run 'git -C $dir pull --rebase' to reconcile manually"
+  local skip_reason_
+  if ! skip_reason_=$(task.gitUpdateSafe "$dir"); then
+    echo "update $dir: skipped ($skip_reason_) -- run 'git -C $dir pull --rebase' to reconcile manually"
     return 0
   fi
   desc   "update $dir"
@@ -318,14 +318,14 @@ task.GitUpdate() {
     # Fetch first so tracking refs are current for conflict detection.
     GIT_SSH_COMMAND=$ssh git -c http.connectTimeout=10 -C "$dir" fetch || return 1
 
-    local upstream
-    upstream=$(git -C "$dir" rev-parse --abbrev-ref '@{upstream}') || return 1
+    local upstream_
+    upstream_=$(git -C "$dir" rev-parse --abbrev-ref '@{upstream}') || return 1
 
     # Check if already up to date (no rebase needed).
-    local local_head upstream_head
-    local_head=$(git -C "$dir" rev-parse HEAD)
-    upstream_head=$(git -C "$dir" rev-parse "$upstream")
-    if [[ $local_head == "$upstream_head" ]]; then
+    local local_head_ upstream_head_
+    local_head_=$(git -C "$dir" rev-parse HEAD)
+    upstream_head_=$(git -C "$dir" rev-parse "$upstream_")
+    if [[ $local_head_ == "$upstream_head_" ]]; then
       echo 'Already up to date.'
       return 0
     fi
@@ -335,37 +335,37 @@ task.GitUpdate() {
     # .git/info/exclude (e.g. /bin) are hidden from that listing. Instead, walk
     # the upstream tree and check if each file exists locally but is not tracked.
     local stashed=()
-    local incoming
-    incoming=$(git -C "$dir" diff --name-only "$local_head" "$upstream" -- 2>/dev/null) || true
+    local incoming_
+    incoming_=$(git -C "$dir" diff --name-only "$local_head_" "$upstream_" -- 2>/dev/null) || true
 
-    if [[ -n $incoming ]]; then
-      local f
-      while IFS= read -r f; do
+    if [[ -n $incoming_ ]]; then
+      local f_=''
+      while IFS= read -r f_; do
         # Skip files already tracked locally — autoStash handles those.
-        git -C "$dir" ls-files --error-unmatch "$f" &>/dev/null && continue
+        git -C "$dir" ls-files --error-unmatch "$f_" &>/dev/null && continue
         # File is incoming from upstream but not tracked locally.
         # If it exists in the working tree, it will conflict.
         # Use -e OR -L to catch broken symlinks (e.g. bin/node -> nix-wrapper
         # where the target doesn't exist yet).
-        [[ -e "$dir/$f" || -L "$dir/$f" ]] || continue
-        local tmpfile
-        tmpfile=$(mktemp "${dir}/.git/stash-untracked-XXXXXX") || return 1
-        mv "$dir/$f" "$tmpfile"
-        stashed+=("$f|$tmpfile")
-      done <<<"$incoming"
+        [[ -e "$dir/$f_" || -L "$dir/$f_" ]] || continue
+        local tmpfile_
+        tmpfile_=$(mktemp "${dir}/.git/stash-untracked-XXXXXX") || return 1
+        mv "$dir/$f_" "$tmpfile_"
+        stashed+=("$f_|$tmpfile_")
+      done <<<"$incoming_"
     fi
 
     # Rebase onto upstream.
     local rc=0
-    GIT_SSH_COMMAND=$ssh git -C "$dir" rebase "$upstream" && rc=$? || rc=$?
+    GIT_SSH_COMMAND=$ssh git -C "$dir" rebase "$upstream_" && rc=$? || rc=$?
 
     # Restore stashed files unconditionally (even on failure).
     local entry
     for entry in "${stashed[@]+"${stashed[@]}"}"; do
       local origname=${entry%%|*}
-      local tmpfile=${entry#*|}
+      local tmpfile_=${entry#*|}
       mkdir -p "$(dirname "$dir/$origname")"
-      mv "$tmpfile" "$dir/$origname"
+      mv "$tmpfile_" "$dir/$origname"
     done
 
     # Post-condition: verify rebase brought HEAD to upstream. Catches silent
@@ -402,14 +402,14 @@ task.GitUpdate() {
 # Ahead-only is allowed: the remote is unchanged, so rebase is a no-op.
 task.gitUpdateSafe() {
   local dir=$1
-  local branch
-  branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || { echo "not a git repo"; return 1; }
-  [[ $branch != HEAD ]] || { echo "detached HEAD"; return 1; }
+  local branch_
+  branch_=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null) || { echo "not a git repo"; return 1; }
+  [[ $branch_ != HEAD ]] || { echo "detached HEAD"; return 1; }
   git -C "$dir" rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1 || { echo "no upstream tracking branch"; return 1; }
-  local counts
-  counts=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "could not compare with upstream"; return 1; }
-  local ahead behind
-  IFS=$'\t' read -r ahead behind <<<"$counts"
+  local counts_
+  counts_=$(git -C "$dir" rev-list --left-right --count HEAD...'@{upstream}' 2>/dev/null) || { echo "could not compare with upstream"; return 1; }
+  local ahead=0 behind=0
+  IFS=$'\t' read -r ahead behind <<<"$counts_"
   (( ahead > 0 && behind > 0 )) && { echo "diverged ($ahead ahead, $behind behind)"; return 1; }
   return 0
 }
