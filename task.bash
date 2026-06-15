@@ -368,6 +368,29 @@ task.GitUpdate() {
       mv "$tmpfile" "$dir/$origname"
     done
 
+    # Post-condition: verify rebase brought HEAD to upstream. Catches silent
+    # no-op rebases where rc=0 but HEAD did not advance (corrupted tracking
+    # ref, race conditions where rebase replays onto stale upstream, etc.).
+    # Without this check, update-env reports [tried] with no diagnostic, and
+    # repos quietly drift behind.
+    #
+    # `HEAD..@{upstream}` counts commits reachable from upstream but not
+    # HEAD. Zero means "HEAD is at upstream or strictly ahead" (the success
+    # shape; ahead-only is fine per gitUpdateSafe's pre-check). On rev-list
+    # failure (corrupted refs, etc.), $behind is the sentinel string
+    # 'rev-list-failed' — guaranteed non-zero comparison forces visible
+    # failure. Skipped when rc is already non-zero (real rebase failure
+    # already surfaces; don't double-report).
+    if (( rc == 0 )); then
+      local behind
+      behind=$(git -C "$dir" rev-list --count HEAD..@{upstream} 2>/dev/null) \
+        || behind=rev-list-failed
+      if [[ $behind != 0 ]]; then
+        echo "post-rebase divergence: $dir still $behind commit(s) behind @{upstream}"
+        rc=1
+      fi
+    fi
+
     return $rc
   }
   cmd task.gitUpdate

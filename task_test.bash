@@ -531,6 +531,15 @@ test_task.GitUpdate() {
     [name]='unrelated untracked files untouched'
   )
 
+  # case5 + case6 (post-condition: HEAD == upstream after rebase, #18218):
+  local -A case5=(
+    [name]='post-condition passes when rebase brings HEAD forward'
+  )
+
+  local -A case6=(
+    [name]='post-condition catches silent no-op rebase'
+  )
+
   subtest() {
     local casename=$1
 
@@ -668,6 +677,70 @@ test_task.GitUpdate() {
         }
         [[ $(cat local/scratch.txt) == 'my notes' ]] || {
           echo "${NL}GitUpdate passthrough: scratch.txt content changed$NL$got"
+          return 1
+        }
+        ;;
+
+      'post-condition passes when rebase brings HEAD forward' )
+        # Ordinary happy path; verify the new post-condition does not
+        # false-positive when rebase advances HEAD to upstream.
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit --allow-empty -m 'upstream change' >/dev/null 2>&1
+
+        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+
+        # Assert success (post-condition does not trip).
+        (( rc == 0 )) || {
+          echo "${NL}GitUpdate post-condition happy: error = $rc, want: 0$NL$got"
+          return 1
+        }
+
+        # Assert NO divergence message in output.
+        [[ $got != *'post-rebase divergence'* ]] || {
+          echo "${NL}GitUpdate post-condition happy: false-positive divergence$NL$got"
+          return 1
+        }
+        ;;
+
+      'post-condition catches silent no-op rebase' )
+        # Add an upstream commit so HEAD..@{upstream} is non-zero unless
+        # rebase actually advances HEAD.
+        git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
+          commit --allow-empty -m 'upstream change' >/dev/null 2>&1
+
+        # Install a PATH stub for git that intercepts `git rebase` and
+        # returns 0 without doing the work. Simulates the silent-no-op
+        # failure class the post-condition exists to catch (corrupted
+        # tracking ref, race condition where rebase replays onto stale
+        # upstream, etc.). All non-rebase git invocations pass through to
+        # the real binary. Per tesht.md: this is a thin inter-system
+        # boundary stub, not internal mocking.
+        local realGit
+        realGit=$(command -v git)
+        mkdir -p stub
+        cat > stub/git <<STUB
+#!/usr/bin/env bash
+for arg; do
+  [[ \$arg == rebase ]] && exit 0
+done
+exec $realGit "\$@"
+STUB
+        chmod +x stub/git
+        local oldPath=$PATH
+        PATH=$PWD/stub:$PATH
+
+        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        PATH=$oldPath
+
+        # Assert non-zero return (silent no-op surfaces).
+        (( rc != 0 )) || {
+          echo "${NL}GitUpdate post-condition no-op: rc=$rc, want non-zero$NL$got"
+          return 1
+        }
+
+        # Assert output contains the literal divergence message.
+        [[ $got == *'post-rebase divergence'* ]] || {
+          echo "${NL}GitUpdate post-condition no-op: output missing 'post-rebase divergence'$NL$got"
           return 1
         }
         ;;

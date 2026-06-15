@@ -206,6 +206,31 @@ into a tracked modification; all future updates are self-healing.
 Restore happens even if rebase fails, ensuring scaffold artifacts are never
 lost.
 
+**Phase 4: Post-condition (HEAD == upstream verification)**
+
+```
+behind=$(git rev-list --count HEAD..@{upstream})
+[[ $behind != 0 ]] && echo "post-rebase divergence: $dir still $behind commit(s) behind @{upstream}"
+```
+
+After a successful rebase (rc=0), `task.gitUpdate` verifies HEAD is at or
+strictly ahead of upstream. Catches the silent-no-op failure class where
+`git rebase` returns 0 but HEAD did not advance to upstream (corrupted
+tracking refs, race conditions where rebase replays onto stale upstream
+state, etc.) — failures that would otherwise leave the repo behind while
+the framework reports `[tried]` with no diagnostic.
+
+On `rev-list` itself failing (corrupted refs), `behind` is the sentinel
+string `rev-list-failed`, which compares non-zero and surfaces visibly
+rather than passing silently.
+
+Skipped when rebase already returned non-zero — real rebase failures
+already surface; don't double-report. On post-condition trip, emits
+`post-rebase divergence: ...` and returns non-zero, which the task
+framework reports as `[failed]` (or `[tried]` under `try`-wrapped
+invocation) with the `[output]` line carrying the literal divergence
+message.
+
 ### Timeout policy
 
 All git network operations use ConnectTimeout=10 (SSH) and

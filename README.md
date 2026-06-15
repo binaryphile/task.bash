@@ -158,7 +158,7 @@ Additional helper functions are provided under the `task.` namespace:
 | `task.Summarize`                  | Display summary of task outcomes                     |
 | `task.SetShortRun on\|off`       | Skip long-running tasks with `prog` or `unchg`       |
 | `task.GitClone REPO DIR BRANCH`  | Clone a git repo if `DIR` doesn't exist              |
-| `task.GitUpdate DIR`             | Pull latest changes with rebase (skipped in short mode) |
+| `task.GitUpdate DIR`             | Pull latest changes with rebase (skipped in short mode); verifies HEAD == upstream post-rebase and fails visibly on silent no-op |
 | `task.Install MODE SRC DST`      | Copy a file with specific permissions                |
 | `task.Ln TARGET LINK`            | Symlink `LINK` → `TARGET`; idempotence is literal `readlink` equality, and absolute `TARGET` additionally requires source existence (refuses to create dangling links) |
 | `try COMMAND...`                  | Run a command with graceful failure on error          |
