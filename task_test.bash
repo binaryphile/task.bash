@@ -86,14 +86,14 @@ test_cmd() {
 
     # create variables from the keys/values of the test map
     unset -v ok shortrun prog unchg want wanterr hasTty teeFails  # unset optional fields
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"  # desc resets the environment so make other changes after
+    desc $name  # desc resets the environment so make other changes after
 
-    [[ -v ok        ]] && ok "$ok"
-    [[ -v prog      ]] && prog "$prog"
-    [[ -v shortrun  ]] && task.SetShortRun "$shortrun"
-    [[ -v unchg     ]] && unchg "$unchg"
+    [[ -v ok        ]] && ok $ok
+    [[ -v prog      ]] && prog $prog
+    [[ -v shortrun  ]] && task.SetShortRun $shortrun
+    [[ -v unchg     ]] && unchg $unchg
     [[ -v hasTty && $hasTty == no  ]] && task.hasTty() { return 1; }
     [[ -v hasTty && $hasTty == yes ]] && task.hasTty() { return 0; }
     [[ -v teeFails && $teeFails == yes ]] && tee() { return 1; }
@@ -102,7 +102,7 @@ test_cmd() {
 
     # run the command and capture the output and result code
     local got rc
-    got=$(eval "$command" 2>&1) && rc=$? || rc=$?
+    got=$(eval $command 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -116,7 +116,7 @@ test_cmd() {
     # assert that we got the wanted output
     local want=$(IFS='*'; echo "*${wants[*]}*")
     [[ $got == $want ]] || {
-      echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
+      echo "${NL}cmd: got doesn't match want:$NL$(tesht.Diff $got $want 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
       return 1
     }
@@ -170,7 +170,7 @@ test_try() {
 
     ## arrange
 
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     ## act
 
@@ -179,7 +179,7 @@ test_try() {
     case $name in
       'failing command shows tried and returns 0' )
         failingTask() {
-          desc "$name"
+          desc $name
           ok false
           cmd false
         }
@@ -188,7 +188,7 @@ test_try() {
 
       'succeeding command works normally under try' )
         succeedingTask() {
-          desc "$name"
+          desc $name
           ok '[[ -e / ]]'
           cmd true
         }
@@ -197,7 +197,7 @@ test_try() {
 
       'subsequent cmd skipped after try failure' )
         multiCmdTask() {
-          desc "$name"
+          desc $name
           ok false
           cmd false
 
@@ -210,7 +210,7 @@ test_try() {
 
       'check failure shows tried under try' )
         checkFailTask() {
-          desc "$name"
+          desc $name
           ok    false
           check false
           cmd   true
@@ -250,7 +250,7 @@ test_try() {
     # assert that we got the wanted output
     local want=$(IFS='*'; echo "*${wants[*]}*")
     [[ $got == $want ]] || {
-      echo "${NL}try: got doesn't match want:$NL$(tesht.Diff "$got" "$want" 1)$NL"
+      echo "${NL}try: got doesn't match want:$NL$(tesht.Diff $got $want 1)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
       return 1
     }
@@ -277,7 +277,7 @@ test_task.GitClone() {
   # temporary directory
   local dir
   tesht.MktempDir dir || return 128  # fatal if can't make dir
-  cd "$dir"
+  cd $dir
 
   createCloneRepo
 
@@ -305,7 +305,7 @@ test_task.GitClone() {
   local wants=(begin 'clone repo clone to clone2' changed 'clone repo clone to clone2')
   local want=$(IFS='*'; echo "*${wants[*]}*")
   [[ $got == $want ]] || {
-    echo "${NL}task.GitClone: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
+    echo "${NL}task.GitClone: got doesn't match want:$NL$(tesht.Diff $got $want)$NL"
     echo "use this line to update want to match this output:${NL}want=${got@Q}"
     return 1
   }
@@ -346,13 +346,13 @@ test_task.Ln() {
 
     # create variables from the keys/values of the test map
     unset -v wanterr  # unset optional fields
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     ## act
 
     # run the command and capture the output and result code
     local got rc
-    got=$(task.Ln "$targetname" "$linkname" 2>&1) && rc=$? || rc=$?
+    got=$(task.Ln $targetname $linkname 2>&1) && rc=$? || rc=$?
 
     ## assert
 
@@ -379,7 +379,7 @@ test_task.Ln() {
     # assert that we got the wanted output
     local want=$(IFS='*'; echo "*${wants[*]}*")
     [[ $got == $want ]] || {
-      echo "${NL}task.Ln: got doesn't match want:$NL$(tesht.Diff "$got" "$want")$NL"
+      echo "${NL}task.Ln: got doesn't match want:$NL$(tesht.Diff $got $want)$NL"
       echo "use this line to update want to match this output:${NL}want=${got@Q}"
       return 1
     }
@@ -503,12 +503,12 @@ test_task.Ln_relative_target_greenfield() {
     # Sanitize target into a unique linkname per shape.
     sanitized=${target//[\.\/]/_}
     linkname="$dir/link_$sanitized"
-    got=$(task.Ln "$target" "$linkname" 2>&1) && rc=$? || rc=$?
+    got=$(task.Ln $target $linkname 2>&1) && rc=$? || rc=$?
     (( rc == 0 )) || {
       echo "${NL}task.Ln (shape '$target'): error = $rc, want: 0$NL$got"
       failed=1; continue
     }
-    actual=$(readlink "$linkname")
+    actual=$(readlink $linkname)
     [[ $actual == "$target" ]] || {
       echo "${NL}task.Ln (shape '$target'): readlink = $actual, want literal '$target'$NL$got"
       failed=1
@@ -550,11 +550,11 @@ test_task.GitUpdate() {
 
     ## arrange
 
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     local dir
     tesht.MktempDir dir || return 128
-    cd "$dir"
+    cd $dir
 
     # Create "remote" repo and clone it.
     createCloneRepo
@@ -822,15 +822,15 @@ test_task.classify() {
 
     ## arrange
     unset -v condition checkExpr tryFailed shortrun prog unchg
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"
-    [[ -v condition  ]] && ok "$condition"
-    [[ -v checkExpr  ]] && check "$checkExpr"
+    desc $name
+    [[ -v condition  ]] && ok $condition
+    [[ -v checkExpr  ]] && check $checkExpr
     [[ -v tryFailed  ]] && TryFailedX=$tryFailed
-    [[ -v shortrun   ]] && task.SetShortRun "$shortrun"
-    [[ -v prog       ]] && prog "$prog"
-    [[ -v unchg      ]] && unchg "$unchg"
+    [[ -v shortrun   ]] && task.SetShortRun $shortrun
+    [[ -v prog       ]] && prog $prog
+    [[ -v unchg      ]] && unchg $unchg
 
     ## act
     local got
@@ -898,16 +898,16 @@ test_task.classifyResult() {
 
     ## arrange
     unset -v condition unchg output
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
-    desc "$name"
-    [[ -v condition ]] && ok "$condition"
-    [[ -v unchg     ]] && unchg "$unchg"
+    desc $name
+    [[ -v condition ]] && ok $condition
+    [[ -v unchg     ]] && unchg $unchg
     OutputX=${output:-}
 
     ## act
     local got
-    got=$(task.classifyResult "$rc")
+    got=$(task.classifyResult $rc)
 
     ## assert
     [[ $got == "$wants" ]] || {
@@ -964,12 +964,12 @@ test_task.gitUpdateSafe() {
   subtest() {
     local casename=$1
     unset -v want_msg
-    eval "$(tesht.Inherit "$casename")"
+    eval "$(tesht.Inherit $casename)"
 
     local dir
     tesht.MktempDir dir || return 128
 
-    gitUpdateSafe.setupScenario "$dir" "$scenario"
+    gitUpdateSafe.setupScenario $dir $scenario
 
     local got rc
     got=$(task.gitUpdateSafe "$dir/local") && rc=$? || rc=$?
@@ -994,7 +994,7 @@ test_task.gitUpdateSafe() {
 gitUpdateSafe.setupScenario() {
   local dir=$1 scenario=$2
   (
-    cd "$dir"
+    cd $dir
     git init --bare remote
     git clone remote local
     cd local
@@ -1016,7 +1016,7 @@ gitUpdateSafe.setupScenario() {
         ;;
 
       behind-only)
-        cd "$dir"
+        cd $dir
         git clone remote other
         cd other
         git config user.email 'test@test'
@@ -1034,7 +1034,7 @@ gitUpdateSafe.setupScenario() {
         echo ahead > file.txt
         git add file.txt
         git commit -m 'local commit'
-        cd "$dir"
+        cd $dir
         git clone remote other
         cd other
         git config user.email 'test@test'
