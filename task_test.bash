@@ -687,17 +687,18 @@ test_task.GitUpdate() {
         git -C clone -c user.email=test@test -c user.name=test -c commit.gpgsign=false \
           commit --allow-empty -m 'upstream change' >/dev/null 2>&1
 
-        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        local got_
+        got_=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
 
         # Assert success (post-condition does not trip).
         (( rc == 0 )) || {
-          echo "${NL}GitUpdate post-condition happy: error = $rc, want: 0$NL$got"
+          echo "${NL}GitUpdate post-condition happy: error = $rc, want: 0$NL$got_"
           return 1
         }
 
         # Assert NO divergence message in output.
-        [[ $got != *'post-rebase divergence'* ]] || {
-          echo "${NL}GitUpdate post-condition happy: false-positive divergence$NL$got"
+        [[ $got_ != *'post-rebase divergence'* ]] || {
+          echo "${NL}GitUpdate post-condition happy: false-positive divergence$NL$got_"
           return 1
         }
         ;;
@@ -715,32 +716,33 @@ test_task.GitUpdate() {
         # upstream, etc.). All non-rebase git invocations pass through to
         # the real binary. Per tesht.md: this is a thin inter-system
         # boundary stub, not internal mocking.
-        local realGit
-        realGit=$(command -v git)
+        local realGit_
+        realGit_=$(command -v git)
         mkdir -p stub
         cat > stub/git <<STUB
 #!/usr/bin/env bash
 for arg; do
   [[ \$arg == rebase ]] && exit 0
 done
-exec $realGit "\$@"
+exec $realGit_ "\$@"
 STUB
         chmod +x stub/git
         local oldPath=$PATH
         PATH=$PWD/stub:$PATH
 
-        got=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
+        local got_
+        got_=$(task.GitUpdate "$dir/local" 2>&1) && rc=$? || rc=$?
         PATH=$oldPath
 
         # Assert non-zero return (silent no-op surfaces).
         (( rc != 0 )) || {
-          echo "${NL}GitUpdate post-condition no-op: rc=$rc, want non-zero$NL$got"
+          echo "${NL}GitUpdate post-condition no-op: rc=$rc, want non-zero$NL$got_"
           return 1
         }
 
         # Assert output contains the literal divergence message.
-        [[ $got == *'post-rebase divergence'* ]] || {
-          echo "${NL}GitUpdate post-condition no-op: output missing 'post-rebase divergence'$NL$got"
+        [[ $got_ == *'post-rebase divergence'* ]] || {
+          echo "${NL}GitUpdate post-condition no-op: output missing 'post-rebase divergence'$NL$got_"
           return 1
         }
         ;;

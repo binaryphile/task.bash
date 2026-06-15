@@ -382,11 +382,11 @@ task.GitUpdate() {
     # failure. Skipped when rc is already non-zero (real rebase failure
     # already surfaces; don't double-report).
     if (( rc == 0 )); then
-      local behind
-      behind=$(git -C "$dir" rev-list --count HEAD..@{upstream} 2>/dev/null) \
-        || behind=rev-list-failed
-      if [[ $behind != 0 ]]; then
-        echo "post-rebase divergence: $dir still $behind commit(s) behind @{upstream}"
+      local behind_
+      behind_=$(git -C "$dir" rev-list --count 'HEAD..@{upstream}' 2>/dev/null) \
+        || behind_=rev-list-failed
+      if [[ $behind_ != 0 ]]; then
+        echo "post-rebase divergence: $dir still $behind_ commit(s) behind @{upstream}"
         rc=1
       fi
     fi
