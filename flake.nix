@@ -14,7 +14,7 @@
           config.allowUnfree = true; # Allow unfree packages like vscode
         };
       in {
-        devShells.default = pkgs.mkShell {
+        devShells.default = pkgs.mkShellNoCC {
           buildInputs = with pkgs; [
             asciinema
             asciinema-agg
