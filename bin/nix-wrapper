@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Generic wrapper for running commands inside nix develop.
+# Symlink to this file with the name of the command you want to wrap.
+# Example: ln -s nix-wrapper node
+#
+# Uses "nix develop path:DIR" so flake.nix does not need to be git-tracked.
+
+set -eu
+
+# Find flake.nix in `start` or any ancestor, return its directory.
+find_flake_dir() {
+  local dir="$1"
+  while [[ "$dir" != "/" ]]; do
+    [[ -f "$dir/flake.nix" ]] && { echo "$dir"; return 0; }
+    dir=$(dirname "$dir")
+  done
+  return 1
+}
+
+main() {
+  local asCalled folder prog flakeDir
+  asCalled=$(basename "$0")
+  folder=$(cd "$(dirname "$0")"; pwd)
+
+  # Find the real program, excluding our bin/ directory
+  # May be empty for commands that only exist inside nix (node, npm)
+  prog=$(type -Pa "$asCalled" | grep -v "^$folder/" | head -1)
+
+  # If the tool already resolves outside this wrapper, use it directly.
+  # Covers both "not in a nix shell" and "already in an impure shell that
+  # happens to provide this tool" -- no IN_NIX_SHELL check needed here.
+  if [[ -n $prog ]]; then
+    exec "$prog" "$@"
+  fi
+
+  # prog is empty: not reachable outside this wrapper. Try a flake for the
+  # CURRENT directory (not whatever shell we may already be inside -- that
+  # shell has already been ruled out above, since prog came up empty even
+  # while running in it). Deliberately no IN_NIX_SHELL=impure short-circuit:
+  # that check assumed the current impure shell provides every tool, which
+  # is false when cd'ing into a project needing a different flake (#65767).
+  #
+  # Fall back to the wrapper's OWN directory's flake (folder's parent chain)
+  # when $PWD's ancestor search comes up empty -- callers that `cd` away from
+  # the project entirely (e.g. a test's scratch tmpdir) still want THIS
+  # project's devShell, not a failure, since the wrapper symlink itself lives
+  # inside the project that should provide the tool (finances #75244).
+  if flakeDir=$(find_flake_dir "$PWD") || flakeDir=$(find_flake_dir "$folder"); then
+    exec nix develop "path:$flakeDir" -c "$asCalled" "$@"
+  fi
+
+  # No prog, no flake -- nothing left to try. Fail cleanly instead of
+  # exec'ing an empty/self-resolving string: `exec "${prog:-$asCalled}"`
+  # here infinite-loops, because $asCalled re-resolves through PATH back to
+  # this same wrapper in the same shell (era a4f61198ea98).
+  echo "$asCalled: command not found (no flake providing it in $PWD or any ancestor)" >&2
+  exit 127
+}
+
+main "$@"
