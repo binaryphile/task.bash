@@ -4,6 +4,11 @@
 # Example: ln -s nix-wrapper node
 #
 # Uses "nix develop path:DIR" so flake.nix does not need to be git-tracked.
+#
+# This file is vendored independently per-project -- there is no central
+# sync mechanism. Fixes made here (or found stale here) must be manually
+# propagated to every other project's bin/nix-wrapper. Check for drift with:
+#   for f in ~/projects/*/bin/nix-wrapper; do md5sum "$f"; done | sort | uniq -c -w32
 
 set -eu
 
