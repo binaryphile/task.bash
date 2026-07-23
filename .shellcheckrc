@@ -1,0 +1,16 @@
+# Repo-local .shellcheckrc for task.bash. A directory-local .shellcheckrc
+# takes precedence over ~/.shellcheckrc rather than merging with it, so the
+# global disable list is replicated here (see ~/.shellcheckrc for the
+# per-code rationale) plus one addition specific to this repo.
+disable=SC2086,SC2046,SC2053,SC1010,SC1090,SC1091,SC2064,SC2015,SC2016,SC2088,SC2206,SC2068,SC2178,SC2229,SC2317,SC2329,SC2154,SC2034,SC2164,SC9010
+
+# SC9010: task.bash is a LIBRARY (per bash-style-guide.md "Safety preamble":
+# libraries leave strict mode and IFS to their callers -- consumers set
+# IFS=$'\n'/noglob/set -e AFTER sourcing, so the library itself must not
+# force a policy on them). SC9010 assumes every file should have the
+# IFS+noglob preamble and can't distinguish "library, intentionally exempt
+# by convention" from "script, forgot the discipline" -- disabled here for
+# that reason, not as a blanket opt-out. task_test.bash (the library's
+# consumer/test file) DOES set the preamble; SC9010 simply doesn't fire
+# there regardless of this disable (the file has the preamble), so this
+# line has no effect on it.
