@@ -311,6 +311,76 @@ test_task.GitClone() {
   }
 }
 
+# test_task.Install exercises task.Install's idempotency contract: a fresh
+# install reports [changed]; an unchanged re-run reports [ok]; and both a
+# content edit to src and a mode drift on dst independently trigger a
+# re-copy ([changed]) instead of silently no-op'ing (the propagation gap
+# this fixes -- see docs/use-cases.md UC-5).
+test_task.Install() {
+  ## arrange
+  local dir
+  tesht.MktempDir dir || return 128  # fatal if can't make dir
+  cd $dir
+  echo v1 > src.txt
+
+  local wantsChanged=(begin 'copy src.txt to dst.txt with mode 644' changed 'copy src.txt to dst.txt with mode 644')
+  local wantChanged_=$(IFS='*'; echo "*${wantsChanged[*]}*")
+  local wantsOk=(ok 'copy src.txt to dst.txt with mode 644')
+  local wantOk_=$(IFS='*'; echo "*${wantsOk[*]}*")
+
+  ## act -- fresh install
+  local got_ rc
+  got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
+
+  ## assert -- fresh install reports changed
+  (( rc == 0 )) || { echo "${NL}task.Install (fresh): error = $rc, want: 0$NL$got_"; return 1; }
+  [[ -e dst.txt ]] || { echo "${NL}task.Install (fresh): expected dst.txt to exist$NL$got_"; return 1; }
+  [[ $got_ == $wantChanged_ ]] || {
+    echo "${NL}task.Install (fresh): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantChanged_")$NL"
+    echo "use this line to update want to match this output:${NL}want=${got_@Q}"
+    return 1
+  }
+
+  ## act -- re-run with unchanged src
+  got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
+
+  ## assert -- reports ok, no re-copy needed
+  (( rc == 0 )) || { echo "${NL}task.Install (unchanged): error = $rc, want: 0$NL$got_"; return 1; }
+  [[ $got_ == $wantOk_ ]] || {
+    echo "${NL}task.Install (unchanged): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantOk_")$NL"
+    echo "use this line to update want to match this output:${NL}want=${got_@Q}"
+    return 1
+  }
+
+  ## act -- edit src content, re-run
+  echo v2 > src.txt
+  got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
+
+  ## assert -- content drift re-copies
+  (( rc == 0 )) || { echo "${NL}task.Install (content drift): error = $rc, want: 0$NL$got_"; return 1; }
+  [[ $(<dst.txt) == v2 ]] || { echo "${NL}task.Install (content drift): dst.txt not updated$NL$got_"; return 1; }
+  [[ $got_ == $wantChanged_ ]] || {
+    echo "${NL}task.Install (content drift): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantChanged_")$NL"
+    echo "use this line to update want to match this output:${NL}want=${got_@Q}"
+    return 1
+  }
+
+  ## act -- mode drift only (chmod dst, src unchanged), re-run
+  chmod 600 dst.txt
+  got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
+
+  ## assert -- mode drift re-copies (re-applies declared mode)
+  (( rc == 0 )) || { echo "${NL}task.Install (mode drift): error = $rc, want: 0$NL$got_"; return 1; }
+  local gotMode_
+  gotMode_=$(find dst.txt -perm 644 -print -quit)
+  [[ -n $gotMode_ ]] || { echo "${NL}task.Install (mode drift): dst.txt mode not restored to 644$NL$got_"; return 1; }
+  [[ $got_ == $wantChanged_ ]] || {
+    echo "${NL}task.Install (mode drift): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantChanged_")$NL"
+    echo "use this line to update want to match this output:${NL}want=${got_@Q}"
+    return 1
+  }
+}
+
 # test_task.Ln tests whether the symlink task works.
 # There are subtests for link creation and when link creation fails.
 # Subtests are run with tesht.Run.

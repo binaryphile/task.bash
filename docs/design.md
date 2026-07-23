@@ -150,6 +150,53 @@ Key semantics:
   poison the outer scope.
 - `try` always returns 0 because `cmd` returns 0 in try mode.
 
+## Install and Ln helpers
+
+### task.Install
+
+Copies `src` to `dst` with a declared permission `mode`. Idempotency check
+(see UC-5) is content+mode, not bare existence:
+
+```bash
+ok "[[ -e '$dst' ]] && cmp -s -- '$src' '$dst' && [[ -n \$(find -- '$dst' -perm '$mode' -print -quit 2>/dev/null) ]]"
+```
+
+Three conjuncts, all must hold for `[ok]`:
+
+- **Existence** (`-e '$dst'`) -- a missing destination is always a fresh install.
+- **Content** (`cmp -s`) -- byte-for-byte comparison; any drift (source edited
+  since the last install) fails this and triggers a re-copy.
+- **Mode** (`find -perm`, not `stat`) -- `stat`'s output-format flags differ
+  between GNU coreutils (`-c %a`) and BSD/macOS (`-f %A` or similar), and
+  `task.Platform()` shows this library explicitly supports both platforms.
+  `find`'s `-perm` predicate with a numeric mode is portable across GNU
+  findutils and BSD find, so it's used instead of parsing a stat format
+  string. `-print -quit` short-circuits after the first match instead of
+  walking further (there's only one path to check).
+
+The `\$(...)` inside the double-quoted `ok` string is deliberate, not a
+typo: `$src`/`$dst`/`$mode` are substituted immediately when `task.Install`
+is called (matching the pre-existing `exist "'$dst'"` pattern), but the
+`find` invocation itself must stay as literal text in `ConditionX` until
+`task.classify` later `eval`s it -- otherwise it would run once at
+declaration time and never reflect the destination's state at the moment
+each subsequent run actually checks it.
+
+Before this check existed, `task.Install` was idempotent purely by
+destination existence: once `dst` existed, editing `src` and re-running
+was a silent no-op. This surfaced in practice via `update-env`, which uses
+`task.Install` to deploy canonical dotfiles-managed files (systemd units,
+etc.) -- a destination that already existed on a machine never picked up
+source edits without manual intervention.
+
+### task.Ln
+
+Symlinks `linkname` -> `targetname`. Idempotency is literal `readlink`
+equality, not content comparison -- a symlink always resolves to its
+current target's live content, so there's no analog of task.Install's
+propagation gap here. No re-run is ever needed for the target's content to
+"propagate": reading through the symlink already sees it.
+
 ## Git helpers
 
 ### task.GitClone

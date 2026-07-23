@@ -417,7 +417,11 @@ task.gitUpdateSafe() {
 task.Install() {
   local mode=$1 src=$2 dst=$3
   desc  "copy $src to $dst with mode $mode"
-  exist "'$dst'"
+  # Content+mode check (not a bare `exist`) so edits to `src` and mode
+  # drift on `dst` both propagate on the next run. `find -perm` (not
+  # `stat`) for the mode check -- stat's format flags differ between GNU
+  # and BSD/macOS, and task.Platform() shows this library supports both.
+  ok "[[ -e '$dst' ]] && cmp -s -- '$src' '$dst' && [[ -n \$(find -- '$dst' -perm '$mode' -print -quit 2>/dev/null) ]]"
 
   task.install() {
     [[ $mode == 600 ]] && local dirMode=700

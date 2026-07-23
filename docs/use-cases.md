@@ -179,3 +179,31 @@
   - Status colors: green (ok, changed), orange (tried, skipping, output), red (failed), yellow (begin, progress)
 - **Success Guarantee:** Every executed task has exactly one status line; summary counts are accurate.
 - **Minimal Guarantee:** Status lines are always printed, even on failure.
+
+---
+
+### UC-5: Keep Installed Files Synchronized with Their Source
+
+- **Primary Actor:** Script Author
+- **Goal:** Ensure a file installed to a destination stays current with its canonical source, across repeated runs
+- **Scope:** task.bash
+- **Level:** User goal
+- **Trigger:** Author calls `task.Install MODE SRC DST`
+- **Preconditions:** SRC exists and is readable
+- **Stakeholders:**
+  - Script Author -- edits a canonical source file and expects the next run to propagate it, without manually tracking which destinations already exist
+  - End User -- machines converge on the same file content and permissions regardless of how long ago the destination was first created
+- **Main Success Scenario:**
+  1. Author calls `task.Install MODE SRC DST`.
+  2. System validates whether DST exists, its content matches SRC byte-for-byte, and its permission bits match MODE.
+  3. All three hold: system reports `[ok]`, no copy performed.
+  4. Any one fails to hold: system creates DST's parent directory if needed, copies SRC to DST with MODE, reports `[changed]`.
+- **Extensions:**
+  - 2a. DST does not exist (first run):
+    1. Rejoins MSS at step 4 as a fresh install.
+  - 2b. DST exists, content matches, but MODE has drifted (e.g. manually chmod'd):
+    1. Rejoins MSS at step 4; the copy re-applies MODE even though bytes are already identical.
+  - 2c. DST exists, MODE matches, but SRC's content has since changed:
+    1. Rejoins MSS at step 4 -- this is the propagation case: editing the canonical SRC and re-running converges DST to the new content.
+- **Success Guarantee:** DST's content and permission bits always match SRC and MODE after a run, regardless of DST's prior state.
+- **Minimal Guarantee:** A DST that already matches SRC and MODE is never needlessly recopied.
