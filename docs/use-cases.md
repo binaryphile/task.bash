@@ -189,7 +189,7 @@
 - **Scope:** task.bash
 - **Level:** User goal
 - **Trigger:** Author calls `task.Install MODE SRC DST`
-- **Preconditions:** SRC exists and is readable
+- **Preconditions:** SRC exists and is readable; DST is (or is expected to become) an ordinary file -- SRC or DST containing a literal `'` is outside this use case's contract (see design.md's task.Install section)
 - **Stakeholders:**
   - Script Author -- edits a canonical source file and expects the next run to propagate it, without manually tracking which destinations already exist
   - End User -- machines converge on the same file content and permissions regardless of how long ago the destination was first created
@@ -205,5 +205,5 @@
     1. Rejoins MSS at step 4; the copy re-applies MODE even though bytes are already identical.
   - 2c. DST exists, MODE matches, but SRC's content has since changed:
     1. Rejoins MSS at step 4 -- this is the propagation case: editing the canonical SRC and re-running converges DST to the new content.
-- **Success Guarantee:** DST's content and permission bits always match SRC and MODE after a run, regardless of DST's prior state.
+- **Success Guarantee:** When DST is an ordinary file and `install -m` succeeds, its content and permission bits match SRC and MODE after a run, regardless of DST's prior state. Behavior when DST is a symlink or directory is unspecified.
 - **Minimal Guarantee:** A DST that already matches SRC and MODE is never needlessly recopied.

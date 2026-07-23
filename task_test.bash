@@ -311,11 +311,15 @@ test_task.GitClone() {
   }
 }
 
-# test_task.Install exercises task.Install's idempotency contract: a fresh
-# install reports [changed]; an unchanged re-run reports [ok]; and both a
-# content edit to src and a mode drift on dst independently trigger a
-# re-copy ([changed]) instead of silently no-op'ing (the propagation gap
-# this fixes -- see docs/use-cases.md UC-5).
+# test_task.Install exercises task.Install's idempotency contract as one
+# stateful sequence over a single src/dst pair (not four independent
+# cases -- an earlier phase failing means later phases don't run, which is
+# fail-fast, not masking, but it does mean coverage narrows on the first
+# failure): a fresh install reports [changed] and actually copies bytes +
+# mode; an unchanged re-run reports [ok] and leaves dst genuinely
+# untouched; a content edit to src and a mode drift on dst each
+# independently trigger a re-copy ([changed]) instead of silently
+# no-op'ing (the propagation gap this fixes -- see docs/use-cases.md UC-5).
 test_task.Install() {
   ## arrange
   local dir
@@ -332,9 +336,11 @@ test_task.Install() {
   local got_ rc
   got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
 
-  ## assert -- fresh install reports changed
+  ## assert -- fresh install reports changed, copies bytes, sets mode
   (( rc == 0 )) || { echo "${NL}task.Install (fresh): error = $rc, want: 0$NL$got_"; return 1; }
   [[ -e dst.txt ]] || { echo "${NL}task.Install (fresh): expected dst.txt to exist$NL$got_"; return 1; }
+  [[ $(<dst.txt) == v1 ]] || { echo "${NL}task.Install (fresh): dst.txt content = $(<dst.txt), want v1$NL$got_"; return 1; }
+  [[ -n $(find dst.txt -perm 644 -print -quit) ]] || { echo "${NL}task.Install (fresh): dst.txt mode not set to 644$NL$got_"; return 1; }
   [[ $got_ == $wantChanged_ ]] || {
     echo "${NL}task.Install (fresh): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantChanged_")$NL"
     echo "use this line to update want to match this output:${NL}want=${got_@Q}"
@@ -344,8 +350,10 @@ test_task.Install() {
   ## act -- re-run with unchanged src
   got_=$(task.Install 644 src.txt dst.txt 2>&1) && rc=$? || rc=$?
 
-  ## assert -- reports ok, no re-copy needed
+  ## assert -- reports ok, dst.txt genuinely untouched (content + mode)
   (( rc == 0 )) || { echo "${NL}task.Install (unchanged): error = $rc, want: 0$NL$got_"; return 1; }
+  [[ $(<dst.txt) == v1 ]] || { echo "${NL}task.Install (unchanged): dst.txt content changed to $(<dst.txt), want unchanged v1$NL$got_"; return 1; }
+  [[ -n $(find dst.txt -perm 644 -print -quit) ]] || { echo "${NL}task.Install (unchanged): dst.txt mode changed, want unchanged 644$NL$got_"; return 1; }
   [[ $got_ == $wantOk_ ]] || {
     echo "${NL}task.Install (unchanged): got doesn't match want:$NL$(tesht.Diff "$got_" "$wantOk_")$NL"
     echo "use this line to update want to match this output:${NL}want=${got_@Q}"

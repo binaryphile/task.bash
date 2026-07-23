@@ -189,6 +189,23 @@ was a silent no-op. This surfaced in practice via `update-env`, which uses
 etc.) -- a destination that already existed on a machine never picked up
 source edits without manual intervention.
 
+**Known limitation, widened by this change (icarus /grade #29586 F4):**
+`ConditionX` is built by substituting `$src`/`$dst` inside single quotes,
+so a literal `'` in either path breaks the generated `[[ ]]`/`eval`
+expression. The pre-existing `exist "'$dst'"` check already had this for
+`dst`; this change extends it to `src` too, since `src` is now
+interpolated into the condition for the first time. This is unchanged
+"same shape" technical debt, not a new class of bug, but it is a strictly
+larger surface than before -- worth knowing if callers ever pass paths
+containing single quotes (outside this library's assumed contract).
+
+**Postcondition scope:** "content and mode always match after a run" (see
+UC-5) assumes `dst` is (or becomes) an ordinary file. The predicate itself
+only classifies `dst`'s *current* state; it does not verify that
+`task.install`'s `install -m` actually achieved the postcondition, and
+neither the check nor `task.install` special-cases `dst` being a symlink
+or a directory -- behavior there is unspecified, not tested.
+
 ### task.Ln
 
 Symlinks `linkname` -> `targetname`. Idempotency is literal `readlink`
