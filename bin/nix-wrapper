@@ -51,7 +51,48 @@ main() {
   # project's devShell, not a failure, since the wrapper symlink itself lives
   # inside the project that should provide the tool (finances #75244).
   if flakeDir=$(find_flake_dir "$PWD") || flakeDir=$(find_flake_dir "$folder"); then
-    exec nix develop "path:$flakeDir" -c "$asCalled" "$@"
+    flakeDir=$(realpath "$flakeDir")
+
+    # Re-entry guard (jeeves #128507): nix develop is not idempotent on
+    # re-entry -- each level layers the devShell's PATH on top of the
+    # inherited environment rather than detecting "already in this exact
+    # devShell." NIX_WRAPPER_DEVSHELLS is a colon-delimited ANCESTRY LIST
+    # (not a single last-entered marker) of every canonicalized flakeDir
+    # this shell lineage has already entered via this wrapper -- a scalar
+    # marker only catches immediate self-re-entry (A->A) and misses an
+    # interleaved A->B->A cycle, which still stacks A's PATH a second time.
+    # Membership is tested via `grep -qF` (literal substring, not a glob
+    # pattern) -- a `case`/glob membership test mis-evaluates any flakeDir
+    # containing shell glob metacharacters (*, ?, [) as pattern syntax
+    # instead of literal text, producing false membership results. grep -F
+    # sidesteps this entirely. The colon delimiter itself remains a
+    # disclosed (not engineered-around) residual -- a flakeDir containing a
+    # literal ':' could in theory defeat the boundary check, but nix flake
+    # dirs in this ecosystem are always plain filesystem paths under the
+    # user's own project trees, where a literal colon would already break
+    # numerous other tools; accepted as practically unreachable rather than
+    # solved with a length-prefixed encoding.
+    #
+    # Residual, disclosed rather than assumed away: this is an
+    # env-var-propagation-based guard, not a kernel-enforced one -- it is
+    # defeated by deliberate environment scrubbing between levels (env -i,
+    # sudo without -E, a shellHook that unsets or overwrites
+    # NIX_WRAPPER_DEVSHELLS). Same disclosed-residual shape as this
+    # ecosystem's other env-propagated markers (era's EVTCTL_HOOK_IDENTITY,
+    # evtctl.md "Mux identity detail"). This is wrapper-internal state --
+    # manually exporting NIX_WRAPPER_DEVSHELLS is a misuse, not a supported
+    # interface.
+    if [[ $flakeDir == *:* || $flakeDir == *$'\n'* ]]; then
+      echo "$asCalled: flakeDir '$flakeDir' contains a colon or newline -- cannot safely track ancestry, refusing (jeeves #128507)" >&2
+      exit 127
+    fi
+
+    if grep -qF ":$flakeDir:" <<<":${NIX_WRAPPER_DEVSHELLS:-}:"; then
+      echo "$asCalled: already inside nix develop for $flakeDir (ancestry: ${NIX_WRAPPER_DEVSHELLS:-none}) but $asCalled is not on PATH -- refusing to re-enter (would stack PATH; see jeeves #128507)" >&2
+      exit 127
+    fi
+
+    exec env NIX_WRAPPER_DEVSHELLS="${NIX_WRAPPER_DEVSHELLS:+$NIX_WRAPPER_DEVSHELLS:}$flakeDir" nix develop "path:$flakeDir" -c "$asCalled" "$@"
   fi
 
   # No prog, no flake -- nothing left to try. Fail cleanly instead of
